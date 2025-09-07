@@ -23,10 +23,5 @@ The Tale of Genji Poetry Database is an ongoing project created by Professor J. 
 - **Database**: [Neo4j](https://neo4j.com/) - A graph database that efficiently organizes the relationships between characters, poems, and their metadata. We utilize Cypher queries to retrieve and display relevant data on the web app.
 - **Tools**: Aura, Bloom, Browser for DB management, including querying, importing CSV data, and visualizing relationships.
 
-### UI Components
-
-- **AntDesign**: A minimalistic, consistent UI library that helps maintain a clean and user-friendly interface.
-- **D3**: Used for interactive data visualizations in the MicroSearch Page.
-
 ##
 We hope you enjoy exploring the poems of The Tale of Genji. Stay tuned for new features and updates!
