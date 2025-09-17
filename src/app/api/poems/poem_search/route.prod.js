@@ -91,7 +91,14 @@ async function generalSearch(q) {
                 COALESCE([x IN translations WHERE x.translator_name = "Tyler"][0].text, "") AS Tyler_translation,
                 COALESCE([x IN translations WHERE x.translator_name = "Washburn"][0].text, "") AS Washburn_translation,
                 COALESCE([x IN translations WHERE x.translator_name = "Cranston"][0].text, "") AS Cranston_translation,
-                EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Omitted By Waley"}) } AS omitted_by_waley
+                EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Omitted By Waley"}) } AS omitted_by_waley,
+                EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Omitted by Seidensticker"}) } AS omitted_by_seidensticker,
+                EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Bad Poems"}) } AS bad_poems,
+                EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Group Poem"}) } AS group_poem_tag,
+                EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Character Name Poem"}) } AS character_name_poem,
+                EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Chapter Title Poem"}) } AS chapter_title_poem,
+                EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Morning After Poem"}) } AS morning_after_poem,
+                EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Proxy Poem"}) } AS proxy_poem
             ORDER BY pnum
         `;
 
@@ -131,6 +138,13 @@ async function generalSearch(q) {
                     washburn_translation:      record.get('Washburn_translation') || "",
                     cranston_translation:      record.get('Cranston_translation') || "",
                     omitted_by_waley: !!record.get('omitted_by_waley'),
+                    omitted_by_seidensticker: !!record.get('omitted_by_seidensticker'),
+                    bad_poems: !!record.get('bad_poems'),
+                    group_poem_tag: !!record.get('group_poem_tag'),
+                    character_name_poem: !!record.get('character_name_poem'),
+                    chapter_title_poem: !!record.get('chapter_title_poem'),
+                    morning_after_poem: !!record.get('morning_after_poem'),
+                    proxy_poem: !!record.get('proxy_poem'),
                 };
             });
 
