@@ -12,7 +12,7 @@ async function getData (chapter, number){
 		resHonkaInfo:  'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[n:ALLUDES_TO]->(h:Honka)-[r:ANTHOLOGIZED_IN]-(s:Source), (h)<-[:AUTHOR_OF]-(a:People), (h)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(p:People) where g.pnum ends with "' + number + '" return h.Honka as honka, h.Romaji as romaji, s.title as title, a.name as poet, r.order as order, p.name as translator, t.translation as translation, n.notes as notes',
 		resRel : 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[r:INTERNAL_ALLUSION_TO]->(s:Genji_Poem) where g.pnum ends with "' + number + '" return s.pnum as rel, r.evidence as internal_allusion_evidence',
 		resPnum : 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(c:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH (CASE WHEN "' + number + '" < 10 THEN \'0\' + toString("' + number + '") ELSE toString($number) END) RETURN g.pnum as pnum',
-		resTag : 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:TAGGED_AS]->(t:Tag) where g.pnum ends with "' + number + '" return t.Type as type',
+		resTag : 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[tag_edge:TAGGED_AS]->(t:Tag) where g.pnum ends with "' + number + '" return t.Type as type, tag_edge.evidence as evidence',
 		resType : 'match (t:Tag) return t.Type as type',
 		resSeason : 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(c:Chapter {chapter_number: "' + chapter + '"}), (g:Genji_Poem)-[r:IN_SEASON_OF]->(s:Season) WHERE g.pnum ends with "' + number + '" RETURN s.name as season, r.evidence as season_evidence',
 		resKigo : 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(c:Chapter {chapter_number: "' + chapter + '"}), (g:Genji_Poem)-[r:HAS_SEASONAL_WORD_OF]->(sw:Seasonal_Word) WHERE g.pnum ends with "' + number + '" RETURN sw.japanese as sw_jp, sw.english as sw_en, r.evidence as sw_evidence',
@@ -100,10 +100,16 @@ async function getData (chapter, number){
 
 
 		//res tag
-		let tags = new Set()
-		result['resTag'].records.map(e => toNativeTypes(e.get('type'))).forEach(e => tags.add([Object.values(e).join('')]))
-		tags = Array.from(tags).flat()
-		tags = tags.map(e => [e, true])
+		let tags = [];
+		const seenTypes = new Set();
+		result['resTag'].records.forEach(rec => {
+			const type = rec.get('type');               
+			const evidence = rec.get('evidence') || null;
+			if (type && !seenTypes.has(type)) {
+				seenTypes.add(type);
+				tags.push([type, true, evidence]); // [name, flag, evidence]
+			}
+		});
 
 		//types
 		let types = result['resType'].records.map(e => e.get('type'))
