@@ -101,7 +101,7 @@
 .filterInput {
   width: 100%;
   padding: 12px 10px;
-  font-size: 14px;
+  font-size: 16px;
   background-color: transparent;
   border: none;
   border-bottom: 1px solid #8f7b66;
@@ -118,6 +118,71 @@
 
 .filterInput::placeholder {
   color: #8f7b66;
+}
+
+/* Chapter Dropdown Styles */
+.chapterInputContainer {
+  position: relative;
+}
+
+.clearChapterButton {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #8f7b66;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  z-index: 1001;
+}
+
+.clearChapterButton:hover {
+  background-color: rgba(143, 123, 102, 0.2);
+  color: #6b5b4a;
+}
+
+.chapterDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #efe6da;
+  border: 1px solid #8f7b66;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.chapterOption {
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1f1f1f;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(143, 123, 102, 0.2);
+  transition: background-color 0.2s ease;
+  line-height: 1.4;
+}
+
+.chapterOption:hover {
+  background-color: #d4c7b8;
+}
+
+.chapterOption:last-child {
+  border-bottom: none;
 }
 
 /* Filter Section */

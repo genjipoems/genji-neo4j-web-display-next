@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { debounce } from 'lodash';
-import Link from 'next/link';
 import styles from '../styles/pages/mobileFilterSearch.module.css';
 
 // Helper functions from the original component
@@ -22,6 +21,47 @@ const getChapterName = (String) => {
   return chapterNames[formattedKey] || "Unknown Chapter";
 };
 
+// Filter chapters based on search input (supports chapter number or name in English/Japanese)
+const getFilteredChapters = (searchText) => {
+  const search = searchText.toLowerCase().trim();
+  if (!search) return [];
+  
+  const chapterNames = {
+    '01': 'Kiritsubo 桐壺', '02': 'Hahakigi 帚木', '03': 'Utsusemi 空蝉', '04': 'Yūgao 夕顔', '05': 'Wakamurasaki 若紫', '06': 'Suetsumuhana 末摘花', '07': 'Momiji no Ga 紅葉賀', '08': 'Hana no En 花宴', '09': 'Aoi 葵', 
+    '10': 'Sakaki 榊', '11': 'Hana Chiru Sato 花散里', '12': 'Suma 須磨', '13': 'Akashi 明石', '14': 'Miotsukushi 澪標', '15': 'Yomogiu 蓬生', '16': 'Sekiya 関屋', '17': 'E Awase 絵合', '18': 'Matsukaze 松風', 
+    '19': 'Usugumo 薄雲', '20': 'Asagao 朝顔', '21': 'Otome 乙女', '22': 'Tamakazura 玉鬘', '23': 'Hatsune 初音', '24': 'Kochō 胡蝶', '25': 'Hotaru 螢', '26': 'Tokonatsu 常夏', '27': 'Kagaribi 篝火', 
+    '28': 'Nowaki 野分', '29': 'Miyuki 行幸', '30': 'Fujibakama 藤袴', '31': 'Makibashira 真木柱', '32': 'Umegae 梅枝', '33': 'Fuji no Uraba 藤裏葉', '34': 'Wakana: Jō 若菜上', '35': 'Wakana: Ge 若菜下', 
+    '36': 'Kashiwagi 柏木', '37': 'Yokobue 横笛', '38': 'Suzumushi 鈴虫', '39': 'Yūgiri 夕霧', '40': 'Minori 御法', '41': 'Maboroshi 幻', '42': 'Niou Miya 匂宮', '43': 'Kōbai 紅梅', '44': 'Takekawa 竹河', 
+    '45': 'Hashihime 橋姫', '46': 'Shii ga Moto 椎本', '47': 'Agemaki 総角', '48': 'Sawarabi 早蕨', '49': 'Yadorigi 宿木', '50': 'Azumaya 東屋', '51': 'Ukifune 浮舟', '52': 'Kagerō 蜻蛉', '53': 'Tenarai 手習', 
+    '54': 'Yume no Ukihashi 夢浮橋'
+  };
+  
+  return Object.entries(chapterNames)
+    .filter(([chapterNum, chapterName]) => {
+      const paddedMatches = chapterNum.includes(search);
+      const unpaddedMatches = removeLeadingZero(chapterNum).includes(search);
+      const nameMatches = chapterName.toLowerCase().includes(search);
+      return paddedMatches || unpaddedMatches || nameMatches;
+    })
+    .map(([chapterNum, chapterName]) => ({
+      chapterNum,
+      chapterName,
+      displayText: `${removeLeadingZero(chapterNum)} - ${chapterName}`,
+      numericChapter: parseInt(chapterNum, 10),
+      isExactMatch: removeLeadingZero(chapterNum) === search,
+      startsWithSearch: removeLeadingZero(chapterNum).startsWith(search)
+    }))
+    .sort((a, b) => {
+      if (a.isExactMatch && !b.isExactMatch) return -1;
+      if (!a.isExactMatch && b.isExactMatch) return 1;
+      if (a.startsWithSearch && !b.startsWithSearch) return -1;
+      if (!a.startsWithSearch && b.startsWithSearch) return 1;
+      return a.numericChapter - b.numericChapter;
+    });
+  
+  return results;
+};
+
 const MobileFilterSearch = () => {
   const [query, setQuery] = useState("");
   const [error, setError] = useState(null);
@@ -34,9 +74,12 @@ const MobileFilterSearch = () => {
   // Search filters (keep only chapter input alongside main keyword)
   const [searchChapter, setSearchChapter] = useState("");
   
+  // Dropdown state for chapter selection
+  const [showChapterDropdown, setShowChapterDropdown] = useState(false);
+  const [selectedChapter, setSelectedChapter] = useState("");
+  
   // Filter options (we won't render the available value pills; keep chapter selection minimal)
   const [availableChapters, setAvailableChapters] = useState([]);
-  const [selectedChapters, setSelectedChapters] = useState([]);
 
   // Highlight matching keywords
   const highlightMatch = (text, query) => {
@@ -114,23 +157,21 @@ const MobileFilterSearch = () => {
     handleSearch(query);
   }, [query, handleSearch]);
 
-  // Filter results based on selected chapter filters and the typed chapter search
+  // Filter results based on selected chapter filter
   const filteredResults = useMemo(() => {
-    const sc = (searchChapter || '').trim().toLowerCase();
     return results.filter(result => {
-      const chapterMatchSelected = selectedChapters.length === 0 || selectedChapters.includes(result.chapterNum);
-
-      // If user typed into the chapter search box, filter by chapter number or chapter name
-      let chapterMatchSearch = true;
-      if (sc !== '') {
-        const formatted = result.chapterNum.toString().padStart(2, '0');
-        const chapterName = getChapterName(formatted).toLowerCase();
-        chapterMatchSearch = formatted.includes(sc) || chapterName.includes(sc);
+      // If a specific chapter is selected, only show poems from that chapter
+      if (selectedChapter) {
+        // Handle both padded ("01") and unpadded ("1") chapter numbers
+        const resultChapterPadded = result.chapterNum.padStart(2, '0');
+        const selectedChapterPadded = selectedChapter.padStart(2, '0');
+        return resultChapterPadded === selectedChapterPadded;
       }
-
-      return chapterMatchSelected && chapterMatchSearch;
+      
+      // If no specific chapter is selected, show all results
+      return true;
     });
-  }, [results, selectedChapters, searchChapter]);
+  }, [results, selectedChapter]);
 
   const handlePoemClick = (poem) => {
     setSelectedPoem(poem);
@@ -151,19 +192,80 @@ const MobileFilterSearch = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [showModal]);
 
-  // Only chapter filter toggle is needed in mobile simplified UI
-  const handleFilterToggle = (value) => {
-    if (selectedChapters.includes(value)) {
-      setSelectedChapters(selectedChapters.filter(item => item !== value));
-    } else {
-      setSelectedChapters([...selectedChapters, value]);
+  // Handle chapter dropdown interactions
+  const handleChapterInputChange = (e) => {
+    const value = e.target.value;
+    
+    // If user starts deleting from a selected chapter, clear the selection and input
+    if (selectedChapter) {
+      // Get the current selected chapter's display text
+      const allChapters = Object.entries({
+        '01': 'Kiritsubo 桐壺', '02': 'Hahakigi 帚木', '03': 'Utsusemi 空蝉', '04': 'Yūgao 夕顔', '05': 'Wakamurasaki 若紫', '06': 'Suetsumuhana 末摘花', '07': 'Momiji no Ga 紅葉賀', '08': 'Hana no En 花宴', '09': 'Aoi 葵', 
+        '10': 'Sakaki 榊', '11': 'Hana Chiru Sato 花散里', '12': 'Suma 須磨', '13': 'Akashi 明石', '14': 'Miotsukushi 澪標', '15': 'Yomogiu 蓬生', '16': 'Sekiya 関屋', '17': 'E Awase 絵合', '18': 'Matsukaze 松風', 
+        '19': 'Usugumo 薄雲', '20': 'Asagao 朝顔', '21': 'Otome 乙女', '22': 'Tamakazura 玉鬘', '23': 'Hatsune 初音', '24': 'Kochō 胡蝶', '25': 'Hotaru 螢', '26': 'Tokonatsu 常夏', '27': 'Kagaribi 篝火', 
+        '28': 'Nowaki 野分', '29': 'Miyuki 行幸', '30': 'Fujibakama 藤袴', '31': 'Makibashira 真木柱', '32': 'Umegae 梅枝', '33': 'Fuji no Uraba 藤裏葉', '34': 'Wakana: Jō 若菜上', '35': 'Wakana: Ge 若菜下', 
+        '36': 'Kashiwagi 柏木', '37': 'Yokobue 横笛', '38': 'Suzumushi 鈴虫', '39': 'Yūgiri 夕霧', '40': 'Minori 御法', '41': 'Maboroshi 幻', '42': 'Niou Miya 匂宮', '43': 'Kōbai 紅梅', '44': 'Takekawa 竹河', 
+        '45': 'Hashihime 橋姫', '46': 'Shii ga Moto 椎本', '47': 'Agemaki 総角', '48': 'Sawarabi 早蕨', '49': 'Yadorigi 宿木', '50': 'Azumaya 東屋', '51': 'Ukifune 浮舟', '52': 'Kagerō 蜻蛉', '53': 'Tenarai 手習', 
+        '54': 'Yume no Ukihashi 夢浮橋'
+      }).map(([chapterNum, chapterName]) => ({
+        chapterNum,
+        displayText: `${removeLeadingZero(chapterNum)} - ${chapterName}`
+      }));
+      
+      // Find the current chapter by comparing padded versions
+      const currentChapterData = allChapters.find(ch => {
+        const chapterPadded = ch.chapterNum.padStart(2, '0');
+        const selectedPadded = selectedChapter.padStart(2, '0');
+        return chapterPadded === selectedPadded;
+      });
+      
+      // If the input no longer matches the selected chapter's display text exactly, clear everything
+      if (!currentChapterData || value !== currentChapterData.displayText) {
+        setSelectedChapter("");
+        setSearchChapter(""); // Clear the input text as well
+        setShowChapterDropdown(false);
+        return; // Exit early since we're clearing everything
+      }
+    }
+    
+    // Only update the search chapter if we're not clearing it above
+    setSearchChapter(value);
+    setShowChapterDropdown(value.trim().length > 0);
+  };
+
+  const handleChapterInputFocus = () => {
+    if (searchChapter.trim().length > 0) {
+      setShowChapterDropdown(true);
     }
   };
 
+  const handleChapterInputBlur = () => {
+    // Delay hiding dropdown to allow for clicks
+    setTimeout(() => setShowChapterDropdown(false), 200);
+  };
+
+  const handleChapterSelect = (chapter) => {
+    setSearchChapter(chapter.displayText);
+    setSelectedChapter(chapter.chapterNum);
+    setShowChapterDropdown(false);
+  };
+
+  const clearChapterFilter = () => {
+    setSelectedChapter("");
+    setSearchChapter("");
+    setShowChapterDropdown(false);
+  };
+
+  // Get filtered chapters for dropdown
+  const filteredChapters = useMemo(() => {
+    return getFilteredChapters(searchChapter);
+  }, [searchChapter]);
+
   const clearAllFilters = () => {
-    setSelectedChapters([]);
+    setSelectedChapter("");
     setSearchChapter("");
     setQuery("");
+    setShowChapterDropdown(false);
   };
 
   return (
@@ -184,13 +286,43 @@ const MobileFilterSearch = () => {
         />
 
         <div className={styles.filterInputs}>
-          <input
-            type="text"
-            value={searchChapter}
-            onChange={(e) => setSearchChapter(e.target.value)}
-            placeholder="Filter chapters..."
-            className={styles.filterInput}
-          />
+          <div className={styles.chapterInputContainer}>
+            <input
+              type="text"
+              value={searchChapter}
+              onChange={handleChapterInputChange}
+              onFocus={handleChapterInputFocus}
+              onBlur={handleChapterInputBlur}
+              placeholder="Filter chapters..."
+              className={styles.filterInput}
+            />
+            
+            {/* Clear Chapter Button - only shows when chapter is selected */}
+            {selectedChapter && (
+              <button 
+                className={styles.clearChapterButton}
+                onClick={clearChapterFilter}
+                aria-label="Clear chapter filter"
+              >
+                ×
+              </button>
+            )}
+            
+            {/* Chapter Dropdown */}
+            {showChapterDropdown && filteredChapters.length > 0 && (
+              <div className={styles.chapterDropdown}>
+                {filteredChapters.map((chapter) => (
+                  <div
+                    key={chapter.chapterNum}
+                    className={styles.chapterOption}
+                    onClick={() => handleChapterSelect(chapter)}
+                  >
+                    {chapter.displayText}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
