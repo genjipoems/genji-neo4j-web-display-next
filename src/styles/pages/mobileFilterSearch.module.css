@@ -141,13 +141,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
   transition: all 0.2s ease;
-  z-index: 1001;
+  z-index: 999; /* Lower than dropdown so it's hidden when dropdown appears */
 }
 
 .clearChapterButton:hover {
-  background-color: rgba(143, 123, 102, 0.2);
   color: #6b5b4a;
 }
 
