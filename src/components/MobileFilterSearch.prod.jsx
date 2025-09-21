@@ -24,7 +24,6 @@ const getChapterName = (String) => {
 // Filter chapters based on search input (supports chapter number or name in English/Japanese)
 const getFilteredChapters = (searchText) => {
   const search = searchText.toLowerCase().trim();
-  if (!search) return [];
   
   const chapterNames = {
     '01': 'Kiritsubo 桐壺', '02': 'Hahakigi 帚木', '03': 'Utsusemi 空蝉', '04': 'Yūgao 夕顔', '05': 'Wakamurasaki 若紫', '06': 'Suetsumuhana 末摘花', '07': 'Momiji no Ga 紅葉賀', '08': 'Hana no En 花宴', '09': 'Aoi 葵', 
@@ -35,6 +34,20 @@ const getFilteredChapters = (searchText) => {
     '45': 'Hashihime 橋姫', '46': 'Shii ga Moto 椎本', '47': 'Agemaki 総角', '48': 'Sawarabi 早蕨', '49': 'Yadorigi 宿木', '50': 'Azumaya 東屋', '51': 'Ukifune 浮舟', '52': 'Kagerō 蜻蛉', '53': 'Tenarai 手習', 
     '54': 'Yume no Ukihashi 夢浮橋'
   };
+  
+  // If no search text, return all chapters
+  if (!search) {
+    return Object.entries(chapterNames)
+      .map(([chapterNum, chapterName]) => ({
+        chapterNum,
+        chapterName,
+        displayText: `${removeLeadingZero(chapterNum)} - ${chapterName}`,
+        numericChapter: parseInt(chapterNum, 10),
+        isExactMatch: false,
+        startsWithSearch: false
+      }))
+      .sort((a, b) => a.numericChapter - b.numericChapter);
+  }
   
   return Object.entries(chapterNames)
     .filter(([chapterNum, chapterName]) => {
@@ -58,8 +71,6 @@ const getFilteredChapters = (searchText) => {
       if (!a.startsWithSearch && b.startsWithSearch) return 1;
       return a.numericChapter - b.numericChapter;
     });
-  
-  return results;
 };
 
 const MobileFilterSearch = () => {
@@ -230,13 +241,12 @@ const MobileFilterSearch = () => {
     
     // Only update the search chapter if we're not clearing it above
     setSearchChapter(value);
-    setShowChapterDropdown(value.trim().length > 0);
+    setShowChapterDropdown(true); // Always show dropdown when typing
   };
 
   const handleChapterInputFocus = () => {
-    if (searchChapter.trim().length > 0) {
-      setShowChapterDropdown(true);
-    }
+    // Always show dropdown on focus, even if empty
+    setShowChapterDropdown(true);
   };
 
   const handleChapterInputBlur = () => {
@@ -309,7 +319,7 @@ const MobileFilterSearch = () => {
             )}
             
             {/* Chapter Dropdown */}
-            {showChapterDropdown && filteredChapters.length > 0 && (
+            {showChapterDropdown && (
               <div className={styles.chapterDropdown}>
                 {filteredChapters.map((chapter) => (
                   <div
