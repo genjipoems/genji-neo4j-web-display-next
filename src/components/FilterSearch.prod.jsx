@@ -19,11 +19,10 @@ const TAG_FIELD_BY_LABEL = {
   'Omitted By Waley': 'omitted_by_waley',
   'Omitted By Seidensticker': 'omitted_by_seidensticker',
   'Bad Poems': 'bad_poems',
-  'Group Poem': 'group_poem_tag',
-  'Character Name Poem': 'character_name_poem',
-  'Chapter Title Poem': 'chapter_title_poem',
-  'Morning After Poem': 'morning_after_poem',
-  'Proxy Poem': 'proxy_poem',
+  // 'Character Name Poem': 'character_name_poem',
+  // 'Chapter Title Poem': 'chapter_title_poem',
+  // 'Morning After Poem': 'morning_after_poem',
+  // 'Proxy Poem': 'proxy_poem',
 };
 
 // funtion to remove leading zero of chapternum and poemnum, ensure the correctness of link
@@ -155,11 +154,10 @@ const PoemSearch = () => {
           'Omitted By Waley': { checked: false },
           'Omitted By Seidensticker': { checked: false },
           'Bad Poems': { checked: false },
-          'Group Poem': { checked: false },
-          'Character Name Poem': { checked: false },
-          'Chapter Title Poem': { checked: false },
-          'Morning After Poem': { checked: false },
-          'Proxy Poem': { checked: false },
+          // 'Character Name Poem': { checked: false },
+          // 'Chapter Title Poem': { checked: false },
+          // 'Morning After Poem': { checked: false },
+          // 'Proxy Poem': { checked: false },
         },
       },
     //   poetic_tech: {
