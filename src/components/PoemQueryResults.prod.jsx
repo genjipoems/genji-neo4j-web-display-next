@@ -357,12 +357,7 @@ const PoemDisplay = ({ poemData }) => {
     poemState.placeOfReceipt ||
     poemState.spoken === 'true' ||
     poemState.written === 'true' ||
-    (Array.isArray(poemState.tag) && poemState.tag.some(t =>
-        (t[0] === 'Character Name Poem' && t[1]) ||
-        (t[0] === 'Chapter Title Poem' && t[1]) ||
-        (t[0] === 'Morning After Poem' && t[1]) ||
-        (t[0] === 'Proxy Poem' && t[1])
-    )) ||
+    (Array.isArray(poemState.tag) && poemState.tag.length > 0) || //display all tags under more details
     (Array.isArray(poemState.replyPoems) && poemState.replyPoems.length > 0) ||
     (Array.isArray(poemState.relWithEvidence) && poemState.relWithEvidence.length > 0) ||
     (Array.isArray(poemState.groupPoems) && poemState.groupPoems.length > 0) ||
@@ -773,8 +768,23 @@ const PoemDisplay = ({ poemData }) => {
                                         </div>
                                     </div>
                                 )}
-                            
-                                {poemState.tag 
+                                {Array.isArray(poemState.tag) && poemState.tag.length > 0 && (
+                                    <div className={styles.detailItem}>
+                                        <h3>TAGS</h3>
+                                        <div className={styles.tagsList}>
+                                            {poemState.tag.filter(tag => tag && tag[0] && tag[1]) // keep true tags
+                                            .map((tag, idx) => (
+                                                <div key={idx} className={styles.tagRow}>
+                                                    <EvidenceDropdown
+                                                        content={tag[0]}     // the tag name
+                                                        evidence={tag[2] || ''} // the evidence from TAGGED_AS edge (may be empty)
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {/* {poemState.tag 
                                     && (
                                            poemState.tag.some(item => item[0] === 'Character Name Poem' && item[1])
                                         || poemState.tag.some(item => item[0] === 'Chapter Title Poem' && item[1])
@@ -800,7 +810,7 @@ const PoemDisplay = ({ poemData }) => {
                                                 return null;
                                             }).filter(Boolean)}
                                         </div>
-                                )}
+                                )} */}
 
                                 {/* {poemState.tag && poemState.tag.some(item => item[0] === 'Character Name Poem' && item[1]) && (
                                     <div className={styles.detailItem}>
