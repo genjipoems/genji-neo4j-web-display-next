@@ -53,7 +53,7 @@ export async function DELETE(request) {
     }
 
     // **Sanitize field name** - expanded to include season and other allowed fields
-    const allowedFields = ["Spoken", "Written", "season", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description"];
+    const allowedFields = ["Spoken", "Written", "season", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description"];
     if (!allowedFields.includes(field)) {
       return new Response(JSON.stringify({ error: "Invalid field param" }), { status: 400 });
     }
@@ -133,6 +133,7 @@ export async function DELETE(request) {
     else if (field === "tag") {
       const query = `
         MATCH (g:Genji_Poem {pnum: $pnum})-[r:TAGGED_AS]->(t:Tag)
+        WHERE t.Type IN ["Proffered Poem", "Reply Poem", "Soliloquy", "Group Poem"]
         DELETE r
         RETURN count(r) as deletedCount
       `;
@@ -141,6 +142,20 @@ export async function DELETE(request) {
       
       const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} poem type relationships` }), { status: 200 });
+    } 
+    // Handle other tags deletion specially (remove TAGGED_AS relationships for other tag types)
+    else if (field === "otherTags") {
+      const query = `
+        MATCH (g:Genji_Poem {pnum: $pnum})-[r:TAGGED_AS]->(t:Tag)
+        WHERE t.Type IN ["Chapter Title Poem", "Character Name Poem", "Bad Poems", "Proxy Poem", "Morning After Poem", "Omitted by Seidensticker"]
+        DELETE r
+        RETURN count(r) as deletedCount
+      `;
+      
+      const result = await session.run(query, { pnum });
+      
+      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
+      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} other tag relationships` }), { status: 200 });
     } 
     // Handle place of composition deletion specially (remove PLACE_OF_COMPOSITION relationship)
     else if (field === "placeOfComp") {
