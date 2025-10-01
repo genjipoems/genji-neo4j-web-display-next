@@ -27,7 +27,8 @@ async function getChapterData(name) {
         MATCH (poem:Genji_Poem)-[:INCLUDED_IN]->(ch)
         OPTIONAL MATCH (poem)<-[:SPEAKER_OF]-(speaker:Character)
         OPTIONAL MATCH (poem)<-[:ADDRESSEE_OF]-(addressee:Character)
-        RETURN poem, speaker, addressee
+        WITH poem, speaker, collect(DISTINCT addressee) as addressees
+        RETURN poem, speaker, addressees
         ORDER BY toInteger(apoc.text.regexGroups(poem.pnum, '\\d+$')[0][0])
       }
       // Fetching the Nicktitle nodes and their translations
@@ -44,8 +45,8 @@ async function getChapterData(name) {
           Romaji: poem.Romaji,
           speaker_name: COALESCE(speaker.name, ""),
           speaker_gender: COALESCE(speaker.gender, ""),
-          addressee_name: COALESCE(addressee.name, ""),
-          addressee_gender: COALESCE(addressee.gender, "")
+          addressee_names: [addr IN addressees | COALESCE(addr.name, "")],
+          addressee_genders: [addr IN addressees | COALESCE(addr.gender, "")]
         }) AS poems,
         collect(DISTINCT nt.translation) AS nicktitles
     `;

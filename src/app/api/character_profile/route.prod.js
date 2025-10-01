@@ -59,7 +59,7 @@ async function getCharacterData(name) {
         OPTIONAL MATCH (poem)<-[:ADDRESSEE_OF]-(addressee:Character)
         WHERE poem IS NOT NULL AND poem.pnum IS NOT NULL AND chapter.chapter_number IS NOT NULL
         WITH poem, chapter.chapter_number AS chapNum,
-            speaker, addressee,
+            speaker, collect(DISTINCT addressee) as addressees,
             toInteger(apoc.text.regexGroups(poem.pnum, '\\d+$')[0][0]) AS pnumInt
         ORDER BY chapNum ASC, pnumInt ASC
         RETURN collect(DISTINCT {
@@ -68,8 +68,8 @@ async function getCharacterData(name) {
           Romaji: poem.Romaji,
           speaker_name: COALESCE(speaker.name, ""),
           speaker_gender: COALESCE(speaker.gender, ""),
-          addressee_name: COALESCE(addressee.name, ""),
-          addressee_gender: COALESCE(addressee.gender, ""),
+          addressee_names: [addr IN addressees | COALESCE(addr.name, "")],
+          addressee_genders: [addr IN addressees | COALESCE(addr.gender, "")],
           chapter_number: chapNum
         }) AS relatedPoems
       }
@@ -83,7 +83,7 @@ async function getCharacterData(name) {
         OPTIONAL MATCH (poem)<-[:ADDRESSEE_OF]-(addressee:Character)
         WHERE poem IS NOT NULL AND poem.pnum IS NOT NULL AND chapter.chapter_number IS NOT NULL
         WITH poem, chapter.chapter_number AS chapNum,
-            speaker, addressee,
+            speaker, collect(DISTINCT addressee) as addressees,
             toInteger(apoc.text.regexGroups(poem.pnum, '\\d+$')[0][0]) AS pnumInt
         ORDER BY chapNum ASC, pnumInt ASC
         RETURN collect(DISTINCT {
@@ -92,8 +92,8 @@ async function getCharacterData(name) {
           Romaji: poem.Romaji,
           speaker_name: COALESCE(speaker.name, ""),
           speaker_gender: COALESCE(speaker.gender, ""),
-          addressee_name: COALESCE(addressee.name, ""),
-          addressee_gender: COALESCE(addressee.gender, ""),
+          addressee_names: [addr IN addressees | COALESCE(addr.name, "")],
+          addressee_genders: [addr IN addressees | COALESCE(addr.gender, "")],
           chapter_number: chapNum
         }) AS messengerPoems
       }

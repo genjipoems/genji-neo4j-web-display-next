@@ -33,6 +33,40 @@ function removeLeadingZero(numStr) {
     return parseInt(numStr, 10).toString();
 }
 
+// Helper function to process addressee data
+function processAddresseeData(poem) {
+    // Handle both old format (single addressee) and new format (array of addressees)
+    if (poem.addressee_names && Array.isArray(poem.addressee_names)) {
+        // New format with arrays
+        const validAddressees = poem.addressee_names
+            .map((name, index) => ({
+                name: name || "",
+                gender: poem.addressee_genders?.[index] || ""
+            }))
+            .filter(addr => addr.name.trim() !== "");
+        
+        if (validAddressees.length === 0) {
+            return { addressee_name: "", addressee_gender: "" };
+        }
+        
+        const addresseeNames = validAddressees.map(addr => addr.name).join(" & ");
+        // For styling, use the first addressee's gender, or default if mixed
+        const firstGender = validAddressees[0].gender;
+        const allSameGender = validAddressees.every(addr => addr.gender === firstGender);
+        
+        return {
+            addressee_name: addresseeNames,
+            addressee_gender: allSameGender ? firstGender : ""
+        };
+    } else {
+        // Old format (backward compatibility)
+        return {
+            addressee_name: poem.addressee_name || "",
+            addressee_gender: poem.addressee_gender || ""
+        };
+    }
+}
+
 function getChapterNamKanji(chapterNum) {
     const chapterKanji = {
         '01': '桐壺', '02': '帚木', '03': '空蝉', '04': '夕顔', '05': '若紫', '06': '末摘花', '07': '紅葉賀', '08': '花宴', '09': '葵',
@@ -200,6 +234,7 @@ export default function CharacterDetail({ name }) {
         const chapterNum = poem.pnum.substring(0, 2);
         const chapterAbr = poem.pnum.substring(2, 4);
         const poemNum = poem.pnum.substring(4);
+        const addresseeData = processAddresseeData(poem);
 
         return {
             chapterNum: chapterNum,
@@ -210,14 +245,14 @@ export default function CharacterDetail({ name }) {
             romaji: poem.Romaji,
             speaker_name: poem.speaker_name || 'Unknown',
             speaker_gender: poem.speaker_gender || 'Unknown',
-            addressee_name: poem.addressee_name || 'Unknown',
-            addressee_gender: poem.addressee_gender || 'Unknown'
+            ...addresseeData
         };
     });
     const formattedMessengerPoems = messengerPoemsArray.map(poem => {
         const chapterNum = poem.pnum.substring(0, 2);
         const chapterAbr = poem.pnum.substring(2, 4);
         const poemNum = poem.pnum.substring(4);
+        const addresseeData = processAddresseeData(poem);
       
         return {
           chapterNum,
@@ -228,8 +263,7 @@ export default function CharacterDetail({ name }) {
           romaji: poem.Romaji,
           speaker_name: poem.speaker_name || 'Unknown',
           speaker_gender: poem.speaker_gender || 'Unknown',
-          addressee_name: poem.addressee_name || 'Unknown',
-          addressee_gender: poem.addressee_gender || 'Unknown'
+          ...addresseeData
         };
       });
 

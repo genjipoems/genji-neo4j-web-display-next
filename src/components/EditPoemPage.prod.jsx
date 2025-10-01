@@ -30,10 +30,26 @@ function isPrimitiveOrPrimitiveArray(value) {
 // Helper: clean data by skipping empty, NO_VALUE, or complex objects
 function cleanProps(input) {
   const output = {};
+  
+  // Track tags and otherTags to merge them
+  let tags = [];
+  let otherTags = [];
+  
   for (const [key, val] of Object.entries(input)) {
     if (val === null || val === undefined) continue; // skip null/undefined
     if (typeof val === "string" && val.trim() === "") continue; // skip empty strings
     if (val === "NO_VALUE") continue; // skip placeholders
+
+    // Special handling for tags - collect both tag and otherTags
+    if (key === "tag" && Array.isArray(val)) {
+      tags = val;
+      continue;
+    }
+    
+    if (key === "otherTags" && Array.isArray(val)) {
+      otherTags = val;
+      continue;
+    }
 
     // Special handling for poetic techniques array
     if (key === "pt" && Array.isArray(val)) {
@@ -65,6 +81,12 @@ function cleanProps(input) {
       console.log(`Skipping invalid prop ${key}:`, val);
     }
   }
+  
+  // Always merge tags and otherTags into a single tag field for backend
+  // Even if one of them is empty, we need to send the complete merged list
+  const mergedTags = [...tags, ...otherTags];
+  output.tag = mergedTags; // Always include tag field, even if empty
+  
   return output;
 }
 
@@ -92,7 +114,7 @@ const fieldOrder = [
   "Waley", "Seidensticker", "Tyler", "Washburn", "Cranston",
   "narrativeContext", "paraphrase", "notes", "paperMediumType", "deliveryStyle",
   "season", "season_evidence", "spoken", "written", "spoken_or_written_evidence", 
-  "pt", "tag", "placeOfComp", "placeOfComp_evidence",
+  "pt", "tag", "otherTags", "placeOfComp", "placeOfComp_evidence",
   "placeOfReceipt", "placeOfReceipt_evidence",
   "pw", "messenger", "replyPoems",
   "proxy", "kigo", "handwritingDescription", 
@@ -246,6 +268,25 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     const jprmJapanese = exchange[0]?.segments[0]?.end?.properties?.Japanese || "";
                     const jprmRomaji = exchange[0]?.segments[0]?.end?.properties?.Romaji || "";
 
+                    // Separate tags into regular poem types and other tags
+                    const poemTypes = ["Proffered Poem", "Reply Poem", "Soliloquy", "Group Poem"];
+                    const otherTagTypes = ["Chapter Title Poem", "Character Name Poem", "Bad Poems", "Proxy Poem", "Morning After Poem", "Omitted by Seidensticker"];
+                    
+                    let regularTags = [];
+                    let separatedOtherTags = [];
+                    
+                    if (Array.isArray(tags)) {
+                        tags.forEach(([tagName, isSelected]) => {
+                            if (isSelected) {
+                                if (poemTypes.includes(tagName)) {
+                                    regularTags.push([tagName, true]);
+                                } else if (otherTagTypes.includes(tagName)) {
+                                    separatedOtherTags.push(tagName);
+                                }
+                            }
+                        });
+                    }
+
                     // Build state with translators as separate fields
                     const newPoemState = {
                     speaker,
@@ -259,7 +300,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     Cranston: cranston,
                     source: src_obj,
                     relWithEvidence: relatedWithEvidence,
-                    tag: tags,
+                    tag: regularTags,
+                    otherTags: separatedOtherTags,
                     notes: exchange[0]?.segments[0]?.end?.properties?.notes,
                     poemId,
                     narrativeContext: responseData[7],
@@ -283,7 +325,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     placeOfComp_evidence: responseData[25],
                     placeOfReceipt_evidence: responseData[26],
                     groupPoems: responseData[27],
-                    replyPoems: responseData[28],
+                    replyPoems: responseData[31],
                     furtherReadings: responseData[29],
                     spoken_or_written_evidence: responseData[30]
                     };
@@ -314,6 +356,13 @@ export default function EditPoemPage({ chapter, poemNum }) {
                                 // Convert to just the selected tag names for frontend: ["Proffered", "Reply"]
                                 const selectedTags = val.filter(([name, selected]) => selected).map(([name]) => name);
                                 serialized[key] = JSON.stringify(selectedTags);
+                            } else {
+                                serialized[key] = JSON.stringify([]);
+                            }
+                        } else if (key === "otherTags") {
+                            // Special handling for other tags - serialize as JSON array
+                            if (Array.isArray(val)) {
+                                serialized[key] = JSON.stringify(val);
                             } else {
                                 serialized[key] = JSON.stringify([]);
                             }
@@ -390,6 +439,18 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 }
             } else if (key === "tag") {
                 // Special handling for poem types/tags - ensure it's properly parsed
+                try {
+                    if (!val || val.trim() === "") {
+                        result[key] = [];
+                    } else {
+                        const parsed = JSON.parse(val);
+                        result[key] = parsed;
+                    }
+                } catch {
+                    result[key] = [];
+                }
+            } else if (key === "otherTags") {
+                // Special handling for other tags - ensure it's properly parsed
                 try {
                     if (!val || val.trim() === "") {
                         result[key] = [];
@@ -499,6 +560,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
             spoken_or_written_evidence: "evidence_for_spoken_or_written",
             pt: "pt", // poetic techniques map directly
             tag: "tag", // poem types/tags map directly
+            otherTags: "otherTags", // other tags have separate handling
             placeOfComp: "placeOfComp", // place of composition maps directly
             placeOfReceipt: "placeOfReceipt", // place of receipt maps directly
             placeOfComp_evidence: "placeOfComp_evidence",
@@ -531,6 +593,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 updated[key] = JSON.stringify([]);
             } else if (key === "tag") {
                 updated[key] = JSON.stringify([]);
+            } else if (key === "otherTags") {
+                updated[key] = JSON.stringify([]);
             } else if (key === "replyPoems") {
                 updated[key] = JSON.stringify([]);
             } else {
@@ -554,6 +618,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
         if (key === 'narrativeContext') return 'Where We Are In The Tale';
         if (key === 'paraphrase') return 'What The Poem Is Saying';
         if (key === 'tag') return 'Poem Type';
+        if (key === 'otherTags') return 'Other Tags';
         if (key === 'replyPoems') return 'Reply Poems';
         if (key === 'proxy') return 'Proxy Poet';
         if (key === 'kigo') return 'Seasonal Words';
@@ -828,6 +893,79 @@ export default function EditPoemPage({ chapter, poemNum }) {
                                         className="delete-button"
                                         onClick={() => handleDelete(key)}
                                         title="Clear all poem types"
+                                        style={{ marginTop: "8px" }}
+                                    >
+                                        ❌
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    // Special handling for other tags
+                    if (key === "otherTags") {
+                        const otherTagTypes = ["Chapter Title Poem", "Character Name Poem", "Bad Poems", "Proxy Poem", "Morning After Poem", "Omitted by Seidensticker"];
+                        
+                        // Parse current other tag data - handle both array and JSON string formats
+                        let currentOtherTypes = [];
+                        try {
+                            let tagData = editData[key];
+                            if (typeof tagData === 'string' && tagData.trim() !== '') {
+                                // Try to parse as JSON first, fallback to comma-separated
+                                if (tagData.includes('[')) {
+                                    tagData = JSON.parse(tagData);
+                                } else {
+                                    tagData = tagData.split(',').map(item => item.trim()).filter(item => item);
+                                }
+                            } else if (typeof tagData === 'string' && tagData.trim() === '') {
+                                tagData = [];
+                            }
+                            if (Array.isArray(tagData)) {
+                                currentOtherTypes = tagData;
+                            }
+                        } catch (e) {
+                            currentOtherTypes = [];
+                        }
+
+                        return (
+                            <div key={key} className="full-field-container">
+                                <label className="full-field-label">
+                                    {formatFieldName(key)}
+                                </label>
+                                <div className="full-input-wrapper">
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "12px", border: "1px solid #ccc", borderRadius: "4px", minHeight: "120px", backgroundColor: "#fafafa" }}>
+                                        {otherTagTypes.map((tagType) => (
+                                            <label key={tagType} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", padding: "4px 0" }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={currentOtherTypes.includes(tagType)}
+                                                    onChange={(e) => {
+                                                        const isChecked = e.target.checked;
+                                                        let newTypes = [...currentOtherTypes]; // Create a copy
+                                                        
+                                                        if (isChecked) {
+                                                            if (!newTypes.includes(tagType)) {
+                                                                newTypes.push(tagType);
+                                                            }
+                                                        } else {
+                                                            newTypes = newTypes.filter(t => t !== tagType);
+                                                        }
+                                                        
+                                                        setEditData((prev) => ({
+                                                            ...prev,
+                                                            [key]: JSON.stringify(newTypes)
+                                                        }));
+                                                    }}
+                                                    style={{ transform: "scale(1.2)" }}
+                                                />
+                                                <span style={{ fontSize: "14px", fontWeight: "500" }}>{tagType}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <button
+                                        className="delete-button"
+                                        onClick={() => handleDelete(key)}
+                                        title="Clear all other tags"
                                         style={{ marginTop: "8px" }}
                                     >
                                         ❌

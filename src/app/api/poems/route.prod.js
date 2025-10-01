@@ -25,7 +25,8 @@ async function getData (chapter, number){
 		resPlaceOfComp: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[r:PLACE_OF_COMPOSITION]->(place:Place) where g.pnum ends with "' + number + '" return place.name as placeOfComp, r.evidence as placeOfComp_evidence',
 		resPlaceOfReceipt: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[r:PLACE_OF_RECEIPT]->(place:Place) where g.pnum ends with "' + number + '" return place.name as placeOfReceipt, r.evidence as placeOfReceipt_evidence',
 		resGroup: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:IN_GROUP_OF]->(group:Group) where g.pnum ends with "' + number + '" match (otherPoems:Genji_Poem)-[:IN_GROUP_OF]->(group) where otherPoems.pnum <> g.pnum return otherPoems.pnum as groupMembers',
-		resReplyPoem: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:REPLY_TO]->(reply:Genji_Poem) where g.pnum ends with "' + number + '" return reply.pnum as replyPoem',
+				resReplyPoem: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:REPLY_TO]->(reply:Genji_Poem) where g.pnum ends with "' + number + '" return reply.pnum as replyPoem',
+		resRepliesTo: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (reply:Genji_Poem)-[:REPLY_TO]->(g) where g.pnum ends with "' + number + '" return reply.pnum as replyPoem',
 		resFutherReading: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:DISCUSSED_IN]->(s:Source), (s)<-[:AUTHOR_OF]-(a:People) where g.pnum ends with "' + number + '" return s.title as furtherReadings, a.name as author'
 	};
 
@@ -172,11 +173,17 @@ async function getData (chapter, number){
 		groupPoems = Array.from(groupPoems).flat()
 		groupPoems = groupPoems.map(e => [e, true])
 
-		// reply poem
+		// reply poem (what this poem replies TO - for display)
 		let replyPoems = new Set()
 		result['resReplyPoem'].records.map(e => {return toNativeTypes(e.get('replyPoem'))}).forEach(e => {replyPoems.add([Object.values(e).join('')])})
 		replyPoems = Array.from(replyPoems).flat()
 		replyPoems = replyPoems.map(e => [e, true])
+
+		// replies to this poem (poems that reply TO this poem - for editing)
+		let repliesToThis = new Set()
+		result['resRepliesTo'].records.map(e => {return toNativeTypes(e.get('replyPoem'))}).forEach(e => {repliesToThis.add([Object.values(e).join('')])})
+		repliesToThis = Array.from(repliesToThis).flat()
+		repliesToThis = repliesToThis.map(e => [e, true])
 
 		// further reading
 		let furtherReadings = []
@@ -220,7 +227,8 @@ async function getData (chapter, number){
 						groupPoems,
 						replyPoems,
 						furtherReadings,
-						spoken_or_written_evidence
+						spoken_or_written_evidence,
+						repliesToThis
 						
 					];
 
