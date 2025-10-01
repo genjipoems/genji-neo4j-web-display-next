@@ -325,7 +325,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     placeOfComp_evidence: responseData[25],
                     placeOfReceipt_evidence: responseData[26],
                     groupPoems: responseData[27],
-                    replyPoems: responseData[28],
+                    replyPoems: responseData[31],
                     furtherReadings: responseData[29],
                     spoken_or_written_evidence: responseData[30]
                     };
