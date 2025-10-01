@@ -141,8 +141,44 @@ export default function ChapterDetail({ name }) {
   if (error) return <div className={styles.error}>Error: {error}</div>;
   if (!chapterData) return <div className={styles.error}>Chapter not found.</div>;
 
+  // Helper function to process addressee data
+  const processAddresseeData = (poem) => {
+    // Handle both old format (single addressee) and new format (array of addressees)
+    if (poem.addressee_names && Array.isArray(poem.addressee_names)) {
+      // New format with arrays
+      const validAddressees = poem.addressee_names
+        .map((name, index) => ({
+          name: name || "",
+          gender: poem.addressee_genders?.[index] || ""
+        }))
+        .filter(addr => addr.name.trim() !== "");
+      
+      if (validAddressees.length === 0) {
+        return { addressee_name: "", addressee_gender: "" };
+      }
+      
+      const addresseeNames = validAddressees.map(addr => addr.name).join(" & ");
+      // For styling, use the first addressee's gender, or default if mixed
+      const firstGender = validAddressees[0].gender;
+      const allSameGender = validAddressees.every(addr => addr.gender === firstGender);
+      
+      return {
+        addressee_name: addresseeNames,
+        addressee_gender: allSameGender ? firstGender : ""
+      };
+    } else {
+      // Old format (backward compatibility)
+      return {
+        addressee_name: poem.addressee_name || "",
+        addressee_gender: poem.addressee_gender || ""
+      };
+    }
+  };
+
   // Format poem numbers to extract chapter and poem numbers
   const formattedPoems = poems.map(poem => {
+    const addresseeData = processAddresseeData(poem);
+    
     // Assuming pnum format is like '13AK09' where 13 is chapter, 'AK' is chapter abbreviation, and 09 is poem number
     const match = poem.pnum.match(/^(\d+)([A-Z]+)(\d+)$/);
     if (match) {
@@ -153,7 +189,8 @@ export default function ChapterDetail({ name }) {
         poemNum: match[3],
         chapterKanji: getChapterKanji(match[1].padStart(2, '0')),
         japanese: poem.Japanese,
-        romaji: poem.Romaji
+        romaji: poem.Romaji,
+        ...addresseeData
       };
     }
     return {
@@ -163,7 +200,8 @@ export default function ChapterDetail({ name }) {
       poemNum: poem.pnum,
       chapterKanji: chapterData.kanji,
       japanese: poem.Japanese,
-      romaji: poem.Romaji
+      romaji: poem.Romaji,
+      ...addresseeData
     };
   });
 
