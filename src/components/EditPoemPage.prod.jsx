@@ -110,7 +110,7 @@ async function updatePoemData(pnum, updatedData) {
 
 // Order of fields to render - updated to match actual data structure
 const fieldOrder = [
-  "speaker", "addressee", "poemId", "age", "JPRM_Japanese", "JPRM_Romaji",
+  "speaker", "addressee", "addressee2", "addressee3", "poemId", "age", "JPRM_Japanese", "JPRM_Romaji",
   "Waley", "Seidensticker", "Tyler", "Washburn", "Cranston",
   "narrativeContext", "paraphrase", "notes", "paperMediumType", "deliveryStyle",
   "season", "season_evidence", "spoken", "written", "spoken_or_written_evidence", 
@@ -289,8 +289,10 @@ export default function EditPoemPage({ chapter, poemNum }) {
 
                     // Build state with translators as separate fields
                     const newPoemState = {
-                    speaker,
-                    addressee,
+                    speaker: speaker[0] || "", // Take first speaker
+                    addressee: addressee[0] || "", // Take first addressee
+                    addressee2: addressee[1] || "", // Take second addressee
+                    addressee3: addressee[2] || "", // Take third addressee
                     JPRM_Japanese: jprmJapanese, // keep as string with \n
                     JPRM_Romaji: jprmRomaji,
                     Waley: waley,
@@ -425,6 +427,19 @@ export default function EditPoemPage({ chapter, poemNum }) {
             } else if (key === "season") {
                 // Handle season as a simple string value - backend will create the relationship
                 result[key] = val;
+            } else if (key === "speaker") {
+                // Handle speaker as a simple string value - backend will handle relationship
+                result[key] = val;
+            } else if (key === "addressee" || key === "addressee2" || key === "addressee3") {
+                // Handle addressee fields - collect them into an array for backend
+                if (!result.addressees) {
+                    result.addressees = [];
+                }
+                if (val && val.trim()) {
+                    result.addressees.push(val.trim());
+                }
+                // Skip individual addressee fields from result, we'll use the combined addressees array
+                continue;
             } else if (key === "pt") {
                 // Special handling for poetic techniques - ensure it's properly parsed
                 try {
@@ -548,6 +563,10 @@ export default function EditPoemPage({ chapter, poemNum }) {
 
         // Map local key to backend field name expected by API
         const fieldMap = {
+            speaker: "speaker", // speaker maps directly
+            addressee: "addressee", // addressee maps directly
+            addressee2: "addressee2", // addressee2 maps directly
+            addressee3: "addressee3", // addressee3 maps directly
             spoken: "Spoken",
             written: "Written",
             season: "season", // season maps directly
@@ -597,6 +616,9 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 updated[key] = JSON.stringify([]);
             } else if (key === "replyPoems") {
                 updated[key] = JSON.stringify([]);
+            } else if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3") {
+                // For speaker and addressee fields, set to empty string
+                updated[key] = "";
             } else {
                 delete updated[key];
             }
@@ -623,6 +645,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
         if (key === 'proxy') return 'Proxy Poet';
         if (key === 'kigo') return 'Seasonal Words';
         if (key === 'handwritingDescription') return 'Handwriting Description';
+        if (key === 'addressee2') return 'Addressee 2';
+        if (key === 'addressee3') return 'Addressee 3';
         
         return key
             .replace(/([A-Z])/g, ' $1') // Add space before capital letters
@@ -643,6 +667,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
         const compactFields = [
             "speaker",
             "addressee",
+            "addressee2",
+            "addressee3",
             "poemId",
             "season",
             "age",
@@ -650,7 +676,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
             "written",
         ];
 
-        const readOnlyFields = ["speaker", "addressee", "poemId", "age"];
+        const readOnlyFields = ["poemId"];
 
         const seasonHint = "Possible values: Spring, Summer, Autumn, Winter";
 
@@ -725,9 +751,11 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 <input
                     type="text"
                     className="compact-field-input"
+                    list={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" ? `${key}-characters-compact` : undefined}
                     value={inputValue}
                     readOnly={isReadOnly}
                     style={isReadOnly ? { backgroundColor: "#f5f5f5" } : {}}
+                    placeholder={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" ? "Type or select character name" : undefined}
                     onChange={(e) => {
                         if (isReadOnly) return;
 
@@ -745,6 +773,14 @@ export default function EditPoemPage({ chapter, poemNum }) {
                         setEditData((prev) => ({ ...prev, [key]: newValue }));
                     }}
                 />
+                {/* Add datalist for character fields */}
+                {(key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3") && (
+                    <datalist id={`${key}-characters-compact`}>
+                        {availableCharacters.map((character) => (
+                            <option key={character} value={character} />
+                        ))}
+                    </datalist>
+                )}
             </div>
             );
         });
@@ -1745,6 +1781,51 @@ export default function EditPoemPage({ chapter, poemNum }) {
                                         className="delete-button"
                                         onClick={() => handleDelete(key)}
                                         title="Clear proxy"
+                                        style={{ marginTop: "8px" }}
+                                    >
+                                        ❌
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    // Special handling for speaker and addressee fields
+                    if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3") {
+                        return (
+                            <div key={key} className="full-field-container">
+                                <label className="full-field-label">
+                                    {formatFieldName(key)}
+                                </label>
+                                <div className="full-input-wrapper">
+                                    <input
+                                        type="text"
+                                        list={`${key}-characters`}
+                                        placeholder="Type or select a character name"
+                                        value={editData[key] || ""}
+                                        onChange={(e) => {
+                                            setEditData((prev) => ({
+                                                ...prev,
+                                                [key]: e.target.value
+                                            }));
+                                        }}
+                                        style={{
+                                            padding: "8px",
+                                            border: "1px solid #ccc",
+                                            borderRadius: "4px",
+                                            fontSize: "14px",
+                                            width: "100%"
+                                        }}
+                                    />
+                                    <datalist id={`${key}-characters`}>
+                                        {availableCharacters.map((character) => (
+                                            <option key={character} value={character} />
+                                        ))}
+                                    </datalist>
+                                    <button
+                                        className="delete-button"
+                                        onClick={() => handleDelete(key)}
+                                        title={`Clear ${formatFieldName(key)}`}
                                         style={{ marginTop: "8px" }}
                                     >
                                         ❌

@@ -15,10 +15,10 @@ export const useMobileRouteProtection = () => {
     const pathname = usePathname();
 
     useEffect(() => {
-        // Check if device is mobile
+        // Check if device is mobile or tablet (including large tablets like iPad Pro)
         const isMobile = () => {
             if (typeof window === 'undefined') return false;
-            return window.innerWidth <= 768;
+            return window.innerWidth <= 1194;
         };
 
         // Check if current route is allowed on mobile

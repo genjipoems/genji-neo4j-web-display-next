@@ -315,7 +315,7 @@
 }
 
 /* Media Queries */
-@media (max-width: 768px) {
+@media (max-width: 1194px) {
     .mobileNavFrame {
         display: block;
         width: 100%;
