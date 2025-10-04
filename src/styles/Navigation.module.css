@@ -118,8 +118,8 @@
     gap: 16px;
 }
 
-/* Mobile Responsive: Hide desktop navigation on mobile */
-@media (max-width: 768px) {
+/* Mobile Responsive: Hide desktop navigation on mobile and tablets */
+@media (max-width: 1194px) {
     .navFrame {
         display: none;
     }

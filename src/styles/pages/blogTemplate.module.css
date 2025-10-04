@@ -584,7 +584,7 @@
 }
 
 /* Mobile responsive styles */
-@media (max-width: 768px) {
+@media (max-width: 1194px) {
   .translatorPage {
     max-width: 100%;
     margin: 0;

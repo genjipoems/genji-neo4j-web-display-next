@@ -133,7 +133,7 @@
 }
 
 /* Mobile responsive styles */
-@media (max-width: 768px) {
+@media (max-width: 1194px) {
   .pageContainer {
     min-width: unset;
     width: 100%;
