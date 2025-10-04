@@ -650,7 +650,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
             "written",
         ];
 
-        const readOnlyFields = ["speaker", "addressee", "poemId", "age"];
+        const readOnlyFields = ["speaker", "addressee", "poemId"];
 
         const seasonHint = "Possible values: Spring, Summer, Autumn, Winter";
 

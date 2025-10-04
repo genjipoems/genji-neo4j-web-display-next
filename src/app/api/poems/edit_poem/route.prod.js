@@ -52,14 +52,30 @@ export async function DELETE(request) {
       return new Response(JSON.stringify({ error: "Missing pnum or field param" }), { status: 400 });
     }
 
-    // **Sanitize field name** - expanded to include season and other allowed fields
-    const allowedFields = ["Spoken", "Written", "season", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description"];
+    // **Sanitize field name** - expanded to include season, age and other allowed fields
+    const allowedFields = ["Spoken", "Written", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description"];
     if (!allowedFields.includes(field)) {
       return new Response(JSON.stringify({ error: "Invalid field param" }), { status: 400 });
     }
 
+    // Handle age deletion specially (remove AT_GENJI_AGE_OF relationship)
+    if (field === "age") {
+      const query = `
+        MATCH (g:Genji_Poem {pnum: $pnum})-[r:AT_GENJI_AGE_OF]->(a:Genji_Age)
+        DELETE r
+        RETURN g
+      `;
+      
+      const result = await session.run(query, { pnum });
+      
+      if (result.records.length > 0) {
+        return new Response(JSON.stringify({ message: "Age relationship deleted successfully" }), { status: 200 });
+      } else {
+        return new Response(JSON.stringify({ message: "No age relationship found to delete" }), { status: 200 });
+      }
+    }
     // Handle season deletion specially (remove relationship)
-    if (field === "season") {
+    else if (field === "season") {
       const query = `
         MATCH (g:Genji_Poem {pnum: $pnum})-[r:IN_SEASON_OF]->(s:Season)
         DELETE r
@@ -317,7 +333,7 @@ async function updatePoemProperties(pnum, data) {
 
       if (data.deliveryStyle !== undefined) props.delivery_style = data.deliveryStyle || null;
       if (data.spoken_or_written_evidence !== undefined) props.evidence_for_spoken_or_written = data.spoken_or_written_evidence || null;
-      if (data.age !== undefined) props.age = data.age || null;
+      // Remove age from direct property updates since it's now handled as a relationship
       if (data.JPRM !== undefined && Array.isArray(data.JPRM)) {
         props.Japanese = data.JPRM[0] || null;
         props.Romaji = data.JPRM[1] || null;
@@ -376,7 +392,50 @@ async function updatePoemProperties(pnum, data) {
         });
       }
 
-      // 2️⃣c Handle poetic techniques relationships
+      // 2️⃣c Handle age relationship
+      if (data.age !== undefined) {
+        // First, remove any existing age relationship
+        await tx.run(`
+          MATCH (g:Genji_Poem {pnum: $pnum})-[r:AT_GENJI_AGE_OF]->(a:Genji_Age)
+          DELETE r
+        `, { pnum: pnum.toString() });
+
+        // Then, if an age is provided, create new relationship
+        if (data.age && data.age.toString().trim()) {
+          const ageValue = parseInt(data.age.toString().trim());
+          
+          if (!isNaN(ageValue) && ageValue > 0) {
+            // First check if Genji_Age node exists, create if it doesn't
+            const checkQuery = `
+              MATCH (a:Genji_Age {age: $ageValue})
+              RETURN a.age as age
+            `;
+            
+            const checkResult = await tx.run(checkQuery, { ageValue });
+            
+            if (checkResult.records.length === 0) {
+              // Create the Genji_Age node if it doesn't exist
+              await tx.run(`
+                CREATE (a:Genji_Age {age: $ageValue})
+              `, { ageValue });
+            }
+            
+            // Create the relationship
+            await tx.run(`
+              MATCH (g:Genji_Poem {pnum: $pnum})
+              MATCH (a:Genji_Age {age: $ageValue})
+              CREATE (g)-[r:AT_GENJI_AGE_OF]->(a)
+            `, { 
+              pnum: pnum.toString(), 
+              ageValue: ageValue
+            });
+          } else {
+            console.warn(`Invalid age provided: ${data.age}. Age must be a positive integer.`);
+          }
+        }
+      }
+
+      // 2️⃣d Handle poetic techniques relationships
       if (data.pt !== undefined) {
         // First, remove all existing poetic technique relationships
         await tx.run(`
@@ -422,7 +481,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣d Handle poem types/tags relationships
+      // 2️⃣e Handle poem types/tags relationships
       if (data.tag !== undefined) {
         // First, remove all existing tag relationships
         await tx.run(`
@@ -471,7 +530,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣e Handle place of composition relationships
+      // 2️⃣f Handle place of composition relationships
       if (data.placeOfComp !== undefined) {
         // First, remove any existing place of composition relationship
         await tx.run(`
@@ -513,7 +572,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣f Handle place of receipt relationships
+      // 2️⃣g Handle place of receipt relationships
       if (data.placeOfReceipt !== undefined) {
         // First, remove any existing place of receipt relationship
         await tx.run(`
@@ -555,7 +614,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣g Handle place evidence separately (update evidence property on existing relationships)
+      // 2️⃣h Handle place evidence separately (update evidence property on existing relationships)
       if (data.placeOfComp_evidence !== undefined && data.placeOfComp === undefined) {
         await tx.run(`
           MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_COMPOSITION]->(p:Place)
@@ -576,7 +635,7 @@ async function updatePoemProperties(pnum, data) {
         });
       }
 
-      // 2️⃣h Handle messenger relationships
+      // 2️⃣i Handle messenger relationships
       if (data.messenger !== undefined) {
         // First, remove any existing messenger relationship
         await tx.run(`
@@ -615,7 +674,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣i Handle proxy relationships
+      // 2️⃣j Handle proxy relationships
       if (data.proxy !== undefined) {
         // First, remove any existing proxy relationship
         await tx.run(`
@@ -654,7 +713,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣j Handle poetic words relationships
+      // 2️⃣k Handle poetic words relationships
       if (data.pw !== undefined) {
         // First, remove all existing poetic word relationships
         await tx.run(`
@@ -728,7 +787,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣k Handle seasonal words/kigo relationships
+      // 2️⃣l Handle seasonal words/kigo relationships
       if (data.kigo !== undefined) {
         // First, remove all existing seasonal word relationships
         await tx.run(`
@@ -797,7 +856,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣l Handle reply poems relationships
+      // 2️⃣m Handle reply poems relationships
       if (data.replyPoems !== undefined) {
         // First, remove all existing reply relationships where other poems reply TO this poem
         await tx.run(`
