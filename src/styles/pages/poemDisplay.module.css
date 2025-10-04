@@ -14,6 +14,10 @@
   min-width: 1440px;
 }
 
+.panelHeaderEmpty {
+  opacity: 0.45;
+}
+
 .loadingContainer {
   display: flex;
   flex-direction: column;
@@ -218,7 +222,7 @@
   .tagsList {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: left;
     width: 100%;
   }
   

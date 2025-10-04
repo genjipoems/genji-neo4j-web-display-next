@@ -15,6 +15,16 @@ const PLURAL_TO_SING = {
   'Soliloquies': 'Soliloquy',
 };
 
+const TAG_FIELD_BY_LABEL = {
+  'Omitted By Waley': 'omitted_by_waley',
+  'Omitted By Seidensticker': 'omitted_by_seidensticker',
+  'Bad Poems': 'bad_poems',
+  // 'Character Name Poem': 'character_name_poem',
+  // 'Chapter Title Poem': 'chapter_title_poem',
+  // 'Morning After Poem': 'morning_after_poem',
+  // 'Proxy Poem': 'proxy_poem',
+};
+
 // funtion to remove leading zero of chapternum and poemnum, ensure the correctness of link
 const removeLeadingZero = (num) => {
   return num.replace(/^0+/, '');
@@ -141,7 +151,13 @@ const PoemSearch = () => {
       other_tags: {
         label: "Other Tags",
         options: {
-          'Omitted by Waley': { checked: false },
+          'Omitted By Waley': { checked: false },
+          'Omitted By Seidensticker': { checked: false },
+          'Bad Poems': { checked: false },
+          // 'Character Name Poem': { checked: false },
+          // 'Chapter Title Poem': { checked: false },
+          // 'Morning After Poem': { checked: false },
+          // 'Proxy Poem': { checked: false },
         },
       },
     //   poetic_tech: {
@@ -320,6 +336,13 @@ const PoemSearch = () => {
                 ? result.poem_type.trim()
                 : Object.values(result.poem_type || {}).join("").trim(),
             omitted_by_waley: !!result.omitted_by_waley,
+            omitted_by_seidensticker: !!result.omitted_by_seidensticker,
+            bad_poems: !!result.bad_poems,
+            group_poem_tag: !!result.group_poem_tag,
+            character_name_poem: !!result.character_name_poem,
+            chapter_title_poem: !!result.chapter_title_poem,
+            morning_after_poem: !!result.morning_after_poem,
+            proxy_poem: !!result.proxy_poem,
             poetic_tech: Object.values(result.peotic_tech).join(""),
             genji_age: Object.values(result.genji_age).join(""),
             waley_translation: Object.values(result.waley_translation).join(""),
@@ -431,10 +454,11 @@ const PoemSearch = () => {
               const Singular = activeOptions.map(k => PLURAL_TO_SING[k] ?? k);
               return Singular.includes(result.poem_type);
             case "other_tags": {
-              if (activeOptions.includes("Omitted by Waley")) {
-                return !!result.omitted_by_waley;
-              }
-              return true;
+              return activeOptions.every(label => {
+                const field = TAG_FIELD_BY_LABEL[label];
+                if (!field) return true;
+                return !!result[field];
+              });
             }
             default:
               return true;
