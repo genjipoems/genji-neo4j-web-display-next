@@ -92,7 +92,7 @@ const PoemDisplay = ({ poemData }) => {
         furtherReadings: [],
         spoken_or_written_evidence: ""
     });
-    
+
     const chapter = poemData.chapterNum;
     const number = poemData.poemNum;
     const numStr = number.toString().padStart(2, '0');
@@ -362,7 +362,8 @@ const PoemDisplay = ({ poemData }) => {
     (Array.isArray(poemState.relWithEvidence) && poemState.relWithEvidence.length > 0) ||
     (Array.isArray(poemState.groupPoems) && poemState.groupPoems.length > 0) ||
     (Array.isArray(poemState.source) && poemState.source.length > 0) ||
-    (Array.isArray(poemState.furtherReadings) && poemState.furtherReadings.length > 0)
+    (Array.isArray(poemState.furtherReadings) && poemState.furtherReadings.length > 0) ||
+    poemState.handwritingDescription
     );
 
     return (
@@ -656,6 +657,13 @@ const PoemDisplay = ({ poemData }) => {
                                         {poemState.paperMediumType && <FormatContent content={poemState.paperMediumType} />}
                                     </div>
                                 )}
+
+                                {poemState.handwritingDescription && (
+                                    <div className={styles.detailItem}>
+                                        <h3>HANDWRITING DESCRIPTION</h3>
+                                        {poemState.handwritingDescription && <FormatContent content={poemState.handwritingDescription} />}
+                                    </div>
+                                )}
                                 
                                 {poemState.deliveryStyle && (
                                     <div className={styles.detailItem}>
@@ -786,7 +794,7 @@ const PoemDisplay = ({ poemData }) => {
                                 )}
                                 {/* {poemState.tag 
                                     && (
-                                           poemState.tag.some(item => item[0] === 'Character Name Poem' && item[1])
+                                        poemState.tag.some(item => item[0] === 'Character Name Poem' && item[1])
                                         || poemState.tag.some(item => item[0] === 'Chapter Title Poem' && item[1])
                                         || poemState.tag.some(item => item[0] === 'Morning After Poem' && item[1])
                                         || poemState.tag.some(item => item[0] === 'Proxy Poem' && item[1])
