@@ -53,13 +53,39 @@ export async function DELETE(request) {
     }
 
     // **Sanitize field name** - expanded to include season, age and other allowed fields
-    const allowedFields = ["Spoken", "Written", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description"];
+    const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description"];
     if (!allowedFields.includes(field)) {
       return new Response(JSON.stringify({ error: "Invalid field param" }), { status: 400 });
     }
 
+    // Handle speaker deletion specially (remove SPEAKER_OF relationship)
+    else if (field === "speaker") {
+      const query = `
+        MATCH (c:Character)-[r:SPEAKER_OF]->(g:Genji_Poem {pnum: $pnum})
+        DELETE r
+        RETURN count(r) as deletedCount
+      `;
+      
+      const result = await session.run(query, { pnum });
+      
+      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
+      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} speaker relationships` }), { status: 200 });
+    }
+    // Handle addressee deletion specially (remove all ADDRESSEE_OF relationships)
+    else if (field === "addressee" || field === "addressee2" || field === "addressee3") {
+      const query = `
+        MATCH (c:Character)-[r:ADDRESSEE_OF]->(g:Genji_Poem {pnum: $pnum})
+        DELETE r
+        RETURN count(r) as deletedCount
+      `;
+      
+      const result = await session.run(query, { pnum });
+      
+      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
+      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} addressee relationships` }), { status: 200 });
+    }
     // Handle age deletion specially (remove AT_GENJI_AGE_OF relationship)
-    if (field === "age") {
+    else if (field === "age") {
       const query = `
         MATCH (g:Genji_Poem {pnum: $pnum})-[r:AT_GENJI_AGE_OF]->(a:Genji_Age)
         DELETE r
@@ -269,6 +295,32 @@ export async function DELETE(request) {
       const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} reply poem relationships` }), { status: 200 });
     } 
+    // Handle speaker deletion specially (remove SPEAKER_OF relationship)
+    else if (field === "speaker") {
+      const query = `
+        MATCH (c:Character)-[r:SPEAKER_OF]->(g:Genji_Poem {pnum: $pnum})
+        DELETE r
+        RETURN count(r) as deletedCount
+      `;
+      
+      const result = await session.run(query, { pnum });
+      
+      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
+      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} speaker relationships` }), { status: 200 });
+    } 
+    // Handle addressee deletion specially (remove all ADDRESSEE_OF relationships)
+    else if (field === "addressee" || field === "addressee2" || field === "addressee3") {
+      const query = `
+        MATCH (c:Character)-[r:ADDRESSEE_OF]->(g:Genji_Poem {pnum: $pnum})
+        DELETE r
+        RETURN count(r) as deletedCount
+      `;
+      
+      const result = await session.run(query, { pnum });
+      
+      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
+      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} addressee relationships` }), { status: 200 });
+    } 
     else {
       // Handle other field deletions (remove property)
       const query = `
@@ -352,6 +404,88 @@ async function updatePoemProperties(pnum, data) {
       if (data.furtherReadings !== undefined) props.further_readings = data.furtherReadings || null;
 
       await tx.run(query, { pnum: pnum.toString(), props });
+
+      // 1️⃣b Handle speaker relationship
+      if (data.speaker !== undefined) {
+        // First, remove any existing speaker relationship
+        await tx.run(`
+          MATCH (c:Character)-[r:SPEAKER_OF]->(g:Genji_Poem {pnum: $pnum})
+          DELETE r
+        `, { pnum: pnum.toString() });
+
+        // Then, if a speaker is provided, create new relationship
+        if (data.speaker && data.speaker.trim()) {
+          const speakerName = data.speaker.trim();
+          
+          // First check if Character node exists, create if it doesn't
+          const checkQuery = `
+            MATCH (c:Character {name: $speakerName})
+            RETURN c.name as name
+          `;
+          
+          const checkResult = await tx.run(checkQuery, { speakerName });
+          
+          if (checkResult.records.length === 0) {
+            // Create the Character node if it doesn't exist
+            await tx.run(`
+              CREATE (c:Character {name: $speakerName})
+            `, { speakerName });
+          }
+          
+          // Create the relationship
+          await tx.run(`
+            MATCH (g:Genji_Poem {pnum: $pnum})
+            MATCH (c:Character {name: $speakerName})
+            CREATE (c)-[r:SPEAKER_OF]->(g)
+          `, { 
+            pnum: pnum.toString(), 
+            speakerName: speakerName
+          });
+        }
+      }
+
+      // 1️⃣c Handle addressees relationships
+      if (data.addressees !== undefined) {
+        // First, remove all existing addressee relationships
+        await tx.run(`
+          MATCH (c:Character)-[r:ADDRESSEE_OF]->(g:Genji_Poem {pnum: $pnum})
+          DELETE r
+        `, { pnum: pnum.toString() });
+
+        // Then, create new relationships for each addressee
+        if (Array.isArray(data.addressees)) {
+          for (const addresseeName of data.addressees) {
+            if (addresseeName && addresseeName.trim()) {
+              const cleanName = addresseeName.trim();
+              
+              // First check if Character node exists, create if it doesn't
+              const checkQuery = `
+                MATCH (c:Character {name: $addresseeName})
+                RETURN c.name as name
+              `;
+              
+              const checkResult = await tx.run(checkQuery, { addresseeName: cleanName });
+              
+              if (checkResult.records.length === 0) {
+                // Create the Character node if it doesn't exist
+                await tx.run(`
+                  CREATE (c:Character {name: $addresseeName})
+                `, { addresseeName: cleanName });
+              }
+              
+              // Create the relationship
+              await tx.run(`
+                MATCH (g:Genji_Poem {pnum: $pnum})
+                MATCH (c:Character {name: $addresseeName})
+                CREATE (c)-[r:ADDRESSEE_OF]->(g)
+              `, { 
+                pnum: pnum.toString(), 
+                addresseeName: cleanName
+              });
+            }
+          }
+        }
+      }
 
       // 2️⃣ Handle season relationship
       if (data.season !== undefined) {
