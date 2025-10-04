@@ -2,42 +2,34 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { debounce } from 'lodash';
 import styles from '../styles/pages/mobileFilterSearch.module.css';
 
+// Chapter names constant to avoid duplication
+const CHAPTER_NAMES = {
+  '01': 'Kiritsubo 桐壺', '02': 'Hahakigi 帚木', '03': 'Utsusemi 空蝉', '04': 'Yūgao 夕顔', '05': 'Wakamurasaki 若紫', '06': 'Suetsumuhana 末摘花', '07': 'Momiji no Ga 紅葉賀', '08': 'Hana no En 花宴', '09': 'Aoi 葵', 
+  '10': 'Sakaki 榊', '11': 'Hana Chiru Sato 花散里', '12': 'Suma 須磨', '13': 'Akashi 明石', '14': 'Miotsukushi 澪標', '15': 'Yomogiu 蓬生', '16': 'Sekiya 関屋', '17': 'E Awase 絵合', '18': 'Matsukaze 松風', 
+  '19': 'Usugumo 薄雲', '20': 'Asagao 朝顔', '21': 'Otome 乙女', '22': 'Tamakazura 玉鬘', '23': 'Hatsune 初音', '24': 'Kochō 胡蝶', '25': 'Hotaru 螢', '26': 'Tokonatsu 常夏', '27': 'Kagaribi 篝火', 
+  '28': 'Nowaki 野分', '29': 'Miyuki 行幸', '30': 'Fujibakama 藤袴', '31': 'Makibashira 真木柱', '32': 'Umegae 梅枝', '33': 'Fuji no Uraba 藤裏葉', '34': 'Wakana: Jō 若菜上', '35': 'Wakana: Ge 若菜下', 
+  '36': 'Kashiwagi 柏木', '37': 'Yokobue 横笛', '38': 'Suzumushi 鈴虫', '39': 'Yūgiri 夕霧', '40': 'Minori 御法', '41': 'Maboroshi 幻', '42': 'Niou Miya 匂宮', '43': 'Kōbai 紅梅', '44': 'Takekawa 竹河', 
+  '45': 'Hashihime 橋姫', '46': 'Shii ga Moto 椎本', '47': 'Agemaki 総角', '48': 'Sawarabi 早蕨', '49': 'Yadorigi 宿木', '50': 'Azumaya 東屋', '51': 'Ukifune 浮舟', '52': 'Kagerō 蜻蛉', '53': 'Tenarai 手習', 
+  '54': 'Yume no Ukihashi 夢浮橋'
+};
+
 // Helper functions from the original component
 const removeLeadingZero = (num) => {
   return num.replace(/^0+/, '');
 };
 
 const getChapterName = (String) => {
-  const chapterNames = {
-    '01': 'Kiritsubo 桐壺', '02': 'Hahakigi 帚木', '03': 'Utsusemi 空蝉', '04': 'Yūgao 夕顔', '05': 'Wakamurasaki 若紫', '06': 'Suetsumuhana 末摘花', '07': 'Momiji no Ga 紅葉賀', '08': 'Hana no En 花宴', '09': 'Aoi 葵', 
-    '10': 'Sakaki 榊', '11': 'Hana Chiru Sato 花散里', '12': 'Suma 須磨', '13': 'Akashi 明石', '14': 'Miotsukushi 澪標', '15': 'Yomogiu 蓬生', '16': 'Sekiya 関屋', '17': 'E Awase 絵合', '18': 'Matsukaze 松風', 
-    '19': 'Usugumo 薄雲', '20': 'Asagao 朝顔', '21': 'Otome 乙女', '22': 'Tamakazura 玉鬘', '23': 'Hatsune 初音', '24': 'Kochō 胡蝶', '25': 'Hotaru 螢', '26': 'Tokonatsu 常夏', '27': 'Kagaribi 篝火', 
-    '28': 'Nowaki 野分', '29': 'Miyuki 行幸', '30': 'Fujibakama 藤袴', '31': 'Makibashira 真木柱', '32': 'Umegae 梅枝', '33': 'Fuji no Uraba 藤裏葉', '34': 'Wakana: Jō 若菜上', '35': 'Wakana: Ge 若菜下', 
-    '36': 'Kashiwagi 柏木', '37': 'Yokobue 横笛', '38': 'Suzumushi 鈴虫', '39': 'Yūgiri 夕霧', '40': 'Minori 御法', '41': 'Maboroshi 幻', '42': 'Niou Miya 匂宮', '43': 'Kōbai 紅梅', '44': 'Takekawa 竹河', 
-    '45': 'Hashihime 橋姫', '46': 'Shii ga Moto 椎本', '47': 'Agemaki 総角', '48': 'Sawarabi 早蕨', '49': 'Yadorigi 宿木', '50': 'Azumaya 東屋', '51': 'Ukifune 浮舟', '52': 'Kagerō 蜻蛉', '53': 'Tenarai 手習', 
-    '54': 'Yume no Ukihashi 夢浮橋'
-  };
   const formattedKey = String.toString().padStart(2, '0');
-  return chapterNames[formattedKey] || "Unknown Chapter";
+  return CHAPTER_NAMES[formattedKey] || "Unknown Chapter";
 };
 
 // Filter chapters based on search input (supports chapter number or name in English/Japanese)
 const getFilteredChapters = (searchText) => {
   const search = searchText.toLowerCase().trim();
   
-  const chapterNames = {
-    '01': 'Kiritsubo 桐壺', '02': 'Hahakigi 帚木', '03': 'Utsusemi 空蝉', '04': 'Yūgao 夕顔', '05': 'Wakamurasaki 若紫', '06': 'Suetsumuhana 末摘花', '07': 'Momiji no Ga 紅葉賀', '08': 'Hana no En 花宴', '09': 'Aoi 葵', 
-    '10': 'Sakaki 榊', '11': 'Hana Chiru Sato 花散里', '12': 'Suma 須磨', '13': 'Akashi 明石', '14': 'Miotsukushi 澪標', '15': 'Yomogiu 蓬生', '16': 'Sekiya 関屋', '17': 'E Awase 絵合', '18': 'Matsukaze 松風', 
-    '19': 'Usugumo 薄雲', '20': 'Asagao 朝顔', '21': 'Otome 乙女', '22': 'Tamakazura 玉鬘', '23': 'Hatsune 初音', '24': 'Kochō 胡蝶', '25': 'Hotaru 螢', '26': 'Tokonatsu 常夏', '27': 'Kagaribi 篝火', 
-    '28': 'Nowaki 野分', '29': 'Miyuki 行幸', '30': 'Fujibakama 藤袴', '31': 'Makibashira 真木柱', '32': 'Umegae 梅枝', '33': 'Fuji no Uraba 藤裏葉', '34': 'Wakana: Jō 若菜上', '35': 'Wakana: Ge 若菜下', 
-    '36': 'Kashiwagi 柏木', '37': 'Yokobue 横笛', '38': 'Suzumushi 鈴虫', '39': 'Yūgiri 夕霧', '40': 'Minori 御法', '41': 'Maboroshi 幻', '42': 'Niou Miya 匂宮', '43': 'Kōbai 紅梅', '44': 'Takekawa 竹河', 
-    '45': 'Hashihime 橋姫', '46': 'Shii ga Moto 椎本', '47': 'Agemaki 総角', '48': 'Sawarabi 早蕨', '49': 'Yadorigi 宿木', '50': 'Azumaya 東屋', '51': 'Ukifune 浮舟', '52': 'Kagerō 蜻蛉', '53': 'Tenarai 手習', 
-    '54': 'Yume no Ukihashi 夢浮橋'
-  };
-  
   // If no search text, return all chapters
   if (!search) {
-    return Object.entries(chapterNames)
+    return Object.entries(CHAPTER_NAMES)
       .map(([chapterNum, chapterName]) => ({
         chapterNum,
         chapterName,
@@ -49,7 +41,7 @@ const getFilteredChapters = (searchText) => {
       .sort((a, b) => a.numericChapter - b.numericChapter);
   }
   
-  return Object.entries(chapterNames)
+  return Object.entries(CHAPTER_NAMES)
     .filter(([chapterNum, chapterName]) => {
       const paddedMatches = chapterNum.includes(search);
       const unpaddedMatches = removeLeadingZero(chapterNum).includes(search);
@@ -89,8 +81,11 @@ const MobileFilterSearch = () => {
   const [showChapterDropdown, setShowChapterDropdown] = useState(false);
   const [selectedChapter, setSelectedChapter] = useState("");
   
-  // Filter options (we won't render the available value pills; keep chapter selection minimal)
-  const [availableChapters, setAvailableChapters] = useState([]);
+
+
+  // Display options state
+  const [displayMode, setDisplayMode] = useState("japanese"); // japanese, romaji, waley, seidensticker, tyler, washburn, cranston
+  const [showDisplayOptions, setShowDisplayOptions] = useState(false);
 
   // Highlight matching keywords
   const highlightMatch = (text, query) => {
@@ -138,19 +133,18 @@ const MobileFilterSearch = () => {
             addressee_gender: Object.values(result.addressee_gender).join(""),
             speaker_name: Object.values(result.speaker_name).join(""),
             speaker_gender: Object.values(result.speaker_gender).join(""),
-            waley_translation: Object.values(result.waley_translation).join(""),
-            seidensticker_translation: Object.values(result.seidensticker_translation).join(""),
-            tyler_translation: Object.values(result.tyler_translation).join(""),
-            washburn_translation: Object.values(result.washburn_translation).join(""),
-            cranston_translation: Object.values(result.cranston_translation).join(""),
-          }));
-
-          setResults(processedResults);
+            waley_translation: result.waley_translation ? 
+              (typeof result.waley_translation === 'string' ? result.waley_translation : Object.values(result.waley_translation).join("")) : "",
+            seidensticker_translation: result.seidensticker_translation ? 
+              (typeof result.seidensticker_translation === 'string' ? result.seidensticker_translation : Object.values(result.seidensticker_translation).join("")) : "",
+            tyler_translation: result.tyler_translation ? 
+              (typeof result.tyler_translation === 'string' ? result.tyler_translation : Object.values(result.tyler_translation).join("")) : "",
+            washburn_translation: result.washburn_translation ? 
+              (typeof result.washburn_translation === 'string' ? result.washburn_translation : Object.values(result.washburn_translation).join("")) : "",
+            cranston_translation: result.cranston_translation ? 
+              (typeof result.cranston_translation === 'string' ? result.cranston_translation : Object.values(result.cranston_translation).join("")) : "",
+          }));          setResults(processedResults);
           setShowResults(true);
-
-          // Update available chapters only (we won't show chips for speakers/addressees)
-          const chapters = [...new Set(processedResults.map(r => r.chapterNum))].sort();
-          setAvailableChapters(chapters);
         } else {
           throw new Error("Received unexpected data structure from server");
         }
@@ -161,7 +155,7 @@ const MobileFilterSearch = () => {
         setIsLoading(false);
       }
     }, 300),
-    [setIsLoading, setError, setResults, setShowResults, setAvailableChapters]
+    [setIsLoading, setError, setResults, setShowResults]
   );
 
   useEffect(() => {
@@ -198,10 +192,24 @@ const MobileFilterSearch = () => {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape' && showModal) closeModal();
+      if (e.key === 'Escape' && showDisplayOptions) setShowDisplayOptions(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [showModal]);
+  }, [showModal, showDisplayOptions]);
+
+  // Close display options when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showDisplayOptions && 
+          e.target.closest(`[class*="displayOptionsOverlay"]`) &&
+          !e.target.closest(`[class*="displayOptionsPopup"]`)) {
+        setShowDisplayOptions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDisplayOptions]);
 
   // Handle chapter dropdown interactions
   const handleChapterInputChange = (e) => {
@@ -210,15 +218,7 @@ const MobileFilterSearch = () => {
     // If user starts deleting from a selected chapter, clear the selection and input
     if (selectedChapter) {
       // Get the current selected chapter's display text
-      const allChapters = Object.entries({
-        '01': 'Kiritsubo 桐壺', '02': 'Hahakigi 帚木', '03': 'Utsusemi 空蝉', '04': 'Yūgao 夕顔', '05': 'Wakamurasaki 若紫', '06': 'Suetsumuhana 末摘花', '07': 'Momiji no Ga 紅葉賀', '08': 'Hana no En 花宴', '09': 'Aoi 葵', 
-        '10': 'Sakaki 榊', '11': 'Hana Chiru Sato 花散里', '12': 'Suma 須磨', '13': 'Akashi 明石', '14': 'Miotsukushi 澪標', '15': 'Yomogiu 蓬生', '16': 'Sekiya 関屋', '17': 'E Awase 絵合', '18': 'Matsukaze 松風', 
-        '19': 'Usugumo 薄雲', '20': 'Asagao 朝顔', '21': 'Otome 乙女', '22': 'Tamakazura 玉鬘', '23': 'Hatsune 初音', '24': 'Kochō 胡蝶', '25': 'Hotaru 螢', '26': 'Tokonatsu 常夏', '27': 'Kagaribi 篝火', 
-        '28': 'Nowaki 野分', '29': 'Miyuki 行幸', '30': 'Fujibakama 藤袴', '31': 'Makibashira 真木柱', '32': 'Umegae 梅枝', '33': 'Fuji no Uraba 藤裏葉', '34': 'Wakana: Jō 若菜上', '35': 'Wakana: Ge 若菜下', 
-        '36': 'Kashiwagi 柏木', '37': 'Yokobue 横笛', '38': 'Suzumushi 鈴虫', '39': 'Yūgiri 夕霧', '40': 'Minori 御法', '41': 'Maboroshi 幻', '42': 'Niou Miya 匂宮', '43': 'Kōbai 紅梅', '44': 'Takekawa 竹河', 
-        '45': 'Hashihime 橋姫', '46': 'Shii ga Moto 椎本', '47': 'Agemaki 総角', '48': 'Sawarabi 早蕨', '49': 'Yadorigi 宿木', '50': 'Azumaya 東屋', '51': 'Ukifune 浮舟', '52': 'Kagerō 蜻蛉', '53': 'Tenarai 手習', 
-        '54': 'Yume no Ukihashi 夢浮橋'
-      }).map(([chapterNum, chapterName]) => ({
+      const allChapters = Object.entries(CHAPTER_NAMES).map(([chapterNum, chapterName]) => ({
         chapterNum,
         displayText: `${removeLeadingZero(chapterNum)} - ${chapterName}`
       }));
@@ -278,12 +278,201 @@ const MobileFilterSearch = () => {
     setShowChapterDropdown(false);
   };
 
+  // Function to render poem text based on display mode
+  const renderPoemText = (result) => {
+    // Helper function to truncate translation to first few words
+    const truncateTranslation = (text, maxWords = 8) => {
+      if (!text) return '';
+      const words = text.trim().split(/\s+/);
+      return words.length <= maxWords ? text : words.slice(0, maxWords).join(' ') + '...';
+    };
+
+    // Shared style for translation text with auto-truncation
+    const translationStyle = {
+      display: 'block', 
+      width: '100%', 
+      color: '#1f1f1f', 
+      fontSize: '16px',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      maxWidth: '100%',
+      textAlign: 'center'
+    };
+
+    switch (displayMode) {
+      case 'japanese':
+        return (
+          <div className={styles.japanese}>
+            {highlightMatch(result.japanese.split("\n")[0], query)}
+          </div>
+        );
+      case 'romaji':
+        return (
+          <div className={styles.romaji}>
+            {result.romaji ? highlightMatch(result.romaji.split("\n")[0], query) : 'No romaji available'}
+          </div>
+        );
+      case 'waley':
+        const waleyText = result.waley_translation || '';
+        const waleyFirstLine = waleyText.split('\n').filter(line => line.trim())[0] || '';
+        const waleyTruncated = truncateTranslation(waleyFirstLine);
+        return (
+          <div className={styles.translation} style={translationStyle}>
+            {waleyTruncated ? highlightMatch(waleyTruncated, query) : 'No Waley translation available'}
+          </div>
+        );
+      case 'seidensticker':
+        const seidenstrickerText = result.seidensticker_translation || '';
+        const seidenstrickerFirstLine = seidenstrickerText.split('\n').filter(line => line.trim())[0] || '';
+        const seidenstrickerTruncated = truncateTranslation(seidenstrickerFirstLine);
+        return (
+          <div className={styles.translation} style={translationStyle}>
+            {seidenstrickerTruncated ? highlightMatch(seidenstrickerTruncated, query) : 'No Seidensticker translation available'}
+          </div>
+        );
+      case 'tyler':
+        const tylerText = result.tyler_translation || '';
+        const tylerFirstLine = tylerText.split('\n').filter(line => line.trim())[0] || '';
+        const tylerTruncated = truncateTranslation(tylerFirstLine);
+        return (
+          <div className={styles.translation} style={translationStyle}>
+            {tylerTruncated ? highlightMatch(tylerTruncated, query) : 'No Tyler translation available'}
+          </div>
+        );
+      case 'washburn':
+        const washburnText = result.washburn_translation || '';
+        const washburnFirstLine = washburnText.split('\n').filter(line => line.trim())[0] || '';
+        const washburnTruncated = truncateTranslation(washburnFirstLine);
+        return (
+          <div className={styles.translation} style={translationStyle}>
+            {washburnTruncated ? highlightMatch(washburnTruncated, query) : 'No Washburn translation available'}
+          </div>
+        );
+      case 'cranston':
+        const cranstonText = result.cranston_translation || '';
+        const cranstonFirstLine = cranstonText.split('\n').filter(line => line.trim())[0] || '';
+        const cranstonTruncated = truncateTranslation(cranstonFirstLine);
+        return (
+          <div className={styles.translation} style={translationStyle}>
+            {cranstonTruncated ? highlightMatch(cranstonTruncated, query) : 'No Cranston translation available'}
+          </div>
+        );
+      default:
+        return (
+          <div className={styles.japanese}>
+            {highlightMatch(result.japanese.split("\n")[0], query)}
+          </div>
+        );
+    }
+  };
+
   return (
     <div className={styles.mobileSearch}>
       {/* Header */}
       <div className={styles.header}>
+        <div className={styles.headerLeft}></div>
         <h1 className={styles.title}>Poem Search</h1>
+        <div className={styles.headerRight}>
+          <button 
+            className={styles.gearButton}
+            onClick={() => setShowDisplayOptions(!showDisplayOptions)}
+            aria-label="Display options"
+          >
+            <img src="/images/gear.png" alt="Settings" className={styles.gearIcon} />
+          </button>
+        </div>
       </div>
+
+      {/* Display Options Popup */}
+      {showDisplayOptions && (
+        <div className={styles.displayOptionsOverlay}>
+          <div className={styles.displayOptionsPopup}>
+            <div className={styles.displayOptionsHeader}>
+              <h3 className={styles.displayOptionsTitle}>Display Options</h3>
+              <button 
+                className={styles.closeDisplayOptions}
+                onClick={() => setShowDisplayOptions(false)}
+                aria-label="Close display options"
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.displayOptionsList}>
+              <div 
+                className={`${styles.displayOption} ${displayMode === 'japanese' ? styles.selected : ''}`}
+                onClick={() => {
+                  setDisplayMode('japanese');
+                  setShowDisplayOptions(false);
+                }}
+              >
+                <span className={styles.optionLabel}>Japanese (Kanji)</span>
+                {displayMode === 'japanese' && <span className={styles.checkmark}>✓</span>}
+              </div>
+              <div 
+                className={`${styles.displayOption} ${displayMode === 'romaji' ? styles.selected : ''}`}
+                onClick={() => {
+                  setDisplayMode('romaji');
+                  setShowDisplayOptions(false);
+                }}
+              >
+                <span className={styles.optionLabel}>Romaji</span>
+                {displayMode === 'romaji' && <span className={styles.checkmark}>✓</span>}
+              </div>
+              <div 
+                className={`${styles.displayOption} ${displayMode === 'waley' ? styles.selected : ''}`}
+                onClick={() => {
+                  setDisplayMode('waley');
+                  setShowDisplayOptions(false);
+                }}
+              >
+                <span className={styles.optionLabel}>Waley Translation</span>
+                {displayMode === 'waley' && <span className={styles.checkmark}>✓</span>}
+              </div>
+              <div 
+                className={`${styles.displayOption} ${displayMode === 'seidensticker' ? styles.selected : ''}`}
+                onClick={() => {
+                  setDisplayMode('seidensticker');
+                  setShowDisplayOptions(false);
+                }}
+              >
+                <span className={styles.optionLabel}>Seidensticker Translation</span>
+                {displayMode === 'seidensticker' && <span className={styles.checkmark}>✓</span>}
+              </div>
+              <div 
+                className={`${styles.displayOption} ${displayMode === 'tyler' ? styles.selected : ''}`}
+                onClick={() => {
+                  setDisplayMode('tyler');
+                  setShowDisplayOptions(false);
+                }}
+              >
+                <span className={styles.optionLabel}>Tyler Translation</span>
+                {displayMode === 'tyler' && <span className={styles.checkmark}>✓</span>}
+              </div>
+              <div 
+                className={`${styles.displayOption} ${displayMode === 'washburn' ? styles.selected : ''}`}
+                onClick={() => {
+                  setDisplayMode('washburn');
+                  setShowDisplayOptions(false);
+                }}
+              >
+                <span className={styles.optionLabel}>Washburn Translation</span>
+                {displayMode === 'washburn' && <span className={styles.checkmark}>✓</span>}
+              </div>
+              <div 
+                className={`${styles.displayOption} ${displayMode === 'cranston' ? styles.selected : ''}`}
+                onClick={() => {
+                  setDisplayMode('cranston');
+                  setShowDisplayOptions(false);
+                }}
+              >
+                <span className={styles.optionLabel}>Cranston Translation</span>
+                {displayMode === 'cranston' && <span className={styles.checkmark}>✓</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search Inputs */}
       <div className={styles.searchSection}>
@@ -383,9 +572,7 @@ const MobileFilterSearch = () => {
                 </span>
 
                 <div className={styles.poemText}>
-                    <div className={styles.japanese}>
-                    {highlightMatch(result.japanese.split("\n")[0], query)}
-                    </div>
+                  {renderPoemText(result)}
                 </div>
 
                 <span 

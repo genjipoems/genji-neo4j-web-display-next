@@ -33,7 +33,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: 20px 16px;
+  position: relative;
+}
+
+.headerLeft {
+  flex: 0 0 40px;
+}
+
+.headerRight {
+  flex: 0 0 40px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .title {
@@ -43,6 +54,10 @@
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 1px;
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .clearButton {
@@ -61,6 +76,134 @@
 .clearButton:hover {
   border-color: #6b5b4a;
   background-color: rgba(143, 123, 102, 0.1);
+}
+
+/* Gear Button */
+.gearButton {
+  background: transparent;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gearButton:hover {
+  transform: rotate(45deg);
+}
+
+.gearIcon {
+  width: 24px;
+  height: 24px;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.gearButton:hover .gearIcon {
+  opacity: 1;
+}
+
+/* Display Options Overlay */
+.displayOptionsOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Display Options Popup */
+.displayOptionsPopup {
+  background-color: #efe6da;
+  border: 2px solid #8f7b66;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  min-width: 280px;
+  max-width: 90vw;
+  margin: 0 16px;
+}
+
+.displayOptionsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(143, 123, 102, 0.3);
+}
+
+.displayOptionsTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f1f1f;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.closeDisplayOptions {
+  background: transparent;
+  border: none;
+  color: #1f1f1f;
+  font-size: 24px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.closeDisplayOptions:hover {
+  background-color: rgba(143, 123, 102, 0.2);
+}
+
+.displayOptionsList {
+  padding: 8px 0;
+}
+
+.displayOption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid rgba(143, 123, 102, 0.1);
+}
+
+.displayOption:hover {
+  background-color: rgba(143, 123, 102, 0.1);
+}
+
+.displayOption:last-child {
+  border-bottom: none;
+}
+
+.displayOption.selected {
+  background-color: rgba(67, 104, 117, 0.1);
+}
+
+.optionLabel {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1f1f1f;
+}
+
+.checkmark {
+  color: #436875;
+  font-weight: 700;
+  font-size: 18px;
 }
 
 /* Search Section */
@@ -366,6 +509,11 @@
 .poemText {
   font-size: 15px;
   text-align: center;
+  flex: 2;
+  margin: 0 8px;
+  min-width: 0;
+  font-weight: 500;
+
 }
 
 .modalNumbers span {
@@ -377,7 +525,24 @@
 }
 
 .romaji { 
-  display: none; 
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 14px;
+  color: #1f1f1f;
+  font-style: italic;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.translation {
+  font-size: 16px;
+  color: #1f1f1f;
+  line-height: 1.4;
+  font-style: italic;
+  text-align: center;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  display: block;
+  width: 100%;
 }
  
 .chapterKanji {
@@ -661,10 +826,6 @@
   margin-left: 0;
 }
 
-.translation {
-  display: none;
-}
-
 /* Responsive adjustments */
 @media (max-width: 480px) {
   .mobileSearch {
@@ -672,9 +833,19 @@
   }
   
   .header {
-    flex-direction: column;
+    flex-direction: row;
     gap: 12px;
-    text-align: center;
+    text-align: left;
+  }
+
+  .displayOptionsPopup {
+    min-width: calc(100vw - 40px);
+    max-width: calc(100vw - 40px);
+  }
+
+  .gearIcon {
+    width: 20px;
+    height: 20px;
   }
   
   .filterInputs {
@@ -708,9 +879,17 @@
   }
 }
 
-@media (max-width: 320px) {
+@media (max-width: 420px) {
   .title {
     font-size: 20px;
+    letter-spacing: 0.5px;
+  }
+}
+
+@media (max-width: 320px) {
+  .title {
+    font-size: 18px;
+    letter-spacing: 0.3px;
   }
   
   .clearButton {
@@ -726,5 +905,23 @@
   .filterInput {
     font-size: 12px;
     padding: 10px;
+  }
+
+  .displayOptionsPopup {
+    min-width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+  }
+
+  .gearIcon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .displayOptionsTitle {
+    font-size: 16px;
+  }
+
+  .optionLabel {
+    font-size: 14px;
   }
 }
