@@ -8,7 +8,7 @@ async function getData (chapter, number){
 	//all the get method and return the db data
 	const queries = {
 
-		res: 'MATCH poem=(g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH "' + number + '" OPTIONAL MATCH speaker_rel=(s:Character)-[:SPEAKER_OF]->(g) OPTIONAL MATCH addressee_rel=(g)<-[:ADDRESSEE_OF]-(a:Character) OPTIONAL MATCH trans=(g)-[:TRANSLATION_OF]-(:Translation)-[:TRANSLATOR_OF]-(:People) RETURN poem, speaker_rel, addressee_rel, trans, g.narrative_context as narrative_context, g.paraphrase as paraphrase, g.handwriting_description as handwriting_description, g.paper_or_medium_type as paper_or_medium_type, g.delivery_style as delivery_style, g.Spoken as spoken, g.Written as written, g.evidence_for_spoken_or_written as spoken_or_written_evidence',
+		res: 'MATCH poem=(g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH "' + number + '" OPTIONAL MATCH speaker_rel=(s:Character)-[:SPEAKER_OF]->(g) OPTIONAL MATCH addressee_rel=(g)<-[:ADDRESSEE_OF]-(a:Character) OPTIONAL MATCH trans=(g)-[:TRANSLATION_OF]-(:Translation)-[:TRANSLATOR_OF]-(:People) RETURN poem, speaker_rel, addressee_rel, trans, g.narrative_context as narrative_context, g.paraphrase as paraphrase, g.handwriting_description as handwriting_description, g.paper_or_medium_type as paper_or_medium_type, g.delivery_style as delivery_style, g.Spoken as spoken, g.Written as written, g.evidence_for_spoken_or_written as spoken_or_written_evidence, g.Complete as complete, g.last_updated as last_updated',
 		resHonkaInfo:  'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[n:ALLUDES_TO]->(h:Honka)-[r:ANTHOLOGIZED_IN]-(s:Source), (h)<-[:AUTHOR_OF]-(a:People), (h)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(p:People) where g.pnum ends with "' + number + '" return h.Honka as honka, h.Romaji as romaji, s.title as title, a.name as poet, r.order as order, p.name as translator, t.translation as translation, n.notes as notes',
 		resRel : 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[r:INTERNAL_ALLUSION_TO]->(s:Genji_Poem) where g.pnum ends with "' + number + '" return s.pnum as rel, r.evidence as internal_allusion_evidence',
 		resPnum : 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(c:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH (CASE WHEN "' + number + '" < 10 THEN \'0\' + toString("' + number + '") ELSE toString($number) END) RETURN g.pnum as pnum',
@@ -84,7 +84,9 @@ async function getData (chapter, number){
 		let spoken = result['res'].records[0]?.get('spoken') || null;
 		let written = result['res'].records[0]?.get('written') || null;
 		let spoken_or_written_evidence = result['res'].records[0]?.get('spoken_or_written_evidence') || null;
-		
+		let complete = result['res'].records[0]?.get('complete') || null; // poem is complete annotated mark
+		let last_updated = result['res'].records[0]?.get('last_updated') || null; // last updated time
+
 		//for transtemp
 		let transTemp = result['res'].records.map(e => toNativeTypes(e.get('trans'))).map(e => [e.end.properties.name, e.segments[0].end.properties.translation, e.segments[1].start.properties.WaleyPageNum])
 		
@@ -228,8 +230,9 @@ async function getData (chapter, number){
 						replyPoems,
 						furtherReadings,
 						spoken_or_written_evidence,
-						repliesToThis
-						
+						repliesToThis,
+						complete,
+						last_updated
 					];
 
 		return (data);
