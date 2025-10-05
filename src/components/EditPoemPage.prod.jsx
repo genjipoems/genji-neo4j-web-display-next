@@ -113,7 +113,7 @@ const fieldOrder = [
   "speaker", "addressee", "addressee2", "addressee3", "poemId", "age", "JPRM_Japanese", "JPRM_Romaji",
   "Waley", "Seidensticker", "Tyler", "Washburn", "Cranston",
   "narrativeContext", "paraphrase", "notes", "paperMediumType", "deliveryStyle",
-  "season", "season_evidence", "spoken", "written", "spoken_or_written_evidence", 
+  "season", "season_evidence", "spoken", "written", "complete", "spoken_or_written_evidence", 
   "pt", "tag", "otherTags", "placeOfComp", "placeOfComp_evidence",
   "placeOfReceipt", "placeOfReceipt_evidence",
   "pw", "messenger", "replyPoems",
@@ -329,7 +329,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     groupPoems: responseData[27],
                     replyPoems: responseData[31],
                     furtherReadings: responseData[29],
-                    spoken_or_written_evidence: responseData[30]
+                    spoken_or_written_evidence: responseData[30],
+                    complete: responseData[32]
                     };
 
                     // Fixed serialization logic
@@ -420,7 +421,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
             continue;
             }
 
-            if (key === "spoken" || key === "written") {
+            if (key === "spoken" || key === "written" || key === "complete") {
                 // Accept only "true" or "false" string on save; fallback to "false"
                 const valLower = val.toLowerCase();
                 result[key] = valLower === "true" ? "true" : "false";
@@ -569,6 +570,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
             addressee3: "addressee3", // addressee3 maps directly
             spoken: "Spoken",
             written: "Written",
+            complete: "Complete",
             season: "season", // season maps directly
             narrativeContext: "narrative_context",
             paraphrase: "paraphrase",
@@ -618,6 +620,9 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 updated[key] = JSON.stringify([]);
             } else if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3") {
                 // For speaker and addressee fields, set to empty string
+                updated[key] = "";
+            } else if (key === "complete") {
+                // For complete field, set to empty string (same as speaker/addressee)
                 updated[key] = "";
             } else {
                 delete updated[key];
@@ -674,6 +679,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
             "age",
             "spoken",
             "written",
+            "complete",
         ];
 
         const readOnlyFields = ["poemId"];
@@ -698,7 +704,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 >
                 {formatFieldName(key)}
 
-                {(key === "spoken" || key === "written") && (
+                {(key === "spoken" || key === "written" || key === "complete") && (
                     <span
                     title={booleanHint}
                     style={{
@@ -761,8 +767,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
 
                         let newValue = e.target.value;
                         
-                        // For spoken/written, convert to lowercase
-                        if (key === "spoken" || key === "written") {
+                        // For spoken/written/complete, convert to lowercase
+                        if (key === "spoken" || key === "written" || key === "complete") {
                             newValue = newValue.toLowerCase();
                         }
                         // For season, capitalize first letter to match Season node names

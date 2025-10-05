@@ -53,7 +53,7 @@ export async function DELETE(request) {
     }
 
     // **Sanitize field name** - expanded to include season, age and other allowed fields
-    const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description"];
+    const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "Complete", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description"];
     if (!allowedFields.includes(field)) {
       return new Response(JSON.stringify({ error: "Invalid field param" }), { status: 400 });
     }
@@ -377,7 +377,7 @@ async function updatePoemProperties(pnum, data) {
       // 1️⃣ Update main Genji_Poem properties
       const query = `
         MATCH (g:Genji_Poem {pnum: $pnum})
-        SET g += $props
+        SET g += $props, g.last_updated = datetime()
         RETURN g, g.pnum as pnum
       `;
 
@@ -396,6 +396,7 @@ async function updatePoemProperties(pnum, data) {
       if (data.paraphrase !== undefined) props.paraphrase = data.paraphrase || null;
       if (data.spoken !== undefined) props.Spoken = (data.spoken !== undefined && data.spoken !== null) ? String(data.spoken).toLowerCase() : null;
       if (data.written !== undefined) props.Written = (data.written !== undefined && data.written !== null) ? String(data.written).toLowerCase() : null;
+      if (data.complete !== undefined) props.Complete = (data.complete !== undefined && data.complete !== null) ? String(data.complete).toLowerCase() : null;
       if (data.handwritingDescription !== undefined) props.handwriting_description = data.handwritingDescription || null;
       if (data.proxy !== undefined) props.proxy = data.proxy || null;
       if (data.messenger !== undefined) props.messenger = data.messenger || null;
