@@ -131,6 +131,9 @@ export default function CharacterDetail({ name }) {
           if ((characterData.messengerPoems || []).length > 0) {
             base.push({ id: 'messenger-of', title: 'Messenger of' });
           }
+          if ((characterData.proxyPoetPoems || []).length > 0) {
+            base.push({ id: 'proxy-poet-of', title: 'Proxy Poet of' });
+          }
       
           setSections(base);
         }
@@ -222,7 +225,7 @@ export default function CharacterDetail({ name }) {
     if (!characterExists) return <div className={styles.error}>Character does not exist.</div>;
     if (!characterData || !characterData.character) return <div className={styles.error}>No character data available</div>;
 
-    const { allCharacterNames, character, relatedCharacters, relatedPoems,messengerPoems, nicknames } = characterData;
+    const { allCharacterNames, character, relatedCharacters, relatedPoems,messengerPoems, proxyPoetPoems, nicknames } = characterData;
     const groupedRelatedCharacters = groupRelatedCharacters(relatedCharacters);
     const filteredCharacters = filterCharacters(allCharacterNames);
 
@@ -266,6 +269,25 @@ export default function CharacterDetail({ name }) {
           ...addresseeData
         };
       });
+      const proxyPoetPoemsArray = proxyPoetPoems ? Object.values(proxyPoetPoems) : [];
+      const formattedProxyPoetPoems = proxyPoetPoemsArray.map(poem => {
+        const chapterNum = poem.pnum.substring(0, 2);
+        const chapterAbr = poem.pnum.substring(2, 4);
+        const poemNum = poem.pnum.substring(4);
+
+        return {
+            chapterNum,
+            chapterAbr,
+            poemNum,
+            chapterKanji: getChapterNamKanji(chapterNum),
+            japanese: poem.Japanese,
+            romaji: poem.Romaji,
+            speaker_name: poem.speaker_name || 'Unknown',
+            speaker_gender: poem.speaker_gender || 'Unknown',
+            addressee_name: poem.addressee_name || 'Unknown',
+            addressee_gender: poem.addressee_gender || 'Unknown'
+        };
+        });
 
     if (isLoading) { 
         if (timeline.length > 0) {
@@ -677,6 +699,78 @@ export default function CharacterDetail({ name }) {
                                 <p className={styles.noPoemsMessage}>No poems delivered by this character.</p>
                             )}
                         </div>
+
+                        {/* Proxy Poet Of Section */}
+                        <div className={styles.poemsSection} id="proxy-poet-of">
+                            <span className={styles.filterResultsLabel}>PROXY POET OF</span>
+                            {formattedProxyPoetPoems.length > 0 ? (
+                                <div className={styles.searchResults}>
+                                  {formattedProxyPoetPoems.map((result, index) => (
+                                    <div
+                                      key={`proxy-${index}`}
+                                      className={`${styles.resultItem} ${hoveredIndex === `p-${index}` ? styles.hovered : ''}`}
+                                      onMouseEnter={(event) => handleMouseEnter(`p-${index}`, event)}
+                                      onMouseLeave={handleMouseLeave}
+                                    >
+                                      <Link href={`/poems/${removeLeadingZero(result.chapterNum)}/${removeLeadingZero(result.poemNum)}`}>
+                                        <div className={styles.resultContent}>
+                                          <h3
+                                            className={styles.resultTitleSpeaker}
+                                            style={{
+                                              color:
+                                                result.speaker_gender === 'male'
+                                                  ? '#436875'
+                                                  : result.speaker_gender === 'female'
+                                                  ? '#B03F2E'
+                                                  : 'inherit'
+                                            }}
+                                          >
+                                            Proxy Poet · from {result.speaker_name || '—'}
+                                          </h3>
+                                          <div className={styles.resultWrapper}>
+                                            <div className={styles.resultWrapperChapter}>
+                                              <div className={styles.resultTitle}>
+                                                {result.chapterNum}{result.chapterAbr}
+                                              </div>
+                                              <div className={styles.resultTitle}>
+                                                {result.poemNum}
+                                              </div>
+                                            </div>
+                                            <div className={styles.resultPoemKanji}>
+                                              {result.chapterKanji}
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <div className={styles.japaneseText}>
+                                              {result.japanese.split("\n")[0] || result.japanese}
+                                            </div>
+                                            <div className={styles.romajiText}>
+                                              {result.romaji.split("\n")[0] || result.romaji}
+                                            </div>
+                                          </div>
+                                          <h3
+                                            className={styles.resultTitleAddressee}
+                                            style={{
+                                              color:
+                                                result.addressee_gender === 'male'
+                                                  ? '#436875'
+                                                  : result.addressee_gender === 'female'
+                                                  ? '#B03F2E'
+                                                  : 'inherit'
+                                            }}
+                                          >
+                                            &raquo; {result.addressee_name}
+                                          </h3>
+                                        </div>
+                                      </Link>
+                                    </div>
+                                  ))}
+                                </div>
+                            ) : (
+                                <p className={styles.noPoemsMessage}>No proxy-poet poems for this character.</p>
+                            )}
+                        </div>
+
 
                         <span className={styles.filterResultsLabel}>RELATIONS</span>
                         <div className={styles.relatedCharacters}>
