@@ -406,7 +406,7 @@ const MobileFilterSearch = () => {
                   setShowDisplayOptions(false);
                 }}
               >
-                <span className={styles.optionLabel}>Japanese (Kanji)</span>
+                <span className={styles.optionLabel}>Japanese</span>
                 {displayMode === 'japanese' && <span className={styles.checkmark}>✓</span>}
               </div>
               <div 
