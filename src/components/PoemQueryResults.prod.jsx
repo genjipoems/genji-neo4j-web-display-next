@@ -11,6 +11,32 @@ import PoemNavigation from './PoemNavigation.prod';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheckCircle, faCircle, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 
+function FormatTime(dtObj) {
+    if (!dtObj) {
+        return { year: 'N/A', monthdate: 'N/A' };
+    }
+    
+    try {
+        // deal with neo4j date time object
+        const year = dtObj.year?.low || dtObj.year || new Date().getFullYear();
+        const month = dtObj.month?.low || dtObj.month || 1;
+        const day = dtObj.day?.low || dtObj.day || 1;
+        
+
+        const formattedMonth = month.toString().padStart(2, '0');
+        const formattedDay = day.toString().padStart(2, '0');
+        const monthdate = `${formattedMonth}.${formattedDay}`;
+        
+        return {
+            year: year.toString(),
+            monthdate: monthdate
+        };
+    } catch (error) {
+        console.error('Error formatting time:', error);
+        return { year: 'Invalid', monthdate: 'Invalid' };
+    }
+}
+
 const EvidenceDropdown = ({ content, evidence }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -90,7 +116,9 @@ const PoemDisplay = ({ poemData }) => {
         groupPoems: [],
         replyPoems: [],
         furtherReadings: [],
-        spoken_or_written_evidence: ""
+        spoken_or_written_evidence: "",
+        complete: "",
+        last_updated: ""
     });
     
     const chapter = poemData.chapterNum;
@@ -268,7 +296,9 @@ const PoemDisplay = ({ poemData }) => {
                     groupPoems: responseData[27],
                     replyPoems: responseData[28],
                     furtherReadings: responseData[29],
-                    spoken_or_written_evidence: responseData[30]
+                    spoken_or_written_evidence: responseData[30],
+                    complete: responseData[32],
+                    last_updated: responseData[33]
                 };
                 
                 
@@ -470,65 +500,41 @@ const PoemDisplay = ({ poemData }) => {
                                 </a>
                             ) : (
                                 'NONE'
+                                
                             )}
                         </span>
 
                         <span className={styles.messengerLabel}>MESSENGER</span> 
                     </div>
                     
-                    <div className={`${styles.gridBox} ${styles.connectedBox}`}>
-                        {/* <div className={styles.connectedArrows}>
-                            <span>◀</span>
-                            <span>▶</span>
-                        </div> */}
-
+                    <div className={`${styles.gridBox} ${styles.proxyBox}`}>
                         {/* show nothing when no data is available */}
                         {poemState.proxy ? ( 
                             <>
                                 <a href={`/characters/${encodeURIComponent(poemState.proxy)}`} className={styles.characterLink}>
                                     {poemState.proxy}
                                 </a>
-                                <span className={styles.connectedLabel}>PROXY POET</span>
+                                <span className={styles.proxyLabel}>PROXY POET</span>
                             </>
                         ) : (
                             <>
-                                <span className={styles.connectedValue}>NONE</span>
-                                <span className={styles.connectedLabel}>PROXY POET</span>
+                                <span className={styles.proxyValue}>NONE</span>
+                                <span className={styles.proxyLabel}>PROXY POET</span>
                             </>
                         )}
 
                     </div>
                     
-                    <div className={`${styles.gridBox} ${styles.poemTypeBox}`}>
-                        <div className={styles.poemTypeContainer}>
-                            <span className={styles.poemTypeLabel}>
-                                <span>TYPE</span>
-                                <span>POEM</span>
-                            </span>
-                            <div className={styles.checkboxGroup}>
-                                <span>PROFFERED {poemState.tag?.some(item => item[0] === 'Proffered Poem' && item[1]) ? '☑' : '☐'}</span>
-                                <span>REPLY {poemState.tag?.some(item => item[0]?.includes('Reply Poem') && item[1]) ? '☑' : '☐'}</span>
-                                <span>SOLILOQUY {poemState.tag?.some(item => item[0]?.includes('Soliloquy') && item[1]) ? '☑' : '☐'}</span>
-                                <span>GROUP {poemState.tag?.some(item => item[0]?.includes('Group Poem') && item[1]) ? '☑' : '☐'}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className={`${styles.gridBox} ${styles.poemTechBox}`}>
-                        <div className={styles.techList}>
-                            <span>{poemState.pt?.some(item => item[0] === 'kakekotoba' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} KAKEKOTOBA</span>
-                            <span>{poemState.pt?.some(item => item[0] === 'engo' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} ENGO</span>
-                            <span>{poemState.pt?.some(item => item[0] === 'utamakura' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} UTAMAKURA</span>
-                            <span>{poemState.pt?.some(item => item[0] === 'makurakotoba' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} MAKURAKOTOBA</span>
-                        </div>
-                        <span className={styles.poemTechLabel}>
-                                <span>TECHNIQUE</span>
-                                <span>POETIC</span>
-                        </span>
+                    <div className={`${styles.gridBox} ${styles.poemlastupdatedBox}`}>
+                        {poemState.last_updated && (
+                            <>
+                                <span className={styles.poemlastupdatedLabel}>UPDATED ON</span>
+                                <span className={styles.poemlastupdatedValue}>{FormatTime(poemState.last_updated)['year']}.</span>
+                                <span className={styles.poemlastupdatedValue}>{FormatTime(poemState.last_updated)['monthdate']}</span>
+                            </>
+                        )}
                     </div>
 
-                    <div className={`${styles.gridBox} ${styles.emptyBox}`}> </div>
-                    
                     <div className={`${styles.gridBox} ${styles.spokenBox}`}>
                         <div className={styles.spokenContainer}>
                             {/* no data shown if no data is available */}
@@ -555,6 +561,34 @@ const PoemDisplay = ({ poemData }) => {
                             )}
                         </div>
                     </div>
+
+                    <div className={`${styles.gridBox} ${styles.poemTypeBox}`}>
+                        <div className={styles.poemTypeContainer}>
+                            <span className={styles.poemTypeLabel}>
+                                <span>POEM TYPE</span>
+                            </span>
+                            <div className={styles.checkboxGroup}>
+                                <span>PROFFERED {poemState.tag?.some(item => item[0] === 'Proffered Poem' && item[1]) ? '☑' : '☐'}</span>
+                                <span>REPLY {poemState.tag?.some(item => item[0]?.includes('Reply Poem') && item[1]) ? '☑' : '☐'}</span>
+                                <span>SOLILOQUY {poemState.tag?.some(item => item[0]?.includes('Soliloquy') && item[1]) ? '☑' : '☐'}</span>
+                                <span>GROUP {poemState.tag?.some(item => item[0]?.includes('Group Poem') && item[1]) ? '☑' : '☐'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className={`${styles.gridBox} ${styles.poemTechBox}`}>
+                        <span className={styles.poemTechLabel}>
+                            <span>POETIC TECHNIQUE</span>
+                        </span>
+                        <div className={styles.techList}>
+                            <span>{poemState.pt?.some(item => item[0] === 'kakekotoba' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} KAKEKOTOBA</span>
+                            <span>{poemState.pt?.some(item => item[0] === 'engo' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} ENGO</span>
+                            <span>{poemState.pt?.some(item => item[0] === 'utamakura' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} UTAMAKURA</span>
+                            <span>{poemState.pt?.some(item => item[0] === 'makurakotoba' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} MAKURAKOTOBA</span>
+                        </div>
+                    </div>
+                    
+        
                     
                     <div className={`${styles.gridBox} ${styles.chapterBox}`}>
                         <div className={styles.chapterPoemLabel}>
