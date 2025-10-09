@@ -947,13 +947,13 @@
   color: #FFFFFF;
 }
 
-.messengerValue, .messengerValue a {
+.messengerValue, .messengerValue a, .proxyValue, .proxyValue a {
   font-family: 'Lexend', sans-serif;
   font-weight: 500;
   font-size: 14px;
   line-height: 100%;
   letter-spacing: -0.01rem;
-  text-align: center;
+  text-align: left;
   text-transform: uppercase;
   text-decoration: underline;
   text-decoration-style: solid;
@@ -963,13 +963,13 @@
   margin-bottom: 5px;
 }
 
-.messengerLabel {
+.messengerLabel, .proxyLabel {
   font-family: 'Lexend', sans-serif;
   font-weight: 300;
   font-size: 10px;
   line-height: 100%;
   letter-spacing: 0rem;
-  text-align: center;
+  text-align: left;
   text-transform: uppercase;
   color: #FFFFFF;
 }
@@ -990,80 +990,88 @@
 
 .ageBox {
   grid-column: 1 / 4;
-  grid-row: 5 / 12;
+  grid-row: 5 / 11;
   background-color: #DBA18D;
   border-radius: 20px;
 }
 
 .messengerBox {
-  grid-column: 4 / -1;
-  grid-row: 5 / 8;
+  grid-column: 4 / 8;
+  grid-row: 5 / 7;
   background-color: #9CBAB6;
-  border-radius: 20px;
-}
-
-.connectedBox {
-  grid-column: 4 / 7;
-  grid-row: 8 / 12;
-  background-color: #486339;
-  border-radius: 20px;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  padding-left: 10px;
+  overflow: hidden;
+  word-wrap: break-word;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.connectedLabel {
-  font-family: 'Lexend', sans-serif !important;
-  font-weight: 700 !important;
-  font-size: 10px !important;
-  line-height: 100% !important;
-  letter-spacing: 0rem !important;
-  vertical-align: middle !important;
-  text-transform: uppercase !important;
-  opacity: 0.75 !important;
+.proxyBox {
+  grid-column: 8 / 11;
+  grid-row: 5 / 7;
+  background-color: #486339;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding-left: 10px;
+  overflow: hidden;
+  word-wrap: break-word;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.connectedArrows {
-  display: flex !important;
-  gap: 10px !important;
-  justify-content: center !important;
-  align-items: center !important;
-  margin-bottom: 10px !important;
+.poemlastupdatedBox {
+  grid-column: 4 / 7;
+  grid-row: 7 / 11;
+  background-color: #CC683D;
+  border-radius: 20px;
+  align-items: left;
+  display: flex;
 }
 
-.connectedArrows span {
-  font-size: 45px !important;
-  color: #FFFFFF !important;
-}
-
-.connectedValue {
+.poemlastupdatedLabel {
   font-family: 'Lexend', sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  letter-spacing: -0.01rem;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: -0.05rem;
+  text-align: left;
+  color: #FFFFFF;
+  opacity: 0.3;
+  margin-left: -20px;
+  margin-top: -5px;
+}
+
+.poemlastupdatedValue {
+  font-family: 'Martian Mono', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.15rem;
   text-align: center;
   color: #FFFFFF;
-  text-decoration: underline;
+  opacity: 0.6;
 }
 
-.poemTypeBox {
+.spokenBox {
   grid-column: 7 / -1;
-  grid-row: 8 / 12;
-  background-color: #799994;
-  color: #333;
+  grid-row: 7 / 11;
+  background-color: #B03F2E;
   border-radius: 20px;
 }
 
 .poemTechBox {
-  grid-column: 1 / 5;
-  grid-row: 12 / 16;
+  grid-column: 1 / 6;
+  grid-row: 11  / 16;
   background-color: #8CA887;
   border-radius: 20px;
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
   padding: 1rem;
 }
 
@@ -1071,56 +1079,53 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding-left: 15px;
+  margin-left: -5px;
 }
 
 .techList span {
   display: flex;
-  align-items: center;
+  align-items: left;
   gap: 0.5rem;
-  font-size: 0.9rem;
   font-family: 'Lexend', sans-serif;
   font-weight: 700;
-  font-size: 12.66px;
+  font-size: 12px;
   line-height: 100%;
-  letter-spacing: 0.1;
+  letter-spacing: 0.2rem;
   vertical-align: middle;
   text-transform: uppercase;
+  opacity: 0.81;
+}
+
+.poemTypeBox {
+  grid-column: 6 / -1;
+  grid-row: 11 / 16;
+  background-color: #799994;
+  color: #333;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
 }
 
 .poemTechLabel {
   font-family: 'Lexend', sans-serif;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 10px;
-  line-height: 100%;
-  letter-spacing: 0rem;
+  line-height: 90%;
+  letter-spacing: 0.25rem;
   text-transform: uppercase;
   color: #FFFFFF;
-  writing-mode: vertical-lr;
-  transform: rotate(180deg);
-  text-align: center;
-  margin-right: 5px;
-  color: #FFFFFF;
+  text-align: right;
+  opacity: 0.33;
   display: flex;
   flex-direction: column;
-  opacity: 0.5;
-  margin-left: 10px;
-  align-items: flex-start;
+  align-items: right;
+  text-decoration: underline;
+  padding-bottom: 10px;
+  margin-top: -10px;
 }
 
-.emptyBox {
-  grid-column: 5 / 6;
-  grid-row: 12 / 16;
-  background-color: #767D43;
-  border-radius: 10px;  
-}
 
-.spokenBox {
-  grid-column: 6 / -1;
-  grid-row: 12 / 16;
-  background-color: #B03F2E;
-  border-radius: 20px;
-}
 
 .chapterBox {
   grid-column: 1 / 8;
@@ -1257,14 +1262,15 @@
 
 .checkboxGroup span {
   font-family: 'Lexend', sans-serif;
-  font-weight: 400;
-  font-size: 12.66px;
-  line-height: 100%;
-  letter-spacing: 0.1rem;
-  text-transform: uppercase;
-  color: #FFFFFF;
-  text-align: right;
-  vertical-align: middle;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  line-height: 100% !important;
+  letter-spacing: 0.2rem !important;
+  text-transform: uppercase !important;
+  color: #FFFFFF !important;
+  text-align: right !important;
+  vertical-align: middle !important;
+  opacity: 0.81;opacity: 0.81 !important;
 }
 
 .crossedOut {
@@ -1301,26 +1307,26 @@
 
 .poemTypeContainer {
   display: flex;
+  flex-direction: column;
   width: 100%;
-  gap: 10px;
 }
 
 .poemTypeLabel {
-  font-family: 'Train One', sans-serif;
+  font-family: 'Lexend', sans-serif;
   font-weight: 700;
-  font-size: 15.36px;
-  line-height: 95%;
+  font-size: 10px;
+  line-height: 90%;
   letter-spacing: 0.25rem;
   text-transform: uppercase;
-  writing-mode: vertical-lr;
-  transform: rotate(180deg);
-  text-align: center;
-  margin-right: 5px;
+  color: #FFFFFF;
+  text-align: right;
+  opacity: 0.33;
   display: flex;
   flex-direction: column;
-  opacity: 0.5;
-  margin-left: 10px;
-  color: #FFFFFF;
+  align-items: right;
+  text-decoration: underline;
+  padding-bottom: 10px;
+  margin-top: -10px;
 }
 
 .checkboxGroup {
