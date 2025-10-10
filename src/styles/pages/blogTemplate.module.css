@@ -116,6 +116,8 @@
 
 .blogItem {
   width: 100%;
+  display: block;
+  text-decoration: none;
   padding: 0.5rem 0;
   transition: background-color 0.2s ease;
 }
