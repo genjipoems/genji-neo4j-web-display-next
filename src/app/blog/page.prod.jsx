@@ -5,69 +5,20 @@ import FormatContent from '../../components/FormatText.prod';
 import styles from '../../styles/pages/blogTemplate.module.css';
 import DiscussionArea from '../../components/DiscussionArea.prod';
 
-const BlogPage = () => {
+const BlogIndexPage = () => {
   const [blogNames, setBlogNames] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [content, setContent] = useState('');
   const [defaultBlogContent, setDefaultBlogContent] = useState('');
-  const [selectedBlog, setSelectedBlog] = useState('');
-  const [authorInfo, setAuthorInfo] = useState({name: '', homepage: '', email: ''});
   const [expandedPanels, setExpandedPanels] = useState({
     blogs: false,
     discussion: false,
-    other: false,
   });
   const [searchTerm, setSearchTerm] = useState('');
   const searchInputRef = useRef(null);
-  
+
   const togglePanel = (panelName) => {
-      setExpandedPanels(prev => ({
-          ...prev,
-          [panelName]: !prev[panelName]
-      }));
+    setExpandedPanels(prev => ({ ...prev, [panelName]: !prev[panelName] }));
   };
-
-  useEffect(() => {
-    const fetchContentAndAuthor = async () => {
-      setIsLoading(true);
-      if (selectedBlog) {
-        try {
-          // get blog content
-          const blogRes = await fetch(`/api/blog/getSingle?title=${selectedBlog}`);
-          const blogData = await blogRes.json();
-          setContent(blogData.content);
-          
-          // get author info
-          if (blogData.isUser && blogData.authorEmail) {
-            const apiUrl = `/api/user/getByEmail?email=${encodeURIComponent(blogData.authorEmail)}`;
-            const authorRes = await fetch(apiUrl);
-            const authorData = await authorRes.json();
-            
-            if (authorData._id && authorData.name) {
-              setAuthorInfo({
-                name: authorData.name,
-                homepage: `/user-home-page/${authorData._id}`,
-                email: blogData.authorEmail
-              });
-            } else {
-              setAuthorInfo({name: '', homepage: '', email: ''});
-            }
-          } else {
-            setAuthorInfo({name: '', homepage: '', email: ''});
-          }
-        } catch (error) {
-          console.error('Error fetching blog content or author info:', error);
-          setAuthorInfo({name: '', homepage: '', email: ''});
-        }
-      } else {
-        // clear author info when no blog is selected
-        setAuthorInfo({name: '', homepage: '', email: ''});
-      }
-      setIsLoading(false);
-    };
-
-    fetchContentAndAuthor();
-  }, [selectedBlog]);
 
   useEffect(() => {
     const fetchBlogNames = async () => {
@@ -80,16 +31,19 @@ const BlogPage = () => {
 
   useEffect(() => {
     const fetchDefaultBlogContent = async () => {
-      const response = await fetch(`/api/blog/getSingle?title=Genjipoems Blog`);
-      const data = await response.json();
-      setDefaultBlogContent(data.content);
+      setIsLoading(true);
+      try {
+        const response = await fetch(`/api/blog/getSingle?title=Genjipoems Blog`);
+        const data = await response.json();
+        setDefaultBlogContent(data.content);
+      } finally {
+        setIsLoading(false);
+      }
     };
     fetchDefaultBlogContent();
   }, []);
 
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-  };
+  const handleSearchChange = (e) => setSearchTerm(e.target.value);
 
   const filteredBlogNames = blogNames.filter(blogName =>
     blogName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -97,116 +51,87 @@ const BlogPage = () => {
 
   return (
     <div className={styles.translatorPage}>
-        <div className={styles.heroSection}>
-            <img
-                className={styles.fullBackgroundImage}
-                src={`/images/blog_banner.png`}
-                alt="blog banner"
-            />
-            <div className={styles.blogTitleOverlay}>
-                <span className={styles.blogTitle}>{selectedBlog}</span>
+      <div className={styles.heroSection}>
+        <img
+          className={styles.fullBackgroundImage}
+          src={`/images/blog_banner.png`}
+          alt="blog banner"
+        />
+        <div className={styles.blogTitleOverlay}>
+          <span className={styles.blogTitle}>Blog</span>
+        </div>
+      </div>
+
+      <div className={styles.mainSection}>
+        <div className={styles.analysisContainer}>
+          {/* Left Side - Panels with Toggles */}
+          <div className={styles.analysisLeft}>
+            {/* Blogs Panel */}
+            <div className={styles.analysisPanel}>
+              <div className={styles.panelHeader}>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  className={styles.panelHeaderSearch}
+                  placeholder="Blogs"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                />
+                <div
+                  className={`${styles.toggleArrow} ${expandedPanels.blogs ? styles.arrowExpanded : styles.arrowCollapsed}`}
+                  onClick={() => togglePanel('blogs')}
+                >
+                  ▼
+                </div>
+              </div>
+
+              <div className={`${styles.panelContent} ${expandedPanels.blogs ? styles.expanded : styles.collapsed}`}>
+                {filteredBlogNames.map((blogName, index) => (
+                  <Link
+                    key={index}
+                    href={`/blog/${encodeURIComponent(blogName)}`}
+                    className={styles.blogItem}
+                  >
+                    <span className={styles.blogLink}>{blogName}</span>
+                  </Link>
+                ))}
+                {filteredBlogNames.length === 0 && searchTerm && (
+                  <div className={styles.noResults}>No blogs found</div>
+                )}
+              </div>
             </div>
+
+            {/* Discussion Panel (optional on index) */}
+            <div className={styles.analysisPanel}>
+              <div className={styles.panelHeader} onClick={() => togglePanel('discusssion')}>
+                <h2>DISCUSSION</h2>
+                <div className={`${styles.toggleArrow} ${expandedPanels.discusssion ? styles.arrowExpanded : styles.arrowCollapsed}`}>
+                  ▼
+                </div>
+              </div>
+              <div className={`${styles.panelContent} ${expandedPanels.discusssion ? styles.expanded : styles.collapsed}`}>
+                {/* Empty identifier on index; you can point this to a general “Blog” thread if desired */}
+                <DiscussionArea pageType="blog" identifier={''} />
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className={styles.mainSection}>
-        <div className={styles.analysisContainer}>
-                      {/* Left Side - Panels with Toggles */}
-                      <div className={styles.analysisLeft}>
-                          
-                          {/* Blogs Panel */}
-                          <div className={styles.analysisPanel}>
-                              <div className={styles.panelHeader}>
-                                  <input
-                                      ref={searchInputRef}
-                                      type="text"
-                                      className={styles.panelHeaderSearch}
-                                      placeholder="Blogs"
-                                      value={searchTerm}
-                                      onChange={handleSearchChange}
-                                  />
-                                  <div 
-                                      className={`${styles.toggleArrow} ${expandedPanels.blogs ? styles.arrowExpanded : styles.arrowCollapsed}`}
-                                      onClick={() => togglePanel('blogs')}
-                                  >
-                                      ▼
-                                  </div>
-                              </div>
-                              <div className={`${styles.panelContent} ${expandedPanels.blogs ? styles.expanded : styles.collapsed}`}>
-                                  {filteredBlogNames.map((blogName, index) => (
-                                      <div 
-                                          key={index} 
-                                          className={`${styles.blogItem} ${selectedBlog === blogName ? styles.selected : ''}`}
-                                          onClick={() => setSelectedBlog(prev => prev === blogName ? '' : blogName)}
-                                          style={{ cursor: 'pointer' }}
-                                      >
-                                          <span className={styles.blogLink}>
-                                              {blogName}
-                                          </span>
-                                      </div>
-                                  ))}
-                                  {filteredBlogNames.length === 0 && searchTerm && (
-                                      <div className={styles.noResults}>
-                                          No blogs found
-                                      </div>
-                                  )}
-                              </div>
-                          </div>
-
-                          {/* Discusssion Panel */}
-                          <div className={styles.analysisPanel}>
-                              <div className={styles.panelHeader} onClick={() => togglePanel('discusssion')}>
-                                  <h2>DISCUSSION</h2>
-                                  <div className={`${styles.toggleArrow} ${expandedPanels.discusssion ? styles.arrowExpanded : styles.arrowCollapsed}`}>
-                                      ▼
-                                  </div>
-                              </div>
-                              <div className={`${styles.panelContent} ${expandedPanels.discusssion ? styles.expanded : styles.collapsed}`}>
-                                  <DiscussionArea 
-                                      pageType="blog"
-                                      identifier={`${selectedBlog}`}
-                                  />
-                              </div>
-                          </div>
-
-                          {/* Other Panel */}
-                          <div className={styles.analysisPanel}>
-                              <div className={styles.panelHeader} onClick={() => togglePanel('other')}>
-                                  <h2>OTHER</h2>
-                                  <div className={`${styles.toggleArrow} ${expandedPanels.other ? styles.arrowExpanded : styles.arrowCollapsed}`}>
-                                      ▼
-                                  </div>
-                              </div>
-
-
-                          </div>
-                      </div>
-                  </div>
-
-          <div className={styles.description}>
-              <div className={styles.descriptionContent}>
-                  {isLoading ? (
-                      <div className={styles.loading}>Loading...</div>
-                  ) : (
-                      <>  
-                          <div className={styles.heading}>{selectedBlog}</div>
-                          <FormatContent 
-                              content={selectedBlog ? content : defaultBlogContent} 
-                              className={styles.descriptionText} 
-                          />
-                          {authorInfo.name && authorInfo.homepage ? (
-                              <a href={authorInfo.homepage} className={styles.author}>{authorInfo.name}</a>
-                          ) : authorInfo.email ? (
-                              <div className={styles.author}>Author: {authorInfo.email}</div>
-                          ) : (
-                              selectedBlog && <div className={styles.author}>Author information not available</div>
-                          )}
-                      </>
-                  )}
-              </div>
+        <div className={styles.description}>
+          <div className={styles.descriptionContent}>
+            {isLoading ? (
+              <div className={styles.loading}>Loading...</div>
+            ) : (
+              <>
+                <div className={styles.heading}>Genjipoems Blog</div>
+                <FormatContent content={defaultBlogContent} className={styles.descriptionText} />
+              </>
+            )}
           </div>
+        </div>
       </div>
-  </div>
-)
+    </div>
+  );
 }
 
-export default BlogPage;
+export default BlogIndexPage;
