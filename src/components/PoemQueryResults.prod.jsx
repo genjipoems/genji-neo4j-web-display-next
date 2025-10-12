@@ -765,6 +765,11 @@ const PoemDisplay = ({ poemData }) => {
                                                         <FormatContent content={word.english_equiv} />
                                                     </div>
                                                 )}
+                                                {word.gloss && (
+                                                    <div className={styles.poeticWordDetails}>
+                                                        <FormatContent content={word.gloss} />
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
