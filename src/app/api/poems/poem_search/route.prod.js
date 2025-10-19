@@ -82,6 +82,7 @@ async function generalSearch(q) {
                 COALESCE(season.name, "") AS season,
                 COALESCE(pt.name, "") AS poetic_tech,
                 COALESCE(ga.age, "") AS genji_age,
+                COALESCE(p.Complete, "") AS annotations_complete,
                 CASE
                     WHEN size(poem_types) > 0 THEN poem_types[0]
                     ELSE ""
@@ -124,6 +125,7 @@ async function generalSearch(q) {
                     romaji:     record.get('Romaji') || "",
                     paraphrase: record.get('paraphrase') || "",
                     genji_age:  (record.get('genji_age') ?? "").toString(),
+                    annotations_complete: record.get('annotations_complete') || "",
                     addressee_name:   record.get('addressee_name') || "",
                     addressee_gender: record.get('addressee_gender') || "",
                     speaker_name:     record.get('speaker_name') || "",

@@ -23,6 +23,7 @@ const TAG_FIELD_BY_LABEL = {
   // 'Chapter Title Poem': 'chapter_title_poem',
   // 'Morning After Poem': 'morning_after_poem',
   // 'Proxy Poem': 'proxy_poem',
+  'Annotations Complete': 'annotations_complete',
 };
 
 // funtion to remove leading zero of chapternum and poemnum, ensure the correctness of link
@@ -158,6 +159,7 @@ const PoemSearch = () => {
           // 'Chapter Title Poem': { checked: false },
           // 'Morning After Poem': { checked: false },
           // 'Proxy Poem': { checked: false },
+          'Annotations Complete': { checked: false },
         },
       },
     //   poetic_tech: {
@@ -335,6 +337,11 @@ const PoemSearch = () => {
               typeof result.poem_type === "string"
                 ? result.poem_type.trim()
                 : Object.values(result.poem_type || {}).join("").trim(),
+            // is string true or false
+            annotations_complete: (() => {
+              const v = (result.annotations_complete ?? "").toString().trim().toLowerCase();
+              return v === "true";
+            })(),
             omitted_by_waley: !!result.omitted_by_waley,
             omitted_by_seidensticker: !!result.omitted_by_seidensticker,
             bad_poems: !!result.bad_poems,
