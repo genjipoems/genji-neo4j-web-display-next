@@ -231,25 +231,59 @@ const PoemDisplay = ({ poemData }) => {
                 let src_obj = [];
                 let index = 0;
                 let entered_honka = [];
-                
+
                 sources.forEach(e => {
-                    if (entered_honka.includes(e[0])) {
-                        src_obj[src_obj.findIndex(el => el.honka === e[0])].translation.push([e[5], e[6]]);
-                    } else {
-                        src_obj.push({
-                            id: index,
-                            honka: e[0],
-                            source: e[1],
-                            romaji: e[2],
-                            poet: e[3],
-                            order: e[4],
-                            translation: [[e[5], e[6]]],
-                            notes: e[7]
-                        });
-                        entered_honka.push(e[0]);
-                        index++;
+                const honkaKey = String(e[0] || '').replace(/\s+/g, ' ').trim();
+
+                //source label
+                const rawTitle = String(e[1] || '').trim();
+                const rawOrder = String(e[4] || '').trim();
+                const isNA = (s) => !s || /^n\/?a$/i.test(s) || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined';
+
+                // Only keep title
+                const formattedSource = isNA(rawTitle) ? '' : rawTitle; 
+
+                if (entered_honka.includes(honkaKey)) {
+                    const i = src_obj.findIndex(el => el.honka === honkaKey);
+
+                    // add sources
+                    if (!src_obj[i].sourceList) {
+                    src_obj[i].sourceList = [];
                     }
-                });
+                    // title-only, skip blanks/NAs
+                    if (formattedSource && !src_obj[i].sourceList.includes(formattedSource)) {
+                    src_obj[i].sourceList.push(formattedSource);
+                    src_obj[i].source = src_obj[i].sourceList.join(' / ');
+                    src_obj[i].order = '';
+                    }
+
+                    // merge translations without duplicates
+                    const trExists = src_obj[i].translation.some(([who, txt]) => who === e[5] && txt === e[6]);
+                    if (!trExists) {
+                    src_obj[i].translation.push([e[5], e[6]]);
+                    }
+
+                    return; // avoid creating another duplicate
+                } else {
+                    const obj = {
+                    id: index,
+                    honka: honkaKey,
+                    source: formattedSource,   
+                    romaji: e[2],
+                    poet: e[3],
+                    order: '',                 
+                    translation: [[e[5], e[6]]],
+                    notes: e[7],
+                    sourceList: []//just a helper array
+                    };
+                    if (formattedSource) obj.sourceList.push(formattedSource);
+
+                    src_obj.push(obj);
+                    entered_honka.push(honkaKey);
+                    index++;
+                }
+            });
+
                 
                 // set peom id
                 let poemId = null;
