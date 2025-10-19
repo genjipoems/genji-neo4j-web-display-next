@@ -74,6 +74,7 @@ async function generalSearch(q) {
                 COALESCE(p.Japanese, "") AS Japanese,
                 COALESCE(p.Romaji, "") AS Romaji,
                 COALESCE(p.paraphrase, "") AS paraphrase,
+                COALESCE(p.last_updated, "") AS last_updated,
                 COALESCE(apoc.text.join(addressee_names, " & "), "") AS addressee_name,
                 COALESCE(apoc.text.join(addressee_genders, " & "), "") AS addressee_gender,
                 COALESCE(speaker.name, "") AS speaker_name,
@@ -82,6 +83,7 @@ async function generalSearch(q) {
                 COALESCE(season.name, "") AS season,
                 COALESCE(pt.name, "") AS poetic_tech,
                 COALESCE(ga.age, "") AS genji_age,
+                COALESCE(p.Complete, "") AS annotations_complete,
                 CASE
                     WHEN size(poem_types) > 0 THEN poem_types[0]
                     ELSE ""
@@ -123,7 +125,9 @@ async function generalSearch(q) {
                     japanese:   record.get('Japanese') || "",
                     romaji:     record.get('Romaji') || "",
                     paraphrase: record.get('paraphrase') || "",
+                    last_updated: (record.get('last_updated') || "").toString(),
                     genji_age:  (record.get('genji_age') ?? "").toString(),
+                    annotations_complete: record.get('annotations_complete') || "",
                     addressee_name:   record.get('addressee_name') || "",
                     addressee_gender: record.get('addressee_gender') || "",
                     speaker_name:     record.get('speaker_name') || "",
