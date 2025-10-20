@@ -1293,7 +1293,7 @@ const PoemSearch = () => {
                 openSections.has('updates') ? styles.expanded : ""
               }`}
             >
-              <div className={styles.otherFilterTitles}>Order by Updated in The Last:</div>
+              <div className={styles.otherFilterTitles}>Updated in the Past:</div>
               <div className={styles.filterOptions}>
                 {Object.keys(filters.updates.options)
                   .filter(k => k.toLowerCase().includes(searchUpdate))
