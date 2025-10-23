@@ -11,6 +11,32 @@ import PoemNavigation from './PoemNavigation.prod';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheckCircle, faCircle, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 
+function FormatTime(dtObj) {
+    if (!dtObj) {
+        return { year: 'N/A', monthdate: 'N/A' };
+    }
+    
+    try {
+        // deal with neo4j date time object
+        const year = dtObj.year?.low || dtObj.year || new Date().getFullYear();
+        const month = dtObj.month?.low || dtObj.month || 1;
+        const day = dtObj.day?.low || dtObj.day || 1;
+        
+
+        const formattedMonth = month.toString().padStart(2, '0');
+        const formattedDay = day.toString().padStart(2, '0');
+        const monthdate = `${formattedMonth}.${formattedDay}`;
+        
+        return {
+            year: year.toString(),
+            monthdate: monthdate
+        };
+    } catch (error) {
+        console.error('Error formatting time:', error);
+        return { year: 'Invalid', monthdate: 'Invalid' };
+    }
+}
+
 const EvidenceDropdown = ({ content, evidence }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -90,9 +116,11 @@ const PoemDisplay = ({ poemData }) => {
         groupPoems: [],
         replyPoems: [],
         furtherReadings: [],
-        spoken_or_written_evidence: ""
+        spoken_or_written_evidence: "",
+        complete: "",
+        last_updated: ""
     });
-    
+
     const chapter = poemData.chapterNum;
     const number = poemData.poemNum;
     const numStr = number.toString().padStart(2, '0');
@@ -203,25 +231,59 @@ const PoemDisplay = ({ poemData }) => {
                 let src_obj = [];
                 let index = 0;
                 let entered_honka = [];
-                
+
                 sources.forEach(e => {
-                    if (entered_honka.includes(e[0])) {
-                        src_obj[src_obj.findIndex(el => el.honka === e[0])].translation.push([e[5], e[6]]);
-                    } else {
-                        src_obj.push({
-                            id: index,
-                            honka: e[0],
-                            source: e[1],
-                            romaji: e[2],
-                            poet: e[3],
-                            order: e[4],
-                            translation: [[e[5], e[6]]],
-                            notes: e[7]
-                        });
-                        entered_honka.push(e[0]);
-                        index++;
+                const honkaKey = String(e[0] || '').replace(/\s+/g, ' ').trim();
+
+                //source label
+                const rawTitle = String(e[1] || '').trim();
+                const rawOrder = String(e[4] || '').trim();
+                const isNA = (s) => !s || /^n\/?a$/i.test(s) || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined';
+
+                // Only keep title
+                const formattedSource = isNA(rawTitle) ? '' : rawTitle; 
+
+                if (entered_honka.includes(honkaKey)) {
+                    const i = src_obj.findIndex(el => el.honka === honkaKey);
+
+                    // add sources
+                    if (!src_obj[i].sourceList) {
+                    src_obj[i].sourceList = [];
                     }
-                });
+                    // title-only, skip blanks/NAs
+                    if (formattedSource && !src_obj[i].sourceList.includes(formattedSource)) {
+                    src_obj[i].sourceList.push(formattedSource);
+                    src_obj[i].source = src_obj[i].sourceList.join(' / ');
+                    src_obj[i].order = '';
+                    }
+
+                    // merge translations without duplicates
+                    const trExists = src_obj[i].translation.some(([who, txt]) => who === e[5] && txt === e[6]);
+                    if (!trExists) {
+                    src_obj[i].translation.push([e[5], e[6]]);
+                    }
+
+                    return; // avoid creating another duplicate
+                } else {
+                    const obj = {
+                    id: index,
+                    honka: honkaKey,
+                    source: formattedSource,   
+                    romaji: e[2],
+                    poet: e[3],
+                    order: '',                 
+                    translation: [[e[5], e[6]]],
+                    notes: e[7],
+                    sourceList: []//just a helper array
+                    };
+                    if (formattedSource) obj.sourceList.push(formattedSource);
+
+                    src_obj.push(obj);
+                    entered_honka.push(honkaKey);
+                    index++;
+                }
+            });
+
                 
                 // set peom id
                 let poemId = null;
@@ -268,7 +330,9 @@ const PoemDisplay = ({ poemData }) => {
                     groupPoems: responseData[27],
                     replyPoems: responseData[28],
                     furtherReadings: responseData[29],
-                    spoken_or_written_evidence: responseData[30]
+                    spoken_or_written_evidence: responseData[30],
+                    complete: responseData[32],
+                    last_updated: responseData[33]
                 };
                 
                 
@@ -362,7 +426,8 @@ const PoemDisplay = ({ poemData }) => {
     (Array.isArray(poemState.relWithEvidence) && poemState.relWithEvidence.length > 0) ||
     (Array.isArray(poemState.groupPoems) && poemState.groupPoems.length > 0) ||
     (Array.isArray(poemState.source) && poemState.source.length > 0) ||
-    (Array.isArray(poemState.furtherReadings) && poemState.furtherReadings.length > 0)
+    (Array.isArray(poemState.furtherReadings) && poemState.furtherReadings.length > 0) ||
+    poemState.handwritingDescription
     );
 
     return (
@@ -470,65 +535,41 @@ const PoemDisplay = ({ poemData }) => {
                                 </a>
                             ) : (
                                 'NONE'
+                                
                             )}
                         </span>
 
                         <span className={styles.messengerLabel}>MESSENGER</span> 
                     </div>
                     
-                    <div className={`${styles.gridBox} ${styles.connectedBox}`}>
-                        {/* <div className={styles.connectedArrows}>
-                            <span>◀</span>
-                            <span>▶</span>
-                        </div> */}
-
+                    <div className={`${styles.gridBox} ${styles.proxyBox}`}>
                         {/* show nothing when no data is available */}
                         {poemState.proxy ? ( 
                             <>
                                 <a href={`/characters/${encodeURIComponent(poemState.proxy)}`} className={styles.characterLink}>
                                     {poemState.proxy}
                                 </a>
-                                <span className={styles.connectedLabel}>PROXY POET</span>
+                                <span className={styles.proxyLabel}>PROXY POET</span>
                             </>
                         ) : (
                             <>
-                                <span className={styles.connectedValue}>NONE</span>
-                                <span className={styles.connectedLabel}>PROXY POET</span>
+                                <span className={styles.proxyValue}>NONE</span>
+                                <span className={styles.proxyLabel}>PROXY POET</span>
                             </>
                         )}
 
                     </div>
                     
-                    <div className={`${styles.gridBox} ${styles.poemTypeBox}`}>
-                        <div className={styles.poemTypeContainer}>
-                            <span className={styles.poemTypeLabel}>
-                                <span>TYPE</span>
-                                <span>POEM</span>
-                            </span>
-                            <div className={styles.checkboxGroup}>
-                                <span>PROFFERED {poemState.tag?.some(item => item[0] === 'Proffered Poem' && item[1]) ? '☑' : '☐'}</span>
-                                <span>REPLY {poemState.tag?.some(item => item[0]?.includes('Reply Poem') && item[1]) ? '☑' : '☐'}</span>
-                                <span>SOLILOQUY {poemState.tag?.some(item => item[0]?.includes('Soliloquy') && item[1]) ? '☑' : '☐'}</span>
-                                <span>GROUP {poemState.tag?.some(item => item[0]?.includes('Group Poem') && item[1]) ? '☑' : '☐'}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className={`${styles.gridBox} ${styles.poemTechBox}`}>
-                        <div className={styles.techList}>
-                            <span>{poemState.pt?.some(item => item[0] === 'kakekotoba' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} KAKEKOTOBA</span>
-                            <span>{poemState.pt?.some(item => item[0] === 'engo' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} ENGO</span>
-                            <span>{poemState.pt?.some(item => item[0] === 'utamakura' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} UTAMAKURA</span>
-                            <span>{poemState.pt?.some(item => item[0] === 'makurakotoba' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} MAKURAKOTOBA</span>
-                        </div>
-                        <span className={styles.poemTechLabel}>
-                                <span>TECHNIQUE</span>
-                                <span>POETIC</span>
-                        </span>
+                    <div className={`${styles.gridBox} ${styles.poemlastupdatedBox}`}>
+                        {poemState.last_updated && (
+                            <>
+                                <span className={styles.poemlastupdatedLabel}>UPDATED ON</span>
+                                <span className={styles.poemlastupdatedValue}>{FormatTime(poemState.last_updated)['year']}.</span>
+                                <span className={styles.poemlastupdatedValue}>{FormatTime(poemState.last_updated)['monthdate']}</span>
+                            </>
+                        )}
                     </div>
 
-                    <div className={`${styles.gridBox} ${styles.emptyBox}`}> </div>
-                    
                     <div className={`${styles.gridBox} ${styles.spokenBox}`}>
                         <div className={styles.spokenContainer}>
                             {/* no data shown if no data is available */}
@@ -555,6 +596,34 @@ const PoemDisplay = ({ poemData }) => {
                             )}
                         </div>
                     </div>
+
+                    <div className={`${styles.gridBox} ${styles.poemTypeBox}`}>
+                        <div className={styles.poemTypeContainer}>
+                            <span className={styles.poemTypeLabel}>
+                                <span>POEM TYPE</span>
+                            </span>
+                            <div className={styles.checkboxGroup}>
+                                <span>PROFFERED {poemState.tag?.some(item => item[0] === 'Proffered Poem' && item[1]) ? '☑' : '☐'}</span>
+                                <span>REPLY {poemState.tag?.some(item => item[0]?.includes('Reply Poem') && item[1]) ? '☑' : '☐'}</span>
+                                <span>SOLILOQUY {poemState.tag?.some(item => item[0]?.includes('Soliloquy') && item[1]) ? '☑' : '☐'}</span>
+                                <span>GROUP {poemState.tag?.some(item => item[0]?.includes('Group Poem') && item[1]) ? '☑' : '☐'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className={`${styles.gridBox} ${styles.poemTechBox}`}>
+                        <span className={styles.poemTechLabel}>
+                            <span>POETIC TECHNIQUE</span>
+                        </span>
+                        <div className={styles.techList}>
+                            <span>{poemState.pt?.some(item => item[0] === 'kakekotoba' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} KAKEKOTOBA</span>
+                            <span>{poemState.pt?.some(item => item[0] === 'engo' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} ENGO</span>
+                            <span>{poemState.pt?.some(item => item[0] === 'utamakura' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} UTAMAKURA</span>
+                            <span>{poemState.pt?.some(item => item[0] === 'makurakotoba' && item[1]) ? <FontAwesomeIcon icon={faCheckCircle} /> : <FontAwesomeIcon icon={faCircle} />} MAKURAKOTOBA</span>
+                        </div>
+                    </div>
+                    
+        
                     
                     <div className={`${styles.gridBox} ${styles.chapterBox}`}>
                         <div className={styles.chapterPoemLabel}>
@@ -656,6 +725,13 @@ const PoemDisplay = ({ poemData }) => {
                                         {poemState.paperMediumType && <FormatContent content={poemState.paperMediumType} />}
                                     </div>
                                 )}
+
+                                {poemState.handwritingDescription && (
+                                    <div className={styles.detailItem}>
+                                        <h3>HANDWRITING DESCRIPTION</h3>
+                                        {poemState.handwritingDescription && <FormatContent content={poemState.handwritingDescription} />}
+                                    </div>
+                                )}
                                 
                                 {poemState.deliveryStyle && (
                                     <div className={styles.detailItem}>
@@ -723,6 +799,11 @@ const PoemDisplay = ({ poemData }) => {
                                                         <FormatContent content={word.english_equiv} />
                                                     </div>
                                                 )}
+                                                {word.gloss && (
+                                                    <div className={styles.poeticWordDetails}>
+                                                        <FormatContent content={word.gloss} />
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -786,7 +867,7 @@ const PoemDisplay = ({ poemData }) => {
                                 )}
                                 {/* {poemState.tag 
                                     && (
-                                           poemState.tag.some(item => item[0] === 'Character Name Poem' && item[1])
+                                        poemState.tag.some(item => item[0] === 'Character Name Poem' && item[1])
                                         || poemState.tag.some(item => item[0] === 'Chapter Title Poem' && item[1])
                                         || poemState.tag.some(item => item[0] === 'Morning After Poem' && item[1])
                                         || poemState.tag.some(item => item[0] === 'Proxy Poem' && item[1])

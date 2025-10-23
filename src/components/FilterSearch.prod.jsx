@@ -23,6 +23,7 @@ const TAG_FIELD_BY_LABEL = {
   // 'Chapter Title Poem': 'chapter_title_poem',
   // 'Morning After Poem': 'morning_after_poem',
   // 'Proxy Poem': 'proxy_poem',
+  'Annotations Complete': 'annotations_complete',
 };
 
 // funtion to remove leading zero of chapternum and poemnum, ensure the correctness of link
@@ -90,6 +91,7 @@ const PoemSearch = () => {
   const [searchChapter, setSearchChapter] = useState("");
   const [searchGenjiAge, setSearchGenjiAge] = useState('');
   const [searchOther, setSearchOther] = useState('');
+  const [searchUpdate, setSearchUpdate] = useState("");
 
   const ageOptions = {};
   for (let age = 1; age <= 75; age++) {
@@ -158,7 +160,18 @@ const PoemSearch = () => {
           // 'Chapter Title Poem': { checked: false },
           // 'Morning After Poem': { checked: false },
           // 'Proxy Poem': { checked: false },
+          'Annotations Complete': { checked: false },
         },
+      },
+      updates: {
+        label: "Updates",
+        options: {
+          'Week': { checked: false },
+          'Month': { checked: false },
+          'Three Months': { checked: false },
+          'Six Months': { checked: false },
+          '2025': { checked: false },
+        }
       },
     //   poetic_tech: {
     //       label: 'Poetic Techniques Used',
@@ -335,6 +348,11 @@ const PoemSearch = () => {
               typeof result.poem_type === "string"
                 ? result.poem_type.trim()
                 : Object.values(result.poem_type || {}).join("").trim(),
+            // is string true or false
+            annotations_complete: (() => {
+              const v = (result.annotations_complete ?? "").toString().trim().toLowerCase();
+              return v === "true";
+            })(),
             omitted_by_waley: !!result.omitted_by_waley,
             omitted_by_seidensticker: !!result.omitted_by_seidensticker,
             bad_poems: !!result.bad_poems,
@@ -356,6 +374,7 @@ const PoemSearch = () => {
             cranston_translation: Object.values(
               result.cranston_translation
             ).join(""),
+            last_updated: (result.last_updated ?? "").toString(),
           }));
 
           console.log("Setting results:", processedResults);
@@ -384,19 +403,41 @@ const PoemSearch = () => {
 
   // filter gets checked
   const handleFilterChange = (category, optionKey) => {
-    setFilters((prev) => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        options: {
-          ...prev[category].options,
-          [optionKey]: {
-            ...prev[category].options[optionKey],
-            checked: !prev[category].options[optionKey].checked,
+    setFilters((prev) => {
+      // Make Updates category mutually exclusive (single select)
+      if (category === 'updates') {
+        const currentlyChecked = !!prev[category].options[optionKey]?.checked;
+        const resetOptions = Object.keys(prev[category].options).reduce((acc, k) => {
+          acc[k] = { ...prev[category].options[k], checked: false };
+          return acc;
+        }, {});
+
+        return {
+          ...prev,
+          [category]: {
+            ...prev[category],
+            options: {
+              ...resetOptions,
+              [optionKey]: { ...resetOptions[optionKey], checked: !currentlyChecked },
+            },
+          },
+        };
+      }
+
+      return ({
+        ...prev,
+        [category]: {
+          ...prev[category],
+          options: {
+            ...prev[category].options,
+            [optionKey]: {
+              ...prev[category].options[optionKey],
+              checked: !prev[category].options[optionKey].checked,
+            },
           },
         },
-      },
-    }));
+      });
+    });
   };
 
   // filter logic
@@ -453,6 +494,41 @@ const PoemSearch = () => {
             case "poem_type":
               const Singular = activeOptions.map(k => PLURAL_TO_SING[k] ?? k);
               return Singular.includes(result.poem_type);
+            case "updates": {
+              if (!result.last_updated) return false;
+              const updatedAt = new Date(result.last_updated);
+              if (isNaN(updatedAt.getTime())) return false;
+              const now = new Date();
+              return activeOptions.some(opt => {
+                switch (opt) {
+                  case 'Week': {
+                    const d = new Date(now);
+                    d.setDate(d.getDate() - 7);
+                    return updatedAt >= d;
+                  }
+                  case 'Month': {
+                    const d = new Date(now);
+                    d.setMonth(d.getMonth() - 1);
+                    return updatedAt >= d;
+                  }
+                  case 'Three Months': {
+                    const d = new Date(now);
+                    d.setMonth(d.getMonth() - 3);
+                    return updatedAt >= d;
+                  }
+                  case 'Six Months': {
+                    const d = new Date(now);
+                    d.setMonth(d.getMonth() - 6);
+                    return updatedAt >= d;
+                  }
+                  case '2025': {
+                    return updatedAt.getFullYear() === 2025;
+                  }
+                  default:
+                    return true;
+                }
+              });
+            }
             case "other_tags": {
               return activeOptions.every(label => {
                 const field = TAG_FIELD_BY_LABEL[label];
@@ -816,6 +892,13 @@ const PoemSearch = () => {
     }
   }, [searchOther]);
 
+  // Auto-open Updates section when searching
+  useEffect(() => {
+    if (searchUpdate.trim() !== '') {
+      setOpenSections(prev => new Set([...prev, 'updates']));
+    }
+  }, [searchUpdate]);
+
 
   const renderFilters = () => {
     //case-insensitive match for filters in Other Filters section
@@ -875,6 +958,11 @@ const PoemSearch = () => {
     // Add this handler function for Genji's Age search
     const handleGenjiAgeSearch = (e) => {
       setSearchGenjiAge(e.target.value.toLowerCase());
+    };
+
+    // Handler for Updates search
+    const handleUpdateSearch = (e) => {
+      setSearchUpdate(e.target.value.toLowerCase());
     };
       
     return (
@@ -1178,6 +1266,51 @@ const PoemSearch = () => {
             </div>
           </div>
     
+          {/* Updates */}
+          <div className={styles.filterSection}>
+            <div
+              className={styles.filterSectionHeader}
+              onClick={() => toggleSection('updates')}
+            >
+            <input
+              type="text"
+              placeholder="UPDATES FILTER"
+              value={searchUpdate}
+              onChange={handleUpdateSearch}
+              className={styles.searchInput}
+              onClick={(e) => e.stopPropagation()} // Prevent triggering the parent onClick
+            />
+              <span
+                className={`${styles.arrow} ${
+                  openSections.has('updates') ? styles.arrowDown : ""
+                }`}
+              >
+                ▸
+              </span>
+            </div>
+            <div
+              className={`${styles.filterContent} ${
+                openSections.has('updates') ? styles.expanded : ""
+              }`}
+            >
+              <div className={styles.otherFilterTitles}>Updated in the Past:</div>
+              <div className={styles.filterOptions}>
+                {Object.keys(filters.updates.options)
+                  .filter(k => k.toLowerCase().includes(searchUpdate))
+                  .map((k) => (
+                  <Checkbox
+                    key={k}
+                    checked={filters.updates.options[k]?.checked}
+                    onChange={() => handleFilterChange("updates", k)}
+                    className={`${styles.filterCheckbox} ${styles.alignLeft}`}
+                  >
+                    {k}
+                  </Checkbox>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Other Filter Sections */}
           <div className={styles.filterSection}>
             <div
