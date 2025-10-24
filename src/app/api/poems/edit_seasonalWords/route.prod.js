@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getSession } from '../../neo4j_driver/route.prod.js';
 import { checkServerSideAdmin } from '../../../../lib/auth-utils';
 
