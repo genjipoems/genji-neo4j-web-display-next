@@ -528,7 +528,6 @@
   font-family: 'Noto Sans JP', sans-serif;
   font-size: 14px;
   color: #1f1f1f;
-  font-style: italic;
   line-height: 1.4;
   font-weight: 500;
 }
@@ -537,7 +536,6 @@
   font-size: 16px;
   color: #1f1f1f;
   line-height: 1.4;
-  font-style: italic;
   text-align: center;
   word-wrap: break-word;
   overflow-wrap: break-word;
