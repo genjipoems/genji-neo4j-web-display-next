@@ -9,6 +9,11 @@ const traj = require('./traj.prod')
  * @return {Record<string, any>}
  */
 export function toNativeTypes(properties) {
+    // Handle null or undefined input
+    if (!properties || typeof properties !== 'object') {
+        return properties;
+    }
+    
     return Object.fromEntries(Object.keys(properties).map((key) => {
         let value = valueToNativeType(properties[key])
 

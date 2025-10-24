@@ -46,20 +46,25 @@ async function getData (chapter, number){
 			
 			// Only process if we have at least one relationship
 			if (speakerRel || addresseeRel) {
-				const speaker = speakerRel ? toNativeTypes(speakerRel).start : toNativeTypes(addresseeRel).end;
-				const addressee = addresseeRel ? toNativeTypes(addresseeRel).end : speaker; // Default to speaker for self-addressed
-				const poem = speakerRel ? toNativeTypes(speakerRel).end : toNativeTypes(addresseeRel).start;
+				const speakerRelNative = speakerRel ? toNativeTypes(speakerRel) : null;
+				const addresseeRelNative = addresseeRel ? toNativeTypes(addresseeRel) : null;
 				
-				exchange.push({
-					start: speaker,
-					end: addressee,
-					segments: [
-						{
-							start: speaker,
-							end: poem
-						}
-					]
-				});
+				const speaker = speakerRelNative ? speakerRelNative.start : (addresseeRelNative ? addresseeRelNative.end : null);
+				const addressee = addresseeRelNative ? addresseeRelNative.end : speaker; // Default to speaker for self-addressed
+				const poem = speakerRelNative ? speakerRelNative.end : (addresseeRelNative ? addresseeRelNative.start : null);
+				
+				if (speaker && poem) {
+					exchange.push({
+						start: speaker,
+						end: addressee,
+						segments: [
+							{
+								start: speaker,
+								end: poem
+							}
+						]
+					});
+				}
 			}
 		});
 		
@@ -67,10 +72,12 @@ async function getData (chapter, number){
 		const uniqueExchange = [];
 		const seenExchanges = new Set();
 		exchange.forEach(ex => {
-			const key = JSON.stringify([ex.start.properties.name, ex.end.properties.name]);
-			if (!seenExchanges.has(key)) {
-				seenExchanges.add(key);
-				uniqueExchange.push(ex);
+			if (ex.start && ex.end && ex.start.properties && ex.end.properties) {
+				const key = JSON.stringify([ex.start.properties.name, ex.end.properties.name]);
+				if (!seenExchanges.has(key)) {
+					seenExchanges.add(key);
+					uniqueExchange.push(ex);
+				}
 			}
 		});
 		exchange = uniqueExchange;
@@ -88,17 +95,43 @@ async function getData (chapter, number){
 		let last_updated = result['res'].records[0]?.get('last_updated') || null; // last updated time
 
 		//for transtemp
-		let transTemp = result['res'].records.map(e => toNativeTypes(e.get('trans'))).map(e => [e.end.properties.name, e.segments[0].end.properties.translation, e.segments[1].start.properties.WaleyPageNum])
+		let transTemp = result['res'].records.map(e => {
+			const trans = e.get('trans');
+			return trans ? toNativeTypes(trans) : null;
+		}).filter(e => e !== null).map(e => [e.end.properties.name, e.segments[0].end.properties.translation, e.segments[1].start.properties.WaleyPageNum])
 		
-		let sources = result['resHonkaInfo'].records.map(e => [Object.values(toNativeTypes(e.get('honka'))).join(''), Object.values(toNativeTypes(e.get('title'))).join(''), Object.values(toNativeTypes(e.get('romaji'))).join(''), Object.values(toNativeTypes(e.get('poet'))).join(''), Object.values(toNativeTypes(e.get('order'))).join(''), Object.values(toNativeTypes(e.get('translator'))).join(''), Object.values(toNativeTypes(e.get('translation'))).join(''), e.get('notes') !== null ? Object.values(toNativeTypes(e.get('notes'))).join('') : 'N/A'])
+		let sources = result['resHonkaInfo'].records.map(e => {
+			const honka = e.get('honka');
+			const title = e.get('title');
+			const romaji = e.get('romaji');
+			const poet = e.get('poet');
+			const order = e.get('order');
+			const translator = e.get('translator');
+			const translation = e.get('translation');
+			const notes = e.get('notes');
+			
+			return [
+				honka ? Object.values(toNativeTypes(honka)).join('') : '',
+				title ? Object.values(toNativeTypes(title)).join('') : '',
+				romaji ? Object.values(toNativeTypes(romaji)).join('') : '',
+				poet ? Object.values(toNativeTypes(poet)).join('') : '',
+				order ? Object.values(toNativeTypes(order)).join('') : '',
+				translator ? Object.values(toNativeTypes(translator)).join('') : '',
+				translation ? Object.values(toNativeTypes(translation)).join('') : '',
+				notes !== null ? (notes ? Object.values(toNativeTypes(notes)).join('') : '') : 'N/A'
+			];
+		})
 		
 		//related
 
 		let relatedWithEvidence = []
 		result['resRel'].records.forEach(e => {
-			const pnum = toNativeTypes(e.get('rel'))
+			const pnum = e.get('rel')
 			const evidence = e.get('internal_allusion_evidence')
-			relatedWithEvidence.push([Object.values(pnum).join(''), evidence])
+			if (pnum) {
+				const pnumNative = toNativeTypes(pnum);
+				relatedWithEvidence.push([Object.values(pnumNative).join(''), evidence])
+			}
 		})
 
 
@@ -171,31 +204,44 @@ async function getData (chapter, number){
 
 		// group poems
 		let groupPoems = new Set()
-		result['resGroup'].records.map(e => {return toNativeTypes(e.get('groupMembers'))}).forEach(e => {groupPoems.add([Object.values(e).join('')])})
+		result['resGroup'].records.map(e => {
+			const groupMembers = e.get('groupMembers');
+			return groupMembers ? toNativeTypes(groupMembers) : null;
+		}).filter(e => e !== null).forEach(e => {groupPoems.add([Object.values(e).join('')])})
 		groupPoems = Array.from(groupPoems).flat()
 		groupPoems = groupPoems.map(e => [e, true])
 
 		// reply poem (what this poem replies TO - for display)
 		let replyPoems = new Set()
-		result['resReplyPoem'].records.map(e => {return toNativeTypes(e.get('replyPoem'))}).forEach(e => {replyPoems.add([Object.values(e).join('')])})
+		result['resReplyPoem'].records.map(e => {
+			const replyPoem = e.get('replyPoem');
+			return replyPoem ? toNativeTypes(replyPoem) : null;
+		}).filter(e => e !== null).forEach(e => {replyPoems.add([Object.values(e).join('')])})
 		replyPoems = Array.from(replyPoems).flat()
 		replyPoems = replyPoems.map(e => [e, true])
 
 		// replies to this poem (poems that reply TO this poem - for editing)
 		let repliesToThis = new Set()
-		result['resRepliesTo'].records.map(e => {return toNativeTypes(e.get('replyPoem'))}).forEach(e => {repliesToThis.add([Object.values(e).join('')])})
+		result['resRepliesTo'].records.map(e => {
+			const replyPoem = e.get('replyPoem');
+			return replyPoem ? toNativeTypes(replyPoem) : null;
+		}).filter(e => e !== null).forEach(e => {repliesToThis.add([Object.values(e).join('')])})
 		repliesToThis = Array.from(repliesToThis).flat()
 		repliesToThis = repliesToThis.map(e => [e, true])
 
 		// further reading
 		let furtherReadings = []
 		result['resFutherReading'].records.forEach(e => {
-			const title = toNativeTypes(e.get('furtherReadings'))
-			const author = toNativeTypes(e.get('author'))
-			furtherReadings.push({
-				title: Object.values(title).join(''),
-				author: Object.values(author).join('')
-			})
+			const title = e.get('furtherReadings')
+			const author = e.get('author')
+			if (title && author) {
+				const titleNative = toNativeTypes(title);
+				const authorNative = toNativeTypes(author);
+				furtherReadings.push({
+					title: Object.values(titleNative).join(''),
+					author: Object.values(authorNative).join('')
+				})
+			}
 		})
 
 		const data = [
@@ -239,7 +285,12 @@ async function getData (chapter, number){
 
 	} catch(error) {
 		console.error('Failed to execute queries:', error);
-		throw new Error('Failed to execute queries');
+		console.error('Error details:', {
+			chapter,
+			number,
+			stack: error.stack
+		});
+		throw new Error(`Failed to execute queries for chapter ${chapter}, number ${number}: ${error.message}`);
 	} finally{
 		await session.close();
 	}
