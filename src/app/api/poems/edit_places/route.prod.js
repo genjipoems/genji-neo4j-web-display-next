@@ -1,6 +1,9 @@
 import { getSession } from '../../neo4j_driver/route.prod.js';
 import { checkServerSideAdmin } from '../../../../lib/auth-utils';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // GET all places for dropdown
 export async function GET(request) {
   // Check if user is admin before allowing access to edit data
