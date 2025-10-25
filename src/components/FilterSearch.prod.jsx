@@ -1031,6 +1031,7 @@ const PoemSearch = () => {
                   >
                     <div className={styles.chapterText}>
                       <span>{removeLeadingZero(key)}</span>
+                      &nbsp;
                       <span>{getChapterName(key)}</span>
                     </div>
                   </Checkbox>
