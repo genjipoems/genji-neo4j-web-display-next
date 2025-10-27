@@ -238,10 +238,9 @@ const PoemDisplay = ({ poemData }) => {
                 //source label
                 const rawTitle = String(e[1] || '').trim();
                 const rawOrder = String(e[4] || '').trim();
-                const isNA = (s) => !s || /^n\/?a$/i.test(s) || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined';
 
-                // Only keep title
-                const formattedSource = isNA(rawTitle) ? '' : rawTitle; 
+                // title and order
+                const formattedSource = rawTitle + (rawOrder ? ` ${rawOrder}` : '');
 
                 if (entered_honka.includes(honkaKey)) {
                     const i = src_obj.findIndex(el => el.honka === honkaKey);
@@ -963,7 +962,7 @@ const PoemDisplay = ({ poemData }) => {
                                         {poemState.source.map((source, idx) => (
                                             <div key={idx} className={styles.allusionItem}>
                                                 <p><strong>Poet:</strong> {source.poet && <FormatContent content={source.poet} />}</p>
-                                                <p><strong>Source:</strong> {source.source && <FormatContent content={source.source + (source.order ? ` ${source.order}` : '')} />}</p>
+                                                <p><strong>Source:</strong> {source.source && <FormatContent content={source.source} />}</p>
                                                 <p><strong>Original:</strong> {source.honka && <FormatContent content={source.honka} />}</p>
                                                 <div className={styles.allusionTranslations}>
                                                     <p><strong>Translations:</strong></p>
