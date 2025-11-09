@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import AdminBlogEditor from '../../components/AdminBlogEditor.prod';
 import AdminChapterEditor from '../../components/AdminChapterEditor.prod';
+import AdminCharacterEditor from '../../components/AdminCharacterEditor.prod';
 import styles from '../../styles/pages/administrator.module.css';
 
 const AdministratorPage = () => {
@@ -12,9 +13,11 @@ const AdministratorPage = () => {
     const router = useRouter();
     const [blogs, setBlogs] = useState([]);
     const [chapters, setChapters] = useState([]);
+    const [characters, setCharacters] = useState([]);
     const [selectedBlog, setSelectedBlog] = useState(null);
     const [selectedChapter, setSelectedChapter] = useState(null);
-    const [editMode, setEditMode] = useState('blogs'); // 'blogs' or 'chapters'
+    const [selectedCharacter, setSelectedCharacter] = useState(null);
+    const [editMode, setEditMode] = useState('blogs'); // 'blogs', 'characters', or 'chapters'
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -35,6 +38,7 @@ const AdministratorPage = () => {
 
         fetchBlogs();
         fetchChapters();
+        fetchCharacters();
     }, [isAuthenticated, isAdmin, isLoading, router]);
 
     const fetchBlogs = async () => {
@@ -67,6 +71,19 @@ const AdministratorPage = () => {
         }
     };
 
+    const fetchCharacters = async () => {
+        try {
+            const response = await fetch('/api/character_names');
+            if (!response.ok) {
+                throw new Error('Failed to fetch characters');
+            }
+            const data = await response.json();
+            setCharacters(data || []);
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
     const handleBlogSelect = async (title) => {
         try {
             const response = await fetch(`/api/blog/getSingle?title=${encodeURIComponent(title)}`);
@@ -82,6 +99,7 @@ const AdministratorPage = () => {
                 isUser: data.isUser
             });
             setSelectedChapter(null); // Clear chapter selection
+            setSelectedCharacter(null); // Clear character selection
         } catch (err) {
             setError(err.message);
         }
@@ -101,6 +119,25 @@ const AdministratorPage = () => {
                 kanji: data.chapter.kanji
             });
             setSelectedBlog(null); // Clear blog selection
+            setSelectedCharacter(null); // Clear character selection
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    const handleCharacterSelect = async (characterName) => {
+        try {
+            const response = await fetch(`/api/character_profile?name=${encodeURIComponent(characterName)}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch character data');
+            }
+            const data = await response.json();
+            setSelectedCharacter({
+                name: characterName,
+                description: data.character?.Description || ''
+            });
+            setSelectedBlog(null); // Clear blog selection
+            setSelectedChapter(null); // Clear chapter selection
         } catch (err) {
             setError(err.message);
         }
@@ -173,10 +210,37 @@ const AdministratorPage = () => {
         }
     };
 
+    const handleCharacterUpdate = async (characterName, description) => {
+        try {
+            const response = await fetch('/api/administrator/updateCharacterDescription', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ characterName, description }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update character description');
+            }
+
+            // Update the selected character description
+            setSelectedCharacter(prev => ({
+                ...prev,
+                description
+            }));
+
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    };
+
     const handleModeChange = (mode) => {
         setEditMode(mode);
         setSelectedBlog(null);
         setSelectedChapter(null);
+        setSelectedCharacter(null);
         setError(null);
     };
 
@@ -271,6 +335,12 @@ const AdministratorPage = () => {
                         Edit Blogs
                     </button>
                     <button
+                        className={`${styles.modeButton} ${editMode === 'characters' ? styles.active : ''}`}
+                        onClick={() => handleModeChange('characters')}
+                    >
+                        Edit Characters
+                    </button>
+                    <button
                         className={`${styles.modeButton} ${editMode === 'chapters' ? styles.active : ''}`}
                         onClick={() => handleModeChange('chapters')}
                     >
@@ -280,10 +350,13 @@ const AdministratorPage = () => {
             </div>
 
             <div className={styles.mainContent}>
-                {/* Left Sidebar - Blog List or Chapter List */}
+                {/* Left Sidebar - Blog List, Character List, or Chapter List */}
                 <div className={styles.sidebar}>
                     <div className={styles.sidebarHeader}>
-                        <h2>{editMode === 'blogs' ? 'Blog Posts' : 'Chapters'}</h2>
+                        <h2>
+                            {editMode === 'blogs' ? 'Blog Posts' : 
+                             editMode === 'characters' ? 'Characters' : 'Chapters'}
+                        </h2>
                         {editMode === 'blogs' && (
                             <button 
                                 className={styles.createButton}
@@ -316,6 +389,20 @@ const AdministratorPage = () => {
                                     onClick={() => handleBlogSelect(title)}
                                 >
                                     <div className={styles.blogTitle}>{title}</div>
+                                </div>
+                            ))
+                        ) : editMode === 'characters' ? (
+                            characters.map((characterName) => (
+                                <div
+                                    key={characterName}
+                                    className={`${styles.blogItem} ${
+                                        selectedCharacter?.name === characterName ? styles.active : ''
+                                    }`}
+                                    onClick={() => handleCharacterSelect(characterName)}
+                                >
+                                    <div className={styles.blogTitle}>
+                                        {characterName}
+                                    </div>
                                 </div>
                             ))
                         ) : (
@@ -351,6 +438,19 @@ const AdministratorPage = () => {
                             <div className={styles.noSelection}>
                                 <h3>Select a blog post to edit</h3>
                                 <p>Choose a blog from the list on the left, or create a new one.</p>
+                            </div>
+                        )
+                    ) : editMode === 'characters' ? (
+                        selectedCharacter ? (
+                            <AdminCharacterEditor
+                                character={selectedCharacter}
+                                onUpdate={handleCharacterUpdate}
+                                onClose={() => setSelectedCharacter(null)}
+                            />
+                        ) : (
+                            <div className={styles.noSelection}>
+                                <h3>Select a character to edit</h3>
+                                <p>Choose a character from the list on the left to edit their description.</p>
                             </div>
                         )
                     ) : (

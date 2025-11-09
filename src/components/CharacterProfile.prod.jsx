@@ -570,10 +570,18 @@ export default function CharacterDetail({ name }) {
                                         )}
 
                                     </span>
-                                    <FormatContent 
-                                        content={character.Description === "N/A" ? "Character Summary Isn't Available, Under Construction" : character.Description} 
-                                        className={styles.descriptionText} 
-                                    />
+                                    <div className={styles.descriptionText}>
+                                        {character.Description && character.Description !== "N/A" ? (
+                                            <FormatContent 
+                                                content={character.Description} 
+                                                className={styles.descriptionText} 
+                                            />
+                                        ) : (
+                                            <p className={styles.descriptionPlaceholder}>
+                                                <i>Character description not available at this time. Under construction.</i>
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
