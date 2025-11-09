@@ -294,9 +294,15 @@ export default function ChapterDetail({ name }) {
 
                   
                   <div className={styles.descriptionText}>
-                    <p className={styles.descriptionPlaceholder}>
+                    {chapterData.Description ? (
+                      <p>
+                        {chapterData.Description}
+                      </p>
+                    ) : (
+                      <p className={styles.descriptionPlaceholder}>
                         <i>Chapter summary not available at this time. Under construction.</i>
-                    </p>
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

@@ -24,15 +24,42 @@
     text-shadow: 0 2px 4px rgba(30, 64, 175, 0.1);
 }
 
-.subtitle {
+/* Mode Selector Styles */
+.modeSelector {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modeButton {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
     color: #64748b;
-    font-size: 1.1rem;
-    margin: 0;
+    border: 2px solid #cbd5e1;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Lexend', sans-serif;
+}
+
+.modeButton:hover {
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+    transform: translateY(-2px);
+}
+
+.modeButton.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-color: #2563eb;
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
 }
 
 .mainContent {
     display: flex;
-    height: calc(100vh - 160px);
+    height: calc(100vh - 120px);
     gap: 20px;
     max-width: 1400px;
     margin: 0 auto;
@@ -212,19 +239,35 @@
     .mainContent {
         flex-direction: column;
         height: auto;
+        min-height: calc(100vh - 120px);
     }
 
     .sidebar {
         width: 100%;
-        height: 300px;
+        height: 400px;
     }
 
     .editorArea {
-        min-height: 500px;
+        min-height: 600px;
     }
 
     .title {
         font-size: 1.7rem;
+    }
+
+    .modeSelector {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .modeButton {
+        width: 200px;
+        text-align: center;
+    }
+
+    .chapterSubtitle {
+        font-size: 0.75rem;
     }
 }
 
@@ -244,4 +287,25 @@
         width: 100%;
         text-align: center;
     }
+
+    .modeSelector {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .modeButton {
+        width: 100%;
+        max-width: 250px;
+    }
 }
+
+/* Chapter Editor Specific Styles */
+.chapterKanji {
+    color: #64748b;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin-top: 8px;
+    letter-spacing: 2px;
+}
+
