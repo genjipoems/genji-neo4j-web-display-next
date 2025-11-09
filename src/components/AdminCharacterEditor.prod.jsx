@@ -133,7 +133,7 @@ const AdminCharacterEditor = ({ character, onUpdate, onClose }) => {
                                     }}
                                 />
                             ) : (
-                                <p className={styles.emptyContent}>No description available. Click "Edit Description" to add one.</p>
+                                <p className={styles.emptyContent}>No description available. Click &quot;Edit Description&quot; to add one.</p>
                             )}
                         </div>
                     )}
