@@ -30,6 +30,39 @@
     margin: 0;
 }
 
+/* Mode Selector Styles */
+.modeSelector {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modeButton {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    color: #64748b;
+    border: 2px solid #cbd5e1;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Lexend', sans-serif;
+}
+
+.modeButton:hover {
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+    transform: translateY(-2px);
+}
+
+.modeButton.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-color: #2563eb;
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+}
+
 .mainContent {
     display: flex;
     height: calc(100vh - 160px);
@@ -226,6 +259,21 @@
     .title {
         font-size: 1.7rem;
     }
+
+    .modeSelector {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .modeButton {
+        width: 200px;
+        text-align: center;
+    }
+
+    .chapterSubtitle {
+        font-size: 0.75rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -244,4 +292,15 @@
         width: 100%;
         text-align: center;
     }
+
+    .modeSelector {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .modeButton {
+        width: 100%;
+        max-width: 250px;
+    }
 }
+
