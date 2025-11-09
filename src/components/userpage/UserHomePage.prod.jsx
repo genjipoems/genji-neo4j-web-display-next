@@ -47,6 +47,13 @@ export default function UserHomePage({ userid }) {
     const [favoritesTotalPages, setFavoritesTotalPages] = useState(1);
     const [favoritesLoading, setFavoritesLoading] = useState(true);
 
+    // Translations state
+    const [userTranslations, setUserTranslations] = useState([]);
+    const [translationsPage, setTranslationsPage] = useState(1);
+    const [translationsTotalPages, setTranslationsTotalPages] = useState(1);
+    const [translationsLoading, setTranslationsLoading] = useState(true);
+
+
     const fetchUserData = async () => {
         try {
             // Get basic user info
@@ -139,6 +146,38 @@ export default function UserHomePage({ userid }) {
         fetchUserContributions(newPage);
     };
 
+    // Fetch user's original translations with pagination
+    const fetchUserTranslations = async (page = 1) => {
+    if (!session) return;
+
+    try {
+        const response = await fetch(`/api/user/getTranslations?userId=${userid}&page=${page}&limit=8`);
+        if (response.ok) {
+        const data = await response.json();
+        setUserTranslations(data.translations || []);
+        setTranslationsPage(data.currentPage || 1);
+        setTranslationsTotalPages(data.totalPages || 1);
+        }
+    } catch (error) {
+        console.error('Failed to fetch user translations:', error);
+    } finally {
+        setTranslationsLoading(false);
+    }
+    };
+
+    const handleTranslationsPageChange = (newPage) => {
+    if (
+        newPage < 1 ||
+        newPage > translationsTotalPages ||
+        newPage === translationsPage ||
+        translationsLoading
+    ) return;
+
+    setTranslationsPage(newPage);
+    fetchUserTranslations(newPage);
+    };
+
+
     // Fetch user's favorite poems with pagination
     const fetchUserFavorites = async (page = 1) => {
         if (!session) return;
@@ -174,6 +213,7 @@ export default function UserHomePage({ userid }) {
                 fetchUserComments();
                 fetchUserContributions();
                 fetchUserFavorites();
+                fetchUserTranslations();
             }
             setLoading(false);
         }
@@ -276,6 +316,12 @@ export default function UserHomePage({ userid }) {
                     onClick={() => setActiveTab('contributions')}
                 >
                     CONTRIBUTIONS
+                </button>
+                <button 
+                    className={`${styles.tabButton} ${activeTab === 'translations' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('translations')}
+                >
+                    TRANSLATIONS
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'favorites' ? styles.activeTab : ''}`}
@@ -451,6 +497,11 @@ export default function UserHomePage({ userid }) {
                                 <span className={styles.statLabel}>Contributions</span>
                             </div>
                             <div className={styles.statCard}>
+                                <BookOpen size={20} />
+                                <span className={styles.statValue}>{userTranslations.length}</span>
+                                <span className={styles.statLabel}>Translations</span>
+                            </div>
+                            <div className={styles.statCard}>
                                 <Heart size={20} />
                                 <span className={styles.statValue}>{userFavorites.length}</span>
                                 <span className={styles.statLabel}>Favorites</span>
@@ -551,6 +602,63 @@ export default function UserHomePage({ userid }) {
                                     )}
                                 </div>
                             )}
+                            {/* Translations Tab */}
+                            {activeTab === 'translations' && (
+                            <div className={styles.tabPanel}>
+                                <h2 className={styles.tabContentTitle}>TRANSLATIONS</h2>
+
+                                {translationsLoading ? (
+                                <div className={styles.loadingState}>Loading translations...</div>
+                                ) : userTranslations.length === 0 ? (
+                                <div className={styles.emptyState}>No translations yet</div>
+                                ) : (
+                                <>
+                                    <div className={styles.contributionsList}>
+                                    {userTranslations.map(tr => (
+                                        <div key={tr.id} className={styles.contributionCard}>
+                                        <div className={styles.contributionContent}>
+                                            <h3 className={styles.contributionTitle}>
+                                            {tr.pageType?.charAt(0).toUpperCase() + tr.pageType?.slice(1)}
+                                            </h3>
+                                            <Link
+                                            href={`/${tr.pageType === 'poem' ? 'poems' : 'characters'}/${tr.pageType === 'poem'
+                                                ? tr.identifier?.replace('-', '/')
+                                                : tr.identifier}`}
+                                            className={styles.contributionLink}
+                                            >
+                                            {tr.identifier}
+                                            </Link>
+
+                                            <div style={{ marginTop: '.5rem' }}>
+                                            <FormatContent content={tr.content} className={styles.commentText} />
+                                            </div>
+
+                                            <div className={styles.commentMeta} style={{ marginTop: '.5rem' }}>
+                                            <span className={styles.commentDate}>{formatDate(tr.createdAt)}</span>
+                                            {tr.isHidden && (
+                                                <span style={{ marginLeft: '0.75rem', fontStyle: 'italic' }}>
+                                                (Hidden)
+                                                </span>
+                                            )}
+                                            </div>
+                                        </div>
+                                        </div>
+                                    ))}
+                                    </div>
+
+                                    {translationsTotalPages > 1 && (
+                                    <Pagination
+                                        currentPage={translationsPage}
+                                        totalPages={translationsTotalPages}
+                                        onPageChange={handleTranslationsPageChange}
+                                        disabled={translationsLoading}
+                                    />
+                                    )}
+                                </>
+                                )}
+                            </div>
+                            )}
+
 
                             {/* Favorites Tab */}
                             {activeTab === 'favorites' && (
