@@ -24,12 +24,6 @@
     text-shadow: 0 2px 4px rgba(30, 64, 175, 0.1);
 }
 
-.subtitle {
-    color: #64748b;
-    font-size: 1.1rem;
-    margin: 0;
-}
-
 /* Mode Selector Styles */
 .modeSelector {
     display: flex;
@@ -65,7 +59,7 @@
 
 .mainContent {
     display: flex;
-    height: calc(100vh - 160px);
+    height: calc(100vh - 120px);
     gap: 20px;
     max-width: 1400px;
     margin: 0 auto;
@@ -245,15 +239,16 @@
     .mainContent {
         flex-direction: column;
         height: auto;
+        min-height: calc(100vh - 120px);
     }
 
     .sidebar {
         width: 100%;
-        height: 300px;
+        height: 400px;
     }
 
     .editorArea {
-        min-height: 500px;
+        min-height: 600px;
     }
 
     .title {

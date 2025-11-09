@@ -324,7 +324,6 @@ const AdministratorPage = () => {
         <div className={styles.administratorContainer}>
             <div className={styles.header}>
                 <h1 className={styles.title}>Administrator Panel</h1>
-                <p className={styles.subtitle}>Manage content in the database</p>
                 
                 {/* Mode Selection */}
                 <div className={styles.modeSelector}>
