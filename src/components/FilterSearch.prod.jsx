@@ -19,6 +19,7 @@ const PLURAL_TO_SING = {
 };
 
 const TAG_FIELD_BY_LABEL = {
+  'My Favorites': 'isFavorite',
   'Omitted By Waley': 'omitted_by_waley',
   'Omitted By Seidensticker': 'omitted_by_seidensticker',
   'Bad Poems': 'bad_poems',
@@ -158,6 +159,7 @@ const PoemSearch = () => {
       other_tags: {
         label: "Other Tags",
         options: {
+          'My Favorites': { checked: false },
           'Omitted By Waley': { checked: false },
           'Omitted By Seidensticker': { checked: false },
           'Bad Poems': { checked: false },
@@ -179,12 +181,6 @@ const PoemSearch = () => {
         }
       },
 
-      favorites: {
-        label: "Favorites",
-        options: {
-          'Yes': { checked: false },
-        }
-      },
     //   poetic_tech: {
     //       label: 'Poetic Techniques Used',
     //       options: {
@@ -570,13 +566,7 @@ const PoemSearch = () => {
                 return !!result[field];
               });
             }
-            case "favorites": {
-              if (activeOptions.length === 2) return true;
-              if (activeOptions.includes('Yes')) {
-                return !!result.isFavorite;
-              }
-              return true;
-            }
+            
             default:
               return true;
           }
@@ -1382,22 +1372,6 @@ const PoemSearch = () => {
               }`}
             >
 
-              {/* Favorites */}
-              <div className={styles.otherFilterTitles}>Favorites</div>
-              <div className={styles.filterOptions}>
-              {Object.keys(filters.favorites.options).map((k) => (
-                      <Checkbox
-                        key={k}
-                        checked={filters.favorites.options[k]?.checked}
-                        onChange={() => handleFilterChange("favorites", k)}
-                        className={`${styles.filterCheckbox} ${styles.alignLeft}`}
-                      >
-                        {k}
-                      </Checkbox>
-                    ))}
-              </div>
-              <div className={`${styles.filterContent} ${openSections.has('favorites') ? styles.expanded : ""}`}></div>
-                
             {/* hide season filter for now */}
               {/* Season */}
               
