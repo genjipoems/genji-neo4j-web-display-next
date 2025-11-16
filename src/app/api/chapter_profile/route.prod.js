@@ -37,7 +37,8 @@ async function getChapterData(name) {
         ch {
           .chapter_name,
           .chapter_number,
-          .kanji
+          .kanji,
+          .Description
         } AS chapter,
         collect(DISTINCT {
           pnum: poem.pnum,

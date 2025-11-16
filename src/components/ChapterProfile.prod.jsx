@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import FormatContent from './FormatText.prod';
 import styles from '../styles/pages/chapterProfile.module.css'; // You might need to adjust this path
 
 // Helper function to remove leading zeros from chapter or poem numbers
@@ -294,9 +295,16 @@ export default function ChapterDetail({ name }) {
 
                   
                   <div className={styles.descriptionText}>
-                    <p className={styles.descriptionPlaceholder}>
+                    {chapterData.Description ? (
+                      <FormatContent 
+                        content={chapterData.Description} 
+                        className={styles.descriptionText} 
+                      />
+                    ) : (
+                      <p className={styles.descriptionPlaceholder}>
                         <i>Chapter summary not available at this time. Under construction.</i>
-                    </p>
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
