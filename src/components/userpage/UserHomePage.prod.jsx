@@ -53,6 +53,11 @@ export default function UserHomePage({ userid }) {
     const [translationsTotalPages, setTranslationsTotalPages] = useState(1);
     const [translationsLoading, setTranslationsLoading] = useState(true);
 
+     // Blogs state
+    const [userBlogs, setUserBlogs] = useState([]);
+    const [blogsPage, setBlogsPage] = useState(1);
+    const [blogsTotalPages, setBlogsTotalPages] = useState(1);
+    const [blogsLoading, setBlogsLoading] = useState(true);
 
     const fetchUserData = async () => {
         try {
@@ -177,6 +182,43 @@ export default function UserHomePage({ userid }) {
     fetchUserTranslations(newPage);
     };
 
+    // Fetch user's blogs with pagination
+    const fetchUserBlogs = async (page = 1) => {
+        if (!session) return;
+
+        try {
+            const response = await fetch(
+            `/api/user/getBlogs?userId=${userid}&page=${page}&limit=5`
+            );
+            const data = await response.json();
+            console.log('fetchUserBlogs:', response.status, data);
+
+            if (response.ok) {
+            setUserBlogs(data.blogs || []);
+            setBlogsPage(data.currentPage || 1);
+            setBlogsTotalPages(data.totalPages || 1);
+            }
+        } catch (error) {
+            console.error('Failed to fetch user blogs:', error);
+        } finally {
+            setBlogsLoading(false);
+        }
+    };
+
+
+    // Handle blogs pagination
+    const handleBlogsPageChange = (newPage) => {
+        if (
+            newPage < 1 ||
+            newPage > blogsTotalPages ||
+            newPage === blogsPage ||
+            blogsLoading
+        ) {
+            return;
+        }
+        setBlogsPage(newPage);
+        fetchUserBlogs(newPage);
+    };
 
     // Fetch user's favorite poems with pagination
     const fetchUserFavorites = async (page = 1) => {
@@ -214,6 +256,7 @@ export default function UserHomePage({ userid }) {
                 fetchUserContributions();
                 fetchUserFavorites();
                 fetchUserTranslations();
+                fetchUserBlogs();
             }
             setLoading(false);
         }
@@ -310,24 +353,35 @@ export default function UserHomePage({ userid }) {
                     onClick={() => setActiveTab('comments')}
                 >
                     COMMENTS
+                    <span className={styles.tabCount}> ({userComments.length})</span>
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'contributions' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('contributions')}
                 >
                     CONTRIBUTIONS
+                    <span className={styles.tabCount}> ({userContributions.length})</span>
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'translations' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('translations')}
                 >
                     TRANSLATIONS
+                    <span className={styles.tabCount}> ({userTranslations.length})</span>
+                </button>
+                <button 
+                    className={`${styles.tabButton} ${activeTab === 'blogs' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('blogs')}
+                >
+                    BLOGS
+                    <span className={styles.tabCount}> ({userBlogs.length})</span>
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'favorites' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('favorites')}
                 >
                     FAVORITE POEMS
+                    <span className={styles.tabCount}> ({userFavorites.length})</span>
                 </button>
             </div>
         );
@@ -485,7 +539,7 @@ export default function UserHomePage({ userid }) {
             <div className={styles.contentSection}>
                 {session ? (
                     <>
-                        <div className={styles.statsRow}>
+                        {/* <div className={styles.statsRow}>
                             <div className={styles.statCard}>
                                 <MessageSquare size={20} />
                                 <span className={styles.statValue}>{userComments.length}</span>
@@ -502,11 +556,16 @@ export default function UserHomePage({ userid }) {
                                 <span className={styles.statLabel}>Translations</span>
                             </div>
                             <div className={styles.statCard}>
+                                <BookOpen size={20} />
+                                <span className={styles.statValue}>{userBlogs.length}</span>
+                                <span className={styles.statLabel}>Blogs</span>
+                            </div>
+                            <div className={styles.statCard}>
                                 <Heart size={20} />
                                 <span className={styles.statValue}>{userFavorites.length}</span>
                                 <span className={styles.statLabel}>Favorites</span>
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* Tab Navigation */}
                         {renderTabs()}
@@ -658,6 +717,58 @@ export default function UserHomePage({ userid }) {
                                 )}
                             </div>
                             )}
+
+                            {/* Blogs Tab */}
+                            {activeTab === 'blogs' && (
+                                <div className={styles.tabPanel}>
+                                    <h2 className={styles.tabContentTitle}>BLOGS</h2>
+
+                                    {blogsLoading ? (
+                                        <div className={styles.loadingState}>Loading blogs...</div>
+                                    ) : userBlogs.length === 0 ? (
+                                        <div className={styles.emptyState}>No blogs yet</div>
+                                    ) : (
+                                        <>
+                                            <div className={styles.contributionsList}>
+                                                {userBlogs.map((blog) => (
+                                                    <div key={blog.id || blog.title} className={styles.contributionCard}>
+                                                        <div className={styles.contributionContent}>
+                                                            <h3 className={styles.contributionTitle}>
+                                                                {blog.title}
+                                                                {blog.showOnPage && (
+                                                                    <span style={{ marginLeft: '0.5rem', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                                                        (Featured)
+                                                                    </span>
+                                                                )}
+                                                            </h3>
+
+                                                            {/* Blog content preview */}
+                                                            {blog.content && (
+                                                                <div style={{ marginTop: '.5rem' }}>
+                                                                    <FormatContent
+                                                                        content={blog.content}
+                                                                        className={styles.commentText}
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {blogsTotalPages > 1 && (
+                                                <Pagination
+                                                    currentPage={blogsPage}
+                                                    totalPages={blogsTotalPages}
+                                                    onPageChange={handleBlogsPageChange}
+                                                    disabled={blogsLoading}
+                                                />
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
 
 
                             {/* Favorites Tab */}
