@@ -42,7 +42,6 @@ export async function GET(req) {
 
     const db = await client.db('user');
 
-    // Query translations by user field (string, based on your screenshot)
     const translations = await db.collection('translation')
       .find({ user: userId })
       .sort({ createdAt: -1 })
@@ -56,7 +55,6 @@ export async function GET(req) {
 
     const totalTranslations = await db.collection('translation').countDocuments({ user: userId });
 
-    // Optional: simplify the output to only necessary fields for frontend
     const simplifiedTranslations = translations.map(doc => ({
       id: doc._id.toString(),
       pageType: doc.pageType,
