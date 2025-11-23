@@ -1,5 +1,6 @@
 const { getSession } = require('../neo4j_driver/route.prod.js');
 
+import { add } from 'lodash';
 import { toNativeTypes } from '../neo4j_driver/utils.prod.js';
 
 async function getData (chapter, number){
@@ -8,7 +9,7 @@ async function getData (chapter, number){
 	//all the get method and return the db data
 	const queries = {
 
-		res: 'MATCH poem=(g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH "' + number + '" OPTIONAL MATCH speaker_rel=(s:Character)-[:SPEAKER_OF]->(g) OPTIONAL MATCH addressee_rel=(g)<-[:ADDRESSEE_OF]-(a:Character) OPTIONAL MATCH trans=(g)-[:TRANSLATION_OF]-(:Translation)-[:TRANSLATOR_OF]-(:People) RETURN poem, speaker_rel, addressee_rel, trans, g.narrative_context as narrative_context, g.paraphrase as paraphrase, g.handwriting_description as handwriting_description, g.paper_or_medium_type as paper_or_medium_type, g.delivery_style as delivery_style, g.Spoken as spoken, g.Written as written, g.evidence_for_spoken_or_written as spoken_or_written_evidence, g.Complete as complete, g.last_updated as last_updated',
+		res: 'MATCH poem=(g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH "' + number + '" OPTIONAL MATCH speaker_rel=(s:Character)-[:SPEAKER_OF]->(g) OPTIONAL MATCH addressee_rel=(g)<-[:ADDRESSEE_OF]-(a:Character) OPTIONAL MATCH trans=(g)-[:TRANSLATION_OF]-(:Translation)-[:TRANSLATOR_OF]-(:People) OPTIONAL MATCH other_recipients=(otherChar:Character)-[:OTHER_RECIPIENT_OF]->(g) OPTIONAL MATCH unintended_recipients=(unintendedChar:Character)-[:UNINTENDED_RECIPIENT_OF]->(g) OPTIONAL MATCH group_participants=(groupChar:Character)-[:GROUP_PARTICIPANT_OF]->(g) RETURN poem, speaker_rel, addressee_rel, trans, other_recipients, unintended_recipients, group_participants, g.narrative_context as narrative_context, g.paraphrase as paraphrase, g.handwriting_description as handwriting_description, g.paper_or_medium_type as paper_or_medium_type, g.delivery_style as delivery_style, g.Spoken as spoken, g.Written as written, g.evidence_for_spoken_or_written as spoken_or_written_evidence, g.Complete as complete, g.last_updated as last_updated',
 		resHonkaInfo:  'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[n:ALLUDES_TO]->(h:Honka)-[r:ANTHOLOGIZED_IN]-(s:Source), (h)<-[:AUTHOR_OF]-(a:People), (h)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(p:People) where g.pnum ends with "' + number + '" return h.Honka as honka, h.Romaji as romaji, s.title as title, a.name as poet, r.order as order, p.name as translator, t.translation as translation, n.notes as notes',
 		resRel : 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[r:INTERNAL_ALLUSION_TO]->(s:Genji_Poem) where g.pnum ends with "' + number + '" return s.pnum as rel, r.evidence as internal_allusion_evidence',
 		resPnum : 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(c:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH (CASE WHEN "' + number + '" < 10 THEN \'0\' + toString("' + number + '") ELSE toString($number) END) RETURN g.pnum as pnum',
@@ -43,15 +44,32 @@ async function getData (chapter, number){
 		result['res'].records.forEach(record => {
 			const speakerRel = record.get('speaker_rel');
 			const addresseeRel = record.get('addressee_rel');
+			const otherRecipientsRel = record.get('other_recipients');
+			const unintendedRecipientsRel = record.get('unintended_recipients');
+			const groupParticipantsRel = record.get('group_participants');
 			
 			// Only process if we have at least one relationship
-			if (speakerRel || addresseeRel) {
+			if (speakerRel || addresseeRel || otherRecipientsRel || unintendedRecipientsRel || groupParticipantsRel) {
 				const speakerRelNative = speakerRel ? toNativeTypes(speakerRel) : null;
 				const addresseeRelNative = addresseeRel ? toNativeTypes(addresseeRel) : null;
-				
+				const otherRecipientsRelNative = otherRecipientsRel ? toNativeTypes(otherRecipientsRel) : null;
+				const unintendedRecipientsRelNative = unintendedRecipientsRel ? toNativeTypes(unintendedRecipientsRel) : null;
+				const groupParticipantsRelNative = groupParticipantsRel ? toNativeTypes(groupParticipantsRel) : null;
+
+				// Turn relationships that could be multiple into arrays of end nodes
+				const relsToNodes = (relNative, useStart = false) => {
+					if (!relNative) return [];
+					const rels = Array.isArray(relNative) ? relNative : [relNative];
+					return rels.map(r => useStart ? r.start : r.end);
+				};
+	
 				const speaker = speakerRelNative ? speakerRelNative.start : (addresseeRelNative ? addresseeRelNative.end : null);
 				const addressee = addresseeRelNative ? addresseeRelNative.end : speaker; // Default to speaker for self-addressed
-				const poem = speakerRelNative ? speakerRelNative.end : (addresseeRelNative ? addresseeRelNative.start : null);
+				const otherRecipients = relsToNodes(otherRecipientsRelNative, true);
+				const unintendedRecipients = relsToNodes(unintendedRecipientsRelNative, true);
+				const groupParticipants = relsToNodes(groupParticipantsRelNative, true);
+
+				const poem = speakerRelNative ? speakerRelNative.end : addresseeRelNative ? addresseeRelNative.end : null;
 				
 				if (speaker && poem) {
 					exchange.push({
@@ -61,26 +79,75 @@ async function getData (chapter, number){
 							{
 								start: speaker,
 								end: poem
-							}
+							},
+							{
+								start: poem,
+								end: addressee
+							},
+							...otherRecipients.map(r => ({
+								start: r,
+								end: poem,
+								role: "otherRecipient"
+							})), 
+							...unintendedRecipients.map(r => ({
+								start: r,
+								end: poem,
+								role: "unintendedRecipient"
+							})),
+							...groupParticipants.map(r => ({
+								start: r,
+								end: poem,
+								role: "groupParticipant"
+							}))
+					
 						]
 					});
 				}
 			}
 		});
 		
-		// Remove duplicates
-		const uniqueExchange = [];
-		const seenExchanges = new Set();
+		// Merge exchanges with the same (speaker, addressee) pair
+const exchangeByKey = new Map();
+
+exchange.forEach(ex => {
+    if (!ex.start || !ex.end || !ex.start.properties || !ex.end.properties) return;
+
+    const key = JSON.stringify([ex.start.properties.name, ex.end.properties.name]);
+
+    if (!exchangeByKey.has(key)) {
+        // clone object so we don't mutate originals
+        exchangeByKey.set(key, {
+            ...ex,
+            segments: [...ex.segments]
+        });
+    } else {
+        const existing = exchangeByKey.get(key);
+        existing.segments.push(...ex.segments);
+    }
+});
+
+exchange = Array.from(exchangeByKey.values());
+
+		// derive names from segments
+		const otherRecipientNames = new Set();
+		const unintendedRecipientNames = new Set();
+		const groupParticipantNames = new Set();
+
 		exchange.forEach(ex => {
-			if (ex.start && ex.end && ex.start.properties && ex.end.properties) {
-				const key = JSON.stringify([ex.start.properties.name, ex.end.properties.name]);
-				if (!seenExchanges.has(key)) {
-					seenExchanges.add(key);
-					uniqueExchange.push(ex);
-				}
-			}
+		ex.segments.forEach(seg => {
+			const name = seg.start?.properties?.name;
+			if (!name) return;
+
+			if (seg.role === 'otherRecipient') otherRecipientNames.add(name);
+			if (seg.role === 'unintendedRecipient') unintendedRecipientNames.add(name);
+			if (seg.role === 'groupParticipant') groupParticipantNames.add(name);
 		});
-		exchange = uniqueExchange;
+		});
+
+		const otherRecipientList = Array.from(otherRecipientNames);
+		const unintendedRecipientList = Array.from(unintendedRecipientNames);
+		const groupParticipantList = Array.from(groupParticipantNames);
+
 
 		
 		let narrative_context = result['res'].records[0]?.get('narrative_context') || null;
@@ -278,7 +345,10 @@ async function getData (chapter, number){
 						spoken_or_written_evidence,
 						repliesToThis,
 						complete,
-						last_updated
+						last_updated,
+						otherRecipientList,
+						unintendedRecipientList,
+						groupParticipantList
 					];
 
 		return (data);

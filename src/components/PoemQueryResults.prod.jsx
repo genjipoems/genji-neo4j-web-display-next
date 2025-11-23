@@ -101,8 +101,8 @@ const PoemDisplay = ({ poemData }) => {
         deliveryStyle: "",
         season: "",
         kigo: [],
-        pt: "",
-        pw: { name: "", kanji_hiragana: "", english_equiv: "", gloss: "" },
+        pt: [],
+        pw: [],
         messenger: "",
         age: "",
         repCharacter: "",
@@ -118,7 +118,10 @@ const PoemDisplay = ({ poemData }) => {
         furtherReadings: [],
         spoken_or_written_evidence: "",
         complete: "",
-        last_updated: ""
+        last_updated: "",
+        otherRecipients: [],
+        unintededRecipients: [],
+        groupParticipants: []
     });
 
     const chapter = poemData.chapterNum;
@@ -207,6 +210,9 @@ const PoemDisplay = ({ poemData }) => {
                 const relatedWithEvidence = responseData[3];
                 const tags = responseData[4];
                 const pls = responseData[6];
+                const otherRecipients = responseData[34] || [];
+                const unintededRecipients = responseData[35] || [];
+                const groupParticipants = responseData[36] || [];
                 
                 // form speaker set
                 let speaker = [...new Set(exchange.map(e => e.start.properties.name))];
@@ -331,11 +337,13 @@ const PoemDisplay = ({ poemData }) => {
                     furtherReadings: responseData[29],
                     spoken_or_written_evidence: responseData[30],
                     complete: responseData[32],
-                    last_updated: responseData[33]
+                    last_updated: responseData[33],
+                    otherRecipients: [...otherRecipients],
+                    unintededRecipients: [...unintededRecipients],
+                    groupParticipants: [...groupParticipants]
                 };
                 
-                
-                // console.log(responseData)
+                console.log('this is', responseData);
 
                 setPoemState(prev => ({...prev, ...newPoemState}));
                 
@@ -718,6 +726,41 @@ const PoemDisplay = ({ poemData }) => {
                                     </div>
                                 </div>
                                 <div className={`${styles.panelContent} ${expandedPanels.details ? styles.expanded : styles.collapsed}`}>
+
+                                {Array.isArray(poemState.otherRecipients) && poemState.otherRecipients.length > 0 && (
+                                    <div className={styles.detailItem}>
+                                        <h3>OTHER RECIPIENTS</h3>
+                                        {poemState.otherRecipients.map((recipient, index) => (
+                                            <div key={index} className={styles.recipientItem}>
+                                                <FormatContent content={recipient} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {Array.isArray(poemState.unintededRecipients) && poemState.unintededRecipients.length > 0 && (
+                                    <div className={styles.detailItem}>
+                                        <h3>UNINTENDED RECIPIENTS</h3>
+                                        {poemState.unintededRecipients.map((recipient, index) => (
+                                            <div key={index} className={styles.recipientItem}>
+                                                <FormatContent content={recipient} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {Array.isArray(poemState.groupParticipants) && poemState.groupParticipants.length > 0 && (
+                                    <div className={styles.detailItem}>
+                                        <h3>GROUP PARTICIPANTS</h3>
+                                        {poemState.groupParticipants.map((participant, index) => (
+                                            <div key={index} className={styles.recipientItem}>
+                                                <FormatContent content={participant} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                    
+                                
                                 {poemState.paperMediumType && (
                                     <div className={styles.detailItem}>
                                         <h3>PAPER/MEDIUM</h3>
