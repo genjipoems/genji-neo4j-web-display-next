@@ -53,7 +53,7 @@ export async function DELETE(request) {
     }
 
     // **Sanitize field name** - expanded to include season, age and other allowed fields
-    const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "Complete", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description"];
+    const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "Complete", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description", "otherTranslations"];
     if (!allowedFields.includes(field)) {
       return new Response(JSON.stringify({ error: "Invalid field param" }), { status: 400 });
     }
@@ -294,6 +294,19 @@ export async function DELETE(request) {
       
       const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} reply poem relationships` }), { status: 200 });
+    } 
+    // Handle other translations deletion specially (remove all HAS_OTHER_TRANSLATION relationships)
+    else if (field === "otherTranslations") {
+      const query = `
+        MATCH (g:Genji_Poem {pnum: $pnum})-[r:HAS_OTHER_TRANSLATION]->(ot:Other_Translation)
+        DELETE r
+        RETURN count(r) as deletedCount
+      `;
+      
+      const result = await session.run(query, { pnum });
+      
+      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
+      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} other translation relationships` }), { status: 200 });
     } 
     // Handle speaker deletion specially (remove SPEAKER_OF relationship)
     else if (field === "speaker") {
@@ -1032,6 +1045,80 @@ async function updatePoemProperties(pnum, data) {
                   currentPnum: pnum.toString()
                 });
               }
+            }
+          }
+        }
+      }
+
+      // 2️⃣n Handle other translations relationships
+      if (data.otherTranslations !== undefined) {
+        // First, remove all existing other translation relationships
+        await tx.run(`
+          MATCH (g:Genji_Poem {pnum: $pnum})-[r:HAS_OTHER_TRANSLATION]->(ot:Other_Translation)
+          DELETE r
+        `, { pnum: pnum.toString() });
+
+        // Parse the other translations data and create new relationships
+        let otherTranslationsData = [];
+        try {
+          otherTranslationsData = Array.isArray(data.otherTranslations) ? data.otherTranslations : JSON.parse(data.otherTranslations);
+        } catch (e) {
+          otherTranslationsData = [];
+        }
+
+        if (Array.isArray(otherTranslationsData)) {
+          // Create relationships for each other translation
+          for (const otherTranslation of otherTranslationsData) {
+            if (otherTranslation && otherTranslation.name && otherTranslation.name.trim() && otherTranslation.translation && otherTranslation.translation.trim()) {
+              const translatorName = otherTranslation.name.trim();
+              const translationText = otherTranslation.translation.trim();
+              
+              // Generate unique ID for this other translation: pnum_translatorLastName
+              const translationId = `${pnum}_${translatorName.replace(/\s+/g, '_')}`;
+              
+              // First check if the Other_Translation node exists
+              const checkQuery = `
+                MATCH (ot:Other_Translation {id: $translationId})
+                RETURN ot.id as id
+              `;
+              
+              const checkResult = await tx.run(checkQuery, { translationId });
+              
+              if (checkResult.records.length === 0) {
+                // Create the Other_Translation node if it doesn't exist
+                await tx.run(`
+                  CREATE (ot:Other_Translation {
+                    id: $translationId,
+                    name: $name,
+                    translation: $translation
+                  })
+                `, { 
+                  translationId: translationId,
+                  name: translatorName,
+                  translation: translationText
+                });
+              } else {
+                // Update existing Other_Translation node with new data
+                await tx.run(`
+                  MATCH (ot:Other_Translation {id: $translationId})
+                  SET ot.name = $name,
+                      ot.translation = $translation
+                `, { 
+                  translationId: translationId,
+                  name: translatorName,
+                  translation: translationText
+                });
+              }
+              
+              // Create the relationship
+              await tx.run(`
+                MATCH (g:Genji_Poem {pnum: $pnum})
+                MATCH (ot:Other_Translation {id: $translationId})
+                CREATE (g)-[r:HAS_OTHER_TRANSLATION]->(ot)
+              `, { 
+                pnum: pnum.toString(), 
+                translationId: translationId
+              });
             }
           }
         }

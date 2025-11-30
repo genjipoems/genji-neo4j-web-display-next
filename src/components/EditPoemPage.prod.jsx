@@ -75,6 +75,12 @@ function cleanProps(input) {
       continue;
     }
 
+    // Special handling for other translations array
+    if (key === "otherTranslations" && Array.isArray(val)) {
+      output[key] = val;
+      continue;
+    }
+
     if (isPrimitiveOrPrimitiveArray(val)) {
       output[key] = val;
     } else {
@@ -112,6 +118,7 @@ async function updatePoemData(pnum, updatedData) {
 const fieldOrder = [
   "speaker", "addressee", "addressee2", "addressee3", "poemId", "age", "JPRM_Japanese", "JPRM_Romaji",
   "Waley", "Seidensticker", "Tyler", "Washburn", "Cranston",
+  "otherTranslations",
   "narrativeContext", "paraphrase", "notes", "paperMediumType", "deliveryStyle",
   "season", "season_evidence", "spoken", "written", "complete", "spoken_or_written_evidence", 
   "pt", "tag", "otherTags", "placeOfComp", "placeOfComp_evidence",
@@ -136,6 +143,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
     const [availablePoeticWords, setAvailablePoeticWords] = useState([]);
     const [availableSeasonalWords, setAvailableSeasonalWords] = useState([]);
     const [availableCharacters, setAvailableCharacters] = useState([]);
+    const [availableOtherTranslations, setAvailableOtherTranslations] = useState([]);
     const number = poemNum.toString().padStart(2, '0');
 
     // Check if user is admin based on session
@@ -203,6 +211,23 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 });
         }
     }, [showPopup, availableCharacters.length]);
+
+    // Fetch available other translations when popup opens
+    useEffect(() => {
+        if (showPopup && availableOtherTranslations.length === 0) {
+            fetch('/api/poems/edit_otherTranslations')
+                .then(res => res.json())
+                .then(otherTranslations => {
+                    // Extract unique translator names
+                    const uniqueNames = [...new Set(otherTranslations.map(t => t.name).filter(Boolean))];
+                    setAvailableOtherTranslations(uniqueNames);
+                })
+                .catch(err => {
+                    console.error('Error loading other translations:', err);
+                    setAvailableOtherTranslations([]);
+                });
+        }
+    }, [showPopup, availableOtherTranslations.length]);
 
     useEffect(() => {
         if (showPopup && !poemData) {
@@ -330,7 +355,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     replyPoems: responseData[31],
                     furtherReadings: responseData[29],
                     spoken_or_written_evidence: responseData[30],
-                    complete: responseData[32]
+                    complete: responseData[32],
+                    otherTranslations: responseData[34] || []
                     };
 
                     // Fixed serialization logic
@@ -378,6 +404,13 @@ export default function EditPoemPage({ chapter, poemNum }) {
                             }
                         } else if (key === "kigo") {
                             // Special handling for seasonal words/kigo - serialize as JSON
+                            if (Array.isArray(val)) {
+                                serialized[key] = JSON.stringify(val);
+                            } else {
+                                serialized[key] = JSON.stringify([]);
+                            }
+                        } else if (key === "otherTranslations") {
+                            // Special handling for other translations - serialize as JSON
                             if (Array.isArray(val)) {
                                 serialized[key] = JSON.stringify(val);
                             } else {
@@ -591,6 +624,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
             replyPoems: "replyPoems", // reply poems map directly
             kigo: "kigo", // seasonal words/kigo map directly
             handwritingDescription: "handwriting_description", // handwriting description maps directly
+            otherTranslations: "otherTranslations", // other translations map directly
         };
         const fieldToDelete = fieldMap[key] || key;
 
@@ -609,7 +643,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
             setEditData((prev) => {
             const updated = { ...prev };
             
-            // Special handling for poetic techniques, tags, and reply poems - set to empty array instead of deleting
+            // Special handling for poetic techniques, tags, reply poems, and other translations - set to empty array instead of deleting
             if (key === "pt") {
                 updated[key] = JSON.stringify([]);
             } else if (key === "tag") {
@@ -617,6 +651,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
             } else if (key === "otherTags") {
                 updated[key] = JSON.stringify([]);
             } else if (key === "replyPoems") {
+                updated[key] = JSON.stringify([]);
+            } else if (key === "otherTranslations") {
                 updated[key] = JSON.stringify([]);
             } else if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3") {
                 // For speaker and addressee fields, set to empty string
@@ -652,6 +688,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
         if (key === 'handwritingDescription') return 'Handwriting Description';
         if (key === 'addressee2') return 'Addressee 2';
         if (key === 'addressee3') return 'Addressee 3';
+        if (key === 'otherTranslations') return 'Other Translations';
         
         return key
             .replace(/([A-Z])/g, ' $1') // Add space before capital letters
@@ -1787,6 +1824,154 @@ export default function EditPoemPage({ chapter, poemNum }) {
                                         className="delete-button"
                                         onClick={() => handleDelete(key)}
                                         title="Clear proxy"
+                                        style={{ marginTop: "8px" }}
+                                    >
+                                        ❌
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    // Special handling for other translations field
+                    if (key === "otherTranslations") {
+                        // Parse current other translations data
+                        let currentOtherTranslations = [];
+                        try {
+                            if (typeof editData[key] === "string") {
+                                currentOtherTranslations = JSON.parse(editData[key]);
+                            } else if (Array.isArray(editData[key])) {
+                                currentOtherTranslations = editData[key];
+                            }
+                        } catch (e) {
+                            currentOtherTranslations = [];
+                        }
+
+                        return (
+                            <div key={key} className="full-field-container">
+                                <label className="full-field-label">
+                                    {formatFieldName(key)}
+                                </label>
+                                <div className="full-input-wrapper">
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "12px", border: "1px solid #ccc", borderRadius: "4px", minHeight: "120px", backgroundColor: "#fafafa", width: "85%" }}>
+                                        {currentOtherTranslations.length > 0 ? (
+                                            currentOtherTranslations.map((translation, index) => (
+                                                <div key={index} style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "12px", backgroundColor: "white", border: "1px solid #ddd", borderRadius: "4px", width: "100%" }}>
+                                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                                        <strong style={{ fontSize: "14px", color: "#333" }}>Translation {index + 1}</strong>
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditData((prev) => {
+                                                                    const updated = [...currentOtherTranslations];
+                                                                    updated.splice(index, 1);
+                                                                    return {
+                                                                        ...prev,
+                                                                        [key]: updated
+                                                                    };
+                                                                });
+                                                            }}
+                                                            style={{
+                                                                padding: "4px 8px",
+                                                                backgroundColor: "#dc3545",
+                                                                color: "white",
+                                                                border: "none",
+                                                                borderRadius: "4px",
+                                                                cursor: "pointer",
+                                                                fontSize: "12px"
+                                                            }}
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                                        <label style={{ fontSize: "12px", fontWeight: "500" }}>Translator Last Name:</label>
+                                                        <input
+                                                            type="text"
+                                                            list="other-translations-names"
+                                                            value={translation.name || ""}
+                                                            onChange={(e) => {
+                                                                setEditData((prev) => {
+                                                                    const updated = [...currentOtherTranslations];
+                                                                    updated[index] = { ...updated[index], name: e.target.value };
+                                                                    return {
+                                                                        ...prev,
+                                                                        [key]: updated
+                                                                    };
+                                                                });
+                                                            }}
+                                                            style={{
+                                                                padding: "6px",
+                                                                border: "1px solid #ccc",
+                                                                borderRadius: "4px",
+                                                                fontSize: "13px"
+                                                            }}
+                                                            placeholder="e.g., McCullough"
+                                                        />
+                                                        <datalist id="other-translations-names">
+                                                            {availableOtherTranslations.map((name, idx) => (
+                                                                <option key={idx} value={name} />
+                                                            ))}
+                                                        </datalist>
+                                                    </div>
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                                        <label style={{ fontSize: "12px", fontWeight: "500" }}>Translation:</label>
+                                                        <textarea
+                                                            value={translation.translation || ""}
+                                                            onChange={(e) => {
+                                                                setEditData((prev) => {
+                                                                    const updated = [...currentOtherTranslations];
+                                                                    updated[index] = { ...updated[index], translation: e.target.value };
+                                                                    return {
+                                                                        ...prev,
+                                                                        [key]: updated
+                                                                    };
+                                                                });
+                                                            }}
+                                                            style={{
+                                                                padding: "6px",
+                                                                border: "1px solid #ccc",
+                                                                borderRadius: "4px",
+                                                                fontSize: "13px",
+                                                                minHeight: "80px",
+                                                                resize: "vertical",
+                                                                width: "100%"
+                                                            }}
+                                                            placeholder="Enter translation text"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p style={{ color: "#888", fontStyle: "italic", fontSize: "13px" }}>No other translations added yet</p>
+                                        )}
+                                        <button
+                                            onClick={() => {
+                                                setEditData((prev) => {
+                                                    const updated = [...currentOtherTranslations, { id: "", name: "", translation: "" }];
+                                                    return {
+                                                        ...prev,
+                                                        [key]: updated
+                                                    };
+                                                });
+                                            }}
+                                            style={{
+                                                padding: "8px 12px",
+                                                backgroundColor: "#28a745",
+                                                color: "white",
+                                                border: "none",
+                                                borderRadius: "4px",
+                                                cursor: "pointer",
+                                                fontSize: "14px",
+                                                fontWeight: "500"
+                                            }}
+                                        >
+                                            + Add Translation
+                                        </button>
+                                    </div>
+                                    <button
+                                        className="delete-button"
+                                        onClick={() => handleDelete(key)}
+                                        title="Clear all other translations"
                                         style={{ marginTop: "8px" }}
                                     >
                                         ❌
