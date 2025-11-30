@@ -295,10 +295,10 @@ export async function DELETE(request) {
       const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} reply poem relationships` }), { status: 200 });
     } 
-    // Handle other translations deletion specially (remove all HAS_OTHER_TRANSLATION relationships)
+    // Handle other translations deletion specially (remove all OTHER_TRANSLATION_OF relationships)
     else if (field === "otherTranslations") {
       const query = `
-        MATCH (g:Genji_Poem {pnum: $pnum})-[r:HAS_OTHER_TRANSLATION]->(ot:Other_Translation)
+        MATCH (ot:Other_Translation)-[r:OTHER_TRANSLATION_OF]->(g:Genji_Poem {pnum: $pnum})
         DELETE r
         RETURN count(r) as deletedCount
       `;
@@ -1054,7 +1054,7 @@ async function updatePoemProperties(pnum, data) {
       if (data.otherTranslations !== undefined) {
         // First, remove all existing other translation relationships
         await tx.run(`
-          MATCH (g:Genji_Poem {pnum: $pnum})-[r:HAS_OTHER_TRANSLATION]->(ot:Other_Translation)
+          MATCH (ot:Other_Translation)-[r:OTHER_TRANSLATION_OF]->(g:Genji_Poem {pnum: $pnum})
           DELETE r
         `, { pnum: pnum.toString() });
 
@@ -1114,7 +1114,7 @@ async function updatePoemProperties(pnum, data) {
               await tx.run(`
                 MATCH (g:Genji_Poem {pnum: $pnum})
                 MATCH (ot:Other_Translation {id: $translationId})
-                CREATE (g)-[r:HAS_OTHER_TRANSLATION]->(ot)
+                CREATE (ot)-[r:OTHER_TRANSLATION_OF]->(g)
               `, { 
                 pnum: pnum.toString(), 
                 translationId: translationId

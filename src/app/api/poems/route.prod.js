@@ -28,7 +28,7 @@ async function getData (chapter, number){
 				resReplyPoem: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:REPLY_TO]->(reply:Genji_Poem) where g.pnum ends with "' + number + '" return reply.pnum as replyPoem',
 		resRepliesTo: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (reply:Genji_Poem)-[:REPLY_TO]->(g) where g.pnum ends with "' + number + '" return reply.pnum as replyPoem',
 		resFutherReading: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:DISCUSSED_IN]->(s:Source), (s)<-[:AUTHOR_OF]-(a:People) where g.pnum ends with "' + number + '" return s.title as furtherReadings, a.name as author',
-		resOtherTranslations: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:HAS_OTHER_TRANSLATION]->(ot:Other_Translation) where g.pnum ends with "' + number + '" return ot.id as id, ot.name as name, ot.translation as translation'
+		resOtherTranslations: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (ot:Other_Translation)-[:OTHER_TRANSLATION_OF]->(g) where g.pnum ends with "' + number + '" return ot.id as id, ot.name as name, ot.translation as translation'
 	};
 
 	const result = {};
