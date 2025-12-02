@@ -119,6 +119,7 @@ const PoemDisplay = ({ poemData }) => {
         spoken_or_written_evidence: "",
         complete: "",
         last_updated: "",
+        otherTranslations: [],
         otherRecipients: [],
         unintededRecipients: [],
         groupParticipants: []
@@ -338,6 +339,7 @@ const PoemDisplay = ({ poemData }) => {
                     spoken_or_written_evidence: responseData[30],
                     complete: responseData[32],
                     last_updated: responseData[33],
+                    otherTranslations: responseData[34] || [],
                     otherRecipients: [...otherRecipients],
                     unintededRecipients: [...unintededRecipients],
                     groupParticipants: [...groupParticipants]
@@ -1175,6 +1177,33 @@ const PoemDisplay = ({ poemData }) => {
                             <div className={styles.translatorName}>ORIGINAL</div>
                         </div>
                     </div>
+                    
+                    {/* Other Translations */}
+                    {poemState.otherTranslations && Array.isArray(poemState.otherTranslations) && 
+                     poemState.otherTranslations.length > 0 && 
+                     poemState.otherTranslations.map((otherTrans, index) => (
+                        <div key={`other-trans-${index}`} className={styles.translationCard} style={{ '--translator-color': '#9c907d' }}>
+                            <div className={styles.translationContent}>
+                                {typeof otherTrans.translation === 'string' && 
+                                otherTrans.translation.trim() !== '' && (
+                                    <FormatContent content={otherTrans.translation} />
+                                )}
+                            </div>
+                            <div className={styles.translationMeta}>
+                                <SpeakerAddresseeInfo 
+                                    speaker={poemState.speaker}
+                                    addressee={poemState.addressee}
+                                    poemId={poemState.poemId}
+                                />
+                                <div 
+                                    className={styles.translatorName} 
+                                    style={{ backgroundColor: 'rgba(156, 144, 125, 0.66)' }}
+                                >
+                                    {otherTrans.name ? otherTrans.name.toUpperCase() : 'OTHER TRANSLATOR'}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                     
                     {/* User Translation Input */}
                     <div className={styles.translationCard}>

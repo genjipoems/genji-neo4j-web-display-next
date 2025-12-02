@@ -28,7 +28,8 @@ async function getData (chapter, number){
 		resGroup: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:IN_GROUP_OF]->(group:Group) where g.pnum ends with "' + number + '" match (otherPoems:Genji_Poem)-[:IN_GROUP_OF]->(group) where otherPoems.pnum <> g.pnum return otherPoems.pnum as groupMembers',
 				resReplyPoem: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:REPLY_TO]->(reply:Genji_Poem) where g.pnum ends with "' + number + '" return reply.pnum as replyPoem',
 		resRepliesTo: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (reply:Genji_Poem)-[:REPLY_TO]->(g) where g.pnum ends with "' + number + '" return reply.pnum as replyPoem',
-		resFutherReading: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:DISCUSSED_IN]->(s:Source), (s)<-[:AUTHOR_OF]-(a:People) where g.pnum ends with "' + number + '" return s.title as furtherReadings, a.name as author'
+		resFutherReading: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:DISCUSSED_IN]->(s:Source), (s)<-[:AUTHOR_OF]-(a:People) where g.pnum ends with "' + number + '" return s.title as furtherReadings, a.name as author',
+		resOtherTranslations: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (ot:Other_Translation)-[:OTHER_TRANSLATION_OF]->(g) where g.pnum ends with "' + number + '" return ot.id as id, ot.name as name, ot.translation as translation'
 	};
 
 	const result = {};
@@ -311,6 +312,24 @@ exchange = Array.from(exchangeByKey.values());
 			}
 		})
 
+		// other translations
+		let otherTranslations = []
+		result['resOtherTranslations'].records.forEach(e => {
+			const id = e.get('id')
+			const name = e.get('name')
+			const translation = e.get('translation')
+			if (id && name && translation) {
+				const idNative = toNativeTypes(id);
+				const nameNative = toNativeTypes(name);
+				const translationNative = toNativeTypes(translation);
+				otherTranslations.push({
+					id: Object.values(idNative).join(''),
+					name: Object.values(nameNative).join(''),
+					translation: Object.values(translationNative).join('')
+				})
+			}
+		})
+
 		const data = [
 						exchange, 
 						transTemp, 
@@ -346,6 +365,7 @@ exchange = Array.from(exchangeByKey.values());
 						repliesToThis,
 						complete,
 						last_updated,
+						otherTranslations,
 						otherRecipientList,
 						unintendedRecipientList,
 						groupParticipantList
