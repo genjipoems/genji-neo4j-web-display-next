@@ -241,9 +241,9 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     const relatedWithEvidence = responseData[3];
                     const tags = responseData[4];
                     const pls = responseData[6];
-                    const otherRecipients = responseData[34] || [];
-                    const unintendedRecipients = responseData[35] || [];
-                    const groupParticipants = responseData[36] || [];
+                    const otherRecipients = responseData[35] || [];
+                    const unintendedRecipients = responseData[36] || [];
+                    const groupParticipants = responseData[37] || [];
 
                     let speaker = [...new Set(exchange.map(e => e.start.properties.name))];
                     let addressee = [...new Set(exchange.map(e => e.end.properties.name))];
@@ -362,7 +362,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     complete: responseData[32],
                     otherRecipients: [...otherRecipients],
                     unintendedRecipients: [...unintendedRecipients],
-                    groupParticipants: [...groupParticipants,
+                    groupParticipants: [...groupParticipants],
                     otherTranslations: responseData[34] || []
                     };
 
@@ -416,8 +416,12 @@ export default function EditPoemPage({ chapter, poemNum }) {
                             } else {
                                 serialized[key] = JSON.stringify([]);
                             }
-                        } else if (Array.isArray(val) && key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
-                            serialized[key] = val.join(", ");
+                        } else if (key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
+                            if (Array.isArray(val)) {
+                                serialized[key] = val.join(", ");
+                            } else if (typeof(val) === "string") {
+                                serialized[key] = val;
+                            }
                         } else if (key === "otherTranslations") {
                             // Special handling for other translations - serialize as JSON
                             if (Array.isArray(val)) {
@@ -489,7 +493,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     if (Array.isArray(val)) {
                         arr = val.map(v => v.trim()).filter(Boolean);
                     } else if (typeof val === "string") {
-                        val.split(",").map(v => v.trim()).filter(Boolean);
+                        arr = val.split(",").map(v => v.trim()).filter(Boolean);
                     } else {
                         arr = [];
                     }
@@ -654,7 +658,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
             handwritingDescription: "handwriting_description", // handwriting description maps directly
             otherRecipients: "other_recipients",
             unintendedRecipients: "unintended_recipients",
-            groupParticipants: "group_participants"
+            groupParticipants: "group_participants",
             otherTranslations: "otherTranslations", // other translations map directly
         };
         const fieldToDelete = fieldMap[key] || key;
@@ -686,8 +690,11 @@ export default function EditPoemPage({ chapter, poemNum }) {
             } else if (key === "otherTranslations") {
                 updated[key] = JSON.stringify([]);
             } else if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
-                // For speaker and addressee fields, set to empty string
-                updated[key] = "";
+                if ( key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
+                    updated[key] = [];
+                } else {
+                    updated[key] = "";
+                }
             } else if (key === "complete") {
                 // For complete field, set to empty string (same as speaker/addressee)
                 updated[key] = "";
@@ -765,10 +772,31 @@ export default function EditPoemPage({ chapter, poemNum }) {
         const compactItems = compactFields.map((key) => {
             const isReadOnly = readOnlyFields.includes(key);
 
-            // For spoken and written, ensure value is either "true" or "false"
-            let inputValue = editData[key] ?? "";
+            // Convert to correct inputValue format BEFORE rendering
+        const rawValue = editData[key];
+        let inputValue;
 
+        // Multi-value fields (arrays)
+        if (
+            key === "otherRecipients" ||
+            key === "unintendedRecipients" ||
+            key === "groupParticipants"
+        ) {
+            if (Array.isArray(rawValue)) {
+                // Convert array -> string for input display
+                inputValue = rawValue.join(", ");
+            } else if (typeof rawValue === "string") {
+                inputValue = rawValue;
+            } else {
+                inputValue = "";
+            }
+        } else if (key === "spoken" || key === "written" || key === "complete") {
+            // For spoken, written, complete - ensure value is either "true" or "false"
             inputValue = editData[key] ?? "";
+        } else {
+            // Single-value fields
+            inputValue = rawValue ?? "";
+    }
 
             return (
             <div key={key} className="compact-field-container">
@@ -2029,7 +2057,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     }
 
                     // Special handling for speaker and addressee fields
-                    if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants" ) {
+                    if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3") {
                         return (
                             <div key={key} className="full-field-container">
                                 <label className="full-field-label">
