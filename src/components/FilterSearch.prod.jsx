@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { debounce } from 'lodash';
 import Link from 'next/link';
@@ -7,7 +5,6 @@ import styles from '../styles/pages/filterSearch.module.css';
 import { BackTop, Checkbox} from 'antd';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-import { useFavoriteIds } from "../hooks/useFavoriteIds";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -18,8 +15,13 @@ const PLURAL_TO_SING = {
   'Soliloquies': 'Soliloquy',
 };
 
+// Storage keys for sessionStorage to store the search query and filters
+const STORAGE_KEYS = {
+  SEARCH_QUERY: 'poemSearch_query',
+  SEARCH_FILTERS: 'poemSearch_filters',
+};
+
 const TAG_FIELD_BY_LABEL = {
-  'My Favorites': 'isFavorite',
   'Omitted By Waley': 'omitted_by_waley',
   'Omitted By Seidensticker': 'omitted_by_seidensticker',
   'Bad Poems': 'bad_poems',
@@ -82,14 +84,38 @@ const getChapterNamKanji = (String) => {
 }
 
 const PoemSearch = () => {
-  const [query, setQuery] = useState("");
+  // retrieve query from sessionStorage
+  const getStoredQuery = () => {
+    // make sure only run in browser
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(STORAGE_KEYS.SEARCH_QUERY) || "";
+    }
+    return "";
+  };
+
+  // retrieve filters from sessionStorage
+  const getStoredFilters = () => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem(STORAGE_KEYS.SEARCH_FILTERS);
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          console.error('Failed to parse stored filters:', e);
+        }
+      }
+    }
+    return null;
+  };
+
+  const storedFilters = getStoredFilters();
+
+  const [query, setQuery] = useState(getStoredQuery());
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState([]);
   const searchInputRef = useRef(null);
-
-  const { idSet: favSet = new Set(), loading: favLoading, isAuthed } = useFavoriteIds();
 
   // State to manage search input for both speaker, addressee, and chapter
   const [searchSpeaker, setSearchSpeaker] = useState("");
@@ -104,7 +130,14 @@ const PoemSearch = () => {
     ageOptions[age.toString()] = { label: `${age} years`, checked: false };
   }
 
-  const [filters, setFilters] = useState({
+
+    // use stored filters or default values
+  const [filters, setFilters] = useState(() => {
+    if (storedFilters) {
+      return storedFilters;
+    }
+    // return the original default filters object
+    return {
     chapterNum: {
       label: "Chapter",
       options: {},
@@ -159,7 +192,6 @@ const PoemSearch = () => {
       other_tags: {
         label: "Other Tags",
         options: {
-          'My Favorites': { checked: false },
           'Omitted By Waley': { checked: false },
           'Omitted By Seidensticker': { checked: false },
           'Bad Poems': { checked: false },
@@ -180,7 +212,6 @@ const PoemSearch = () => {
           '2025': { checked: false },
         }
       },
-
     //   poetic_tech: {
     //       label: 'Poetic Techniques Used',
     //       options: {
@@ -199,6 +230,7 @@ const PoemSearch = () => {
     //         'Has Commentary': { checked: false }
     //     }
     // }
+    };
   });
 
   // highlight matching keywords
@@ -249,7 +281,8 @@ const PoemSearch = () => {
         options: Array.from(chapters).reduce(
           (acc, chapter) => ({
             ...acc,
-            [chapter]: { checked: false },
+            // keep existing options' checked state, new options default to false
+            [chapter]: prev.chapterNum.options[chapter] || { checked: false },
           }),
           {}
         ),
@@ -259,7 +292,10 @@ const PoemSearch = () => {
         options: Array.from(addressees).reduce(
           (acc, name) => ({
             ...acc,
-            [name]: { checked: false, gender: addresseeGenders.get(name) },
+            // keep existing options' checked state and gender, new options default to false
+            [name]: prev.addressee_name.options[name] 
+              ? { ...prev.addressee_name.options[name], gender: addresseeGenders.get(name) }
+              : { checked: false, gender: addresseeGenders.get(name) },
           }),
           {}
         ),
@@ -269,7 +305,10 @@ const PoemSearch = () => {
         options: Array.from(speakers).reduce(
           (acc, name) => ({
             ...acc,
-            [name]: { checked: false, gender: speakerGenders.get(name) },
+            // keep existing options' checked state and gender, new options default to false
+            [name]: prev.speaker_name.options[name]
+              ? { ...prev.speaker_name.options[name], gender: speakerGenders.get(name) }
+              : { checked: false, gender: speakerGenders.get(name) },
           }),
           {}
         ),
@@ -280,13 +319,32 @@ const PoemSearch = () => {
         options: Array.from(genjiAges).sort((a, b) => parseInt(a) - parseInt(b)).reduce(
           (acc, age) => ({
             ...acc,
-            [age]: { checked: false, label: `${age} years` },
+            // keep existing options' checked state and label, new options default to false
+            [age]: prev.genji_age.options[age] || { checked: false, label: `${age} years` },
           }),
           {}
         ),
       },
     }));
   }, [results]);
+
+  // save query to sessionStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (query) {
+        sessionStorage.setItem(STORAGE_KEYS.SEARCH_QUERY, query);
+      } else {
+        sessionStorage.removeItem(STORAGE_KEYS.SEARCH_QUERY);
+      }
+    }
+  }, [query]);
+
+  // save filters to sessionStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(STORAGE_KEYS.SEARCH_FILTERS, JSON.stringify(filters));
+    }
+  }, [filters]);
 
   // keyword search
   const handleSearch = useCallback(
@@ -327,6 +385,7 @@ const PoemSearch = () => {
 
         const data = await response.json();
         console.log("API Response:", data);
+
         // If the query is =#=, set results to data otherwise process the data
         // if (queryToUse === "=#=") {
         //   setResults(data);
@@ -334,62 +393,55 @@ const PoemSearch = () => {
         //   return; // Early return if fetching all poems
         // }
 
-        // CC + AB + PP (6 chars total) -> your canonical poemId
-      const getPoemId = (chapterNum, chapterAbr, poemNum) => {
-        const CC = String(chapterNum).padStart(2, "0");
-        const AB = String(chapterAbr || "").toUpperCase().slice(0, 2).padEnd(2, "0");
-        const PP = String(poemNum).padStart(2, "0");
-        return `${CC}${AB}${PP}`;
-      };
-
         if (Array.isArray(data.searchResults)) {
-          const processedResults = data.searchResults.map((result) => {
-            const chapterNum = Object.values(result.chapterNum).join("");
-            const poemNum    = Object.values(result.poemNum).join("");
-            const chapterAbr = Object.values(result.chapterAbr).join("");
-            const poemId = getPoemId(chapterNum, chapterAbr, poemNum);
-                
-            return {
-              chapterNum,
-              poemNum,
-              chapterAbr,
-              japanese: Object.values(result.japanese).join(""),
-              romaji: Object.values(result.romaji).join(""),
-              paraphrase: result.paraphrase ? Object.values(result.paraphrase).join("") : "",
-              addressee_name: typeof result.addressee_name === "string"
-                ? result.addressee_name
-                : Object.values(result.addressee_name).join(""),
-              addressee_gender: Object.values(result.addressee_gender).join(""),
-              speaker_name: Object.values(result.speaker_name).join(""),
-              speaker_gender: Object.values(result.speaker_gender).join(""),
-              season: Object.values(result.season).join(""),
-              poem_type:
-                typeof result.poem_type === "string"
-                  ? result.poem_type.trim()
-                  : Object.values(result.poem_type || {}).join("").trim(),
-              annotations_complete: ((result.annotations_complete ?? "").toString().trim().toLowerCase() === "true"),
-              omitted_by_waley: !!result.omitted_by_waley,
-              omitted_by_seidensticker: !!result.omitted_by_seidensticker,
-              bad_poems: !!result.bad_poems,
-              group_poem_tag: !!result.group_poem_tag,
-              character_name_poem: !!result.character_name_poem,
-              chapter_title_poem: !!result.chapter_title_poem,
-              morning_after_poem: !!result.morning_after_poem,
-              proxy_poem: !!result.proxy_poem,
-              poetic_tech: Object.values(result.peotic_tech).join(""),
-              genji_age: Object.values(result.genji_age).join(""),
-              waley_translation: Object.values(result.waley_translation).join(""),
-              seidensticker_translation: Object.values(result.seidensticker_translation).join(""),
-              tyler_translation: Object.values(result.tyler_translation).join(""),
-              washburn_translation: Object.values(result.washburn_translation).join(""),
-              cranston_translation: Object.values(result.cranston_translation).join(""),
-              last_updated: (result.last_updated ?? "").toString(),
-        
-              poemId,
-              key: poemId,
-              isFavorite: favSet.has(poemId),
-            };
-          });        
+          const processedResults = data.searchResults.map((result) => ({
+            chapterNum: (
+              Object.values(result.chapterNum).join("")
+            ),
+            poemNum: (Object.values(result.poemNum).join("")),
+            chapterAbr: Object.values(result.chapterAbr).join(""),
+            japanese: Object.values(result.japanese).join(""),
+            romaji: Object.values(result.romaji).join(""),
+            paraphrase: result.paraphrase ? Object.values(result.paraphrase).join("") : "",
+            addressee_name: typeof result.addressee_name === "string" 
+              ? result.addressee_name 
+              : Object.values(result.addressee_name).join(""),
+            addressee_gender: Object.values(result.addressee_gender).join(""),
+            speaker_name: Object.values(result.speaker_name).join(""),
+            speaker_gender: Object.values(result.speaker_gender).join(""),
+            season: Object.values(result.season).join(""),
+            poem_type: 
+              typeof result.poem_type === "string"
+                ? result.poem_type.trim()
+                : Object.values(result.poem_type || {}).join("").trim(),
+            // is string true or false
+            annotations_complete: (() => {
+              const v = (result.annotations_complete ?? "").toString().trim().toLowerCase();
+              return v === "true";
+            })(),
+            omitted_by_waley: !!result.omitted_by_waley,
+            omitted_by_seidensticker: !!result.omitted_by_seidensticker,
+            bad_poems: !!result.bad_poems,
+            group_poem_tag: !!result.group_poem_tag,
+            character_name_poem: !!result.character_name_poem,
+            chapter_title_poem: !!result.chapter_title_poem,
+            morning_after_poem: !!result.morning_after_poem,
+            proxy_poem: !!result.proxy_poem,
+            poetic_tech: Object.values(result.peotic_tech).join(""),
+            genji_age: Object.values(result.genji_age).join(""),
+            waley_translation: Object.values(result.waley_translation).join(""),
+            seidensticker_translation: Object.values(
+              result.seidensticker_translation
+            ).join(""),
+            tyler_translation: Object.values(result.tyler_translation).join(""),
+            washburn_translation: Object.values(
+              result.washburn_translation
+            ).join(""),
+            cranston_translation: Object.values(
+              result.cranston_translation
+            ).join(""),
+            last_updated: (result.last_updated ?? "").toString(),
+          }));
 
           console.log("Setting results:", processedResults);
           setResults(processedResults);
@@ -404,7 +456,7 @@ const PoemSearch = () => {
         setIsLoading(false);
       }
     }, 300),
-    [setResults, setShowResults, favSet]
+    [setResults, setShowResults]
   );
 
   useEffect(() => {
@@ -481,24 +533,8 @@ const PoemSearch = () => {
               return activeOptions.includes(result.speaker_name);
             case "speaker_gender":
               return activeOptions.includes(result.speaker_gender);
-            case "addressee_gender": {
-                // Normalize value from data
-                const raw = (result.addressee_gender ?? "").toString().trim().toLowerCase();
-              
-                // If no gender recorded, don't block the poem
-                if (!raw) return true;
-              
-                // Handle combined genders like "male & female", "male/female", "male, female"
-                const tokens = raw
-                  .split(/&|\/|,/)
-                  .map((t) => t.trim())
-                  .filter(Boolean);
-              
-                // If any token is in the active options, it's a match
-                return tokens.some((g) => activeOptions.includes(g));
-              }
-              
-              
+            case "addressee_gender":
+
               // Enhanced addressee gender filtering (currently disabled)
               // This special handling was added to fix poems that were being filtered out:
               // - Poems with empty addressee_gender (like 12SM20, 21OT06) would always pass
@@ -566,16 +602,21 @@ const PoemSearch = () => {
                 return !!result[field];
               });
             }
-            
             default:
               return true;
           }
         }
       );
     });
-  }, [filters, results, favSet]);
+  }, [filters, results]);
 
   const handleClearFilters = () => {
+    // clear sessionStorage
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(STORAGE_KEYS.SEARCH_QUERY);
+      sessionStorage.removeItem(STORAGE_KEYS.SEARCH_FILTERS);
+    }
+
     // Reset filters to their default state (keeping gender options)
     const clearedFilters = Object.keys(filters).reduce((acc, filterKey) => {
       const clearedOptions = Object.entries(filters[filterKey].options).reduce((optAcc, [optionKey, option]) => {
@@ -607,8 +648,9 @@ const PoemSearch = () => {
     setSearchSpeaker("");
     setSearchAddressee("");
     setSearchChapter("");
-    setSearchGenjiAge(""); // Now this will work
+    setSearchGenjiAge("");
     setSearchOther("");
+    setSearchUpdate("");
     
     // Close all dropdown sections
     setOpenSections(new Set());
@@ -1062,7 +1104,6 @@ const PoemSearch = () => {
                   >
                     <div className={styles.chapterText}>
                       <span>{removeLeadingZero(key)}</span>
-                      &nbsp;
                       <span>{getChapterName(key)}</span>
                     </div>
                   </Checkbox>
@@ -1371,7 +1412,6 @@ const PoemSearch = () => {
                 openSections.has('other_filters') ? styles.expanded : ""
               }`}
             >
-
             {/* hide season filter for now */}
               {/* Season */}
               
