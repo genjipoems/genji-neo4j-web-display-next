@@ -211,9 +211,9 @@ const PoemDisplay = ({ poemData }) => {
                 const relatedWithEvidence = responseData[3];
                 const tags = responseData[4];
                 const pls = responseData[6];
-                const otherRecipients = responseData[34] || [];
-                const unintededRecipients = responseData[35] || [];
-                const groupParticipants = responseData[36] || [];
+                const otherRecipients = responseData[35] || [];
+                const unintededRecipients = responseData[36] || [];
+                const groupParticipants = responseData[37] || [];
                 
                 // form speaker set
                 let speaker = [...new Set(exchange.map(e => e.start.properties.name))];
