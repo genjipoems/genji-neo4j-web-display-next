@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { debounce } from 'lodash';
 import Link from 'next/link';
@@ -5,6 +7,7 @@ import styles from '../styles/pages/filterSearch.module.css';
 import { BackTop, Checkbox} from 'antd';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { useFavoriteIds } from "../hooks/useFavoriteIds";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -22,6 +25,7 @@ const STORAGE_KEYS = {
 };
 
 const TAG_FIELD_BY_LABEL = {
+  'My Favorites': 'isFavorite',
   'Omitted By Waley': 'omitted_by_waley',
   'Omitted By Seidensticker': 'omitted_by_seidensticker',
   'Bad Poems': 'bad_poems',
@@ -116,6 +120,7 @@ const PoemSearch = () => {
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState([]);
   const searchInputRef = useRef(null);
+  const { idSet: favSet = new Set(), loading: favLoading, isAuthed } = useFavoriteIds();
 
   // State to manage search input for both speaker, addressee, and chapter
   const [searchSpeaker, setSearchSpeaker] = useState("");
@@ -192,6 +197,7 @@ const PoemSearch = () => {
       other_tags: {
         label: "Other Tags",
         options: {
+          'My Favorites': { checked: false },
           'Omitted By Waley': { checked: false },
           'Omitted By Seidensticker': { checked: false },
           'Bad Poems': { checked: false },
@@ -393,55 +399,62 @@ const PoemSearch = () => {
         //   return; // Early return if fetching all poems
         // }
 
+        // CC + AB + PP (6 chars total) -> your canonical poemId
+        const getPoemId = (chapterNum, chapterAbr, poemNum) => {
+          const CC = String(chapterNum).padStart(2, "0");
+          const AB = String(chapterAbr || "").toUpperCase().slice(0, 2).padEnd(2, "0");
+          const PP = String(poemNum).padStart(2, "0");
+          return `${CC}${AB}${PP}`;
+        };
+
         if (Array.isArray(data.searchResults)) {
-          const processedResults = data.searchResults.map((result) => ({
-            chapterNum: (
-              Object.values(result.chapterNum).join("")
-            ),
-            poemNum: (Object.values(result.poemNum).join("")),
-            chapterAbr: Object.values(result.chapterAbr).join(""),
-            japanese: Object.values(result.japanese).join(""),
-            romaji: Object.values(result.romaji).join(""),
-            paraphrase: result.paraphrase ? Object.values(result.paraphrase).join("") : "",
-            addressee_name: typeof result.addressee_name === "string" 
-              ? result.addressee_name 
-              : Object.values(result.addressee_name).join(""),
-            addressee_gender: Object.values(result.addressee_gender).join(""),
-            speaker_name: Object.values(result.speaker_name).join(""),
-            speaker_gender: Object.values(result.speaker_gender).join(""),
-            season: Object.values(result.season).join(""),
-            poem_type: 
-              typeof result.poem_type === "string"
-                ? result.poem_type.trim()
-                : Object.values(result.poem_type || {}).join("").trim(),
-            // is string true or false
-            annotations_complete: (() => {
-              const v = (result.annotations_complete ?? "").toString().trim().toLowerCase();
-              return v === "true";
-            })(),
-            omitted_by_waley: !!result.omitted_by_waley,
-            omitted_by_seidensticker: !!result.omitted_by_seidensticker,
-            bad_poems: !!result.bad_poems,
-            group_poem_tag: !!result.group_poem_tag,
-            character_name_poem: !!result.character_name_poem,
-            chapter_title_poem: !!result.chapter_title_poem,
-            morning_after_poem: !!result.morning_after_poem,
-            proxy_poem: !!result.proxy_poem,
-            poetic_tech: Object.values(result.peotic_tech).join(""),
-            genji_age: Object.values(result.genji_age).join(""),
-            waley_translation: Object.values(result.waley_translation).join(""),
-            seidensticker_translation: Object.values(
-              result.seidensticker_translation
-            ).join(""),
-            tyler_translation: Object.values(result.tyler_translation).join(""),
-            washburn_translation: Object.values(
-              result.washburn_translation
-            ).join(""),
-            cranston_translation: Object.values(
-              result.cranston_translation
-            ).join(""),
-            last_updated: (result.last_updated ?? "").toString(),
-          }));
+          const processedResults = data.searchResults.map((result) => {
+            const chapterNum = Object.values(result.chapterNum).join("");
+            const poemNum    = Object.values(result.poemNum).join("");
+            const chapterAbr = Object.values(result.chapterAbr).join("");
+            const poemId = getPoemId(chapterNum, chapterAbr, poemNum);
+
+            return {
+              chapterNum,
+              poemNum,
+              chapterAbr,
+              japanese: Object.values(result.japanese).join(""),
+              romaji: Object.values(result.romaji).join(""),
+              paraphrase: result.paraphrase ? Object.values(result.paraphrase).join("") : "",
+              addressee_name: typeof result.addressee_name === "string"
+                ? result.addressee_name
+                : Object.values(result.addressee_name).join(""),
+              addressee_gender: Object.values(result.addressee_gender).join(""),
+              speaker_name: Object.values(result.speaker_name).join(""),
+              speaker_gender: Object.values(result.speaker_gender).join(""),
+              season: Object.values(result.season).join(""),
+              poem_type:
+                typeof result.poem_type === "string"
+                  ? result.poem_type.trim()
+                  : Object.values(result.poem_type || {}).join("").trim(),
+              annotations_complete: ((result.annotations_complete ?? "").toString().trim().toLowerCase() === "true"),
+              omitted_by_waley: !!result.omitted_by_waley,
+              omitted_by_seidensticker: !!result.omitted_by_seidensticker,
+              bad_poems: !!result.bad_poems,
+              group_poem_tag: !!result.group_poem_tag,
+              character_name_poem: !!result.character_name_poem,
+              chapter_title_poem: !!result.chapter_title_poem,
+              morning_after_poem: !!result.morning_after_poem,
+              proxy_poem: !!result.proxy_poem,
+              poetic_tech: Object.values(result.peotic_tech).join(""),
+              genji_age: Object.values(result.genji_age).join(""),
+              waley_translation: Object.values(result.waley_translation).join(""),
+              seidensticker_translation: Object.values(result.seidensticker_translation).join(""),
+              tyler_translation: Object.values(result.tyler_translation).join(""),
+              washburn_translation: Object.values(result.washburn_translation).join(""),
+              cranston_translation: Object.values(result.cranston_translation).join(""),
+              last_updated: (result.last_updated ?? "").toString(),
+
+              poemId,
+              key: poemId,
+              isFavorite: favSet.has(poemId),
+            };
+          });        
 
           console.log("Setting results:", processedResults);
           setResults(processedResults);
@@ -456,7 +469,7 @@ const PoemSearch = () => {
         setIsLoading(false);
       }
     }, 300),
-    [setResults, setShowResults]
+    [setResults, setShowResults, favSet]
   );
 
   useEffect(() => {
@@ -533,8 +546,24 @@ const PoemSearch = () => {
               return activeOptions.includes(result.speaker_name);
             case "speaker_gender":
               return activeOptions.includes(result.speaker_gender);
-            case "addressee_gender":
-
+            case "addressee_gender": {
+                // Normalize value from data
+                const raw = (result.addressee_gender ?? "").toString().trim().toLowerCase();
+              
+                // If no gender recorded, don't block the poem
+                if (!raw) return true;
+              
+                // Handle combined genders like "male & female", "male/female", "male, female"
+                const tokens = raw
+                  .split(/&|\/|,/)
+                  .map((t) => t.trim())
+                  .filter(Boolean);
+              
+                // If any token is in the active options, it's a match
+                return tokens.some((g) => activeOptions.includes(g));
+              }
+              
+              
               // Enhanced addressee gender filtering (currently disabled)
               // This special handling was added to fix poems that were being filtered out:
               // - Poems with empty addressee_gender (like 12SM20, 21OT06) would always pass
@@ -602,13 +631,14 @@ const PoemSearch = () => {
                 return !!result[field];
               });
             }
+            
             default:
               return true;
           }
         }
       );
     });
-  }, [filters, results]);
+  }, [filters, results, favSet]);
 
   const handleClearFilters = () => {
     // clear sessionStorage
@@ -1104,6 +1134,7 @@ const PoemSearch = () => {
                   >
                     <div className={styles.chapterText}>
                       <span>{removeLeadingZero(key)}</span>
+                      &nbsp;
                       <span>{getChapterName(key)}</span>
                     </div>
                   </Checkbox>
