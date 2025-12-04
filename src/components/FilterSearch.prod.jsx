@@ -18,6 +18,12 @@ const PLURAL_TO_SING = {
   'Soliloquies': 'Soliloquy',
 };
 
+// Storage keys for sessionStorage to store the search query and filters
+const STORAGE_KEYS = {
+  SEARCH_QUERY: 'poemSearch_query',
+  SEARCH_FILTERS: 'poemSearch_filters',
+};
+
 const TAG_FIELD_BY_LABEL = {
   'My Favorites': 'isFavorite',
   'Omitted By Waley': 'omitted_by_waley',
@@ -82,13 +88,38 @@ const getChapterNamKanji = (String) => {
 }
 
 const PoemSearch = () => {
-  const [query, setQuery] = useState("");
+  // retrieve query from sessionStorage
+  const getStoredQuery = () => {
+    // make sure only run in browser
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(STORAGE_KEYS.SEARCH_QUERY) || "";
+    }
+    return "";
+  };
+
+  // retrieve filters from sessionStorage
+  const getStoredFilters = () => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem(STORAGE_KEYS.SEARCH_FILTERS);
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          console.error('Failed to parse stored filters:', e);
+        }
+      }
+    }
+    return null;
+  };
+
+  const storedFilters = getStoredFilters();
+
+  const [query, setQuery] = useState(getStoredQuery());
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState([]);
   const searchInputRef = useRef(null);
-
   const { idSet: favSet = new Set(), loading: favLoading, isAuthed } = useFavoriteIds();
 
   // State to manage search input for both speaker, addressee, and chapter
@@ -104,7 +135,14 @@ const PoemSearch = () => {
     ageOptions[age.toString()] = { label: `${age} years`, checked: false };
   }
 
-  const [filters, setFilters] = useState({
+
+    // use stored filters or default values
+  const [filters, setFilters] = useState(() => {
+    if (storedFilters) {
+      return storedFilters;
+    }
+    // return the original default filters object
+    return {
     chapterNum: {
       label: "Chapter",
       options: {},
@@ -180,7 +218,6 @@ const PoemSearch = () => {
           '2025': { checked: false },
         }
       },
-
     //   poetic_tech: {
     //       label: 'Poetic Techniques Used',
     //       options: {
@@ -199,6 +236,7 @@ const PoemSearch = () => {
     //         'Has Commentary': { checked: false }
     //     }
     // }
+    };
   });
 
   // highlight matching keywords
@@ -249,7 +287,8 @@ const PoemSearch = () => {
         options: Array.from(chapters).reduce(
           (acc, chapter) => ({
             ...acc,
-            [chapter]: { checked: false },
+            // keep existing options' checked state, new options default to false
+            [chapter]: prev.chapterNum.options[chapter] || { checked: false },
           }),
           {}
         ),
@@ -259,7 +298,10 @@ const PoemSearch = () => {
         options: Array.from(addressees).reduce(
           (acc, name) => ({
             ...acc,
-            [name]: { checked: false, gender: addresseeGenders.get(name) },
+            // keep existing options' checked state and gender, new options default to false
+            [name]: prev.addressee_name.options[name] 
+              ? { ...prev.addressee_name.options[name], gender: addresseeGenders.get(name) }
+              : { checked: false, gender: addresseeGenders.get(name) },
           }),
           {}
         ),
@@ -269,7 +311,10 @@ const PoemSearch = () => {
         options: Array.from(speakers).reduce(
           (acc, name) => ({
             ...acc,
-            [name]: { checked: false, gender: speakerGenders.get(name) },
+            // keep existing options' checked state and gender, new options default to false
+            [name]: prev.speaker_name.options[name]
+              ? { ...prev.speaker_name.options[name], gender: speakerGenders.get(name) }
+              : { checked: false, gender: speakerGenders.get(name) },
           }),
           {}
         ),
@@ -280,13 +325,32 @@ const PoemSearch = () => {
         options: Array.from(genjiAges).sort((a, b) => parseInt(a) - parseInt(b)).reduce(
           (acc, age) => ({
             ...acc,
-            [age]: { checked: false, label: `${age} years` },
+            // keep existing options' checked state and label, new options default to false
+            [age]: prev.genji_age.options[age] || { checked: false, label: `${age} years` },
           }),
           {}
         ),
       },
     }));
   }, [results]);
+
+  // save query to sessionStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (query) {
+        sessionStorage.setItem(STORAGE_KEYS.SEARCH_QUERY, query);
+      } else {
+        sessionStorage.removeItem(STORAGE_KEYS.SEARCH_QUERY);
+      }
+    }
+  }, [query]);
+
+  // save filters to sessionStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(STORAGE_KEYS.SEARCH_FILTERS, JSON.stringify(filters));
+    }
+  }, [filters]);
 
   // keyword search
   const handleSearch = useCallback(
@@ -327,6 +391,7 @@ const PoemSearch = () => {
 
         const data = await response.json();
         console.log("API Response:", data);
+
         // If the query is =#=, set results to data otherwise process the data
         // if (queryToUse === "=#=") {
         //   setResults(data);
@@ -335,12 +400,12 @@ const PoemSearch = () => {
         // }
 
         // CC + AB + PP (6 chars total) -> your canonical poemId
-      const getPoemId = (chapterNum, chapterAbr, poemNum) => {
-        const CC = String(chapterNum).padStart(2, "0");
-        const AB = String(chapterAbr || "").toUpperCase().slice(0, 2).padEnd(2, "0");
-        const PP = String(poemNum).padStart(2, "0");
-        return `${CC}${AB}${PP}`;
-      };
+        const getPoemId = (chapterNum, chapterAbr, poemNum) => {
+          const CC = String(chapterNum).padStart(2, "0");
+          const AB = String(chapterAbr || "").toUpperCase().slice(0, 2).padEnd(2, "0");
+          const PP = String(poemNum).padStart(2, "0");
+          return `${CC}${AB}${PP}`;
+        };
 
         if (Array.isArray(data.searchResults)) {
           const processedResults = data.searchResults.map((result) => {
@@ -348,7 +413,7 @@ const PoemSearch = () => {
             const poemNum    = Object.values(result.poemNum).join("");
             const chapterAbr = Object.values(result.chapterAbr).join("");
             const poemId = getPoemId(chapterNum, chapterAbr, poemNum);
-                
+
             return {
               chapterNum,
               poemNum,
@@ -384,7 +449,7 @@ const PoemSearch = () => {
               washburn_translation: Object.values(result.washburn_translation).join(""),
               cranston_translation: Object.values(result.cranston_translation).join(""),
               last_updated: (result.last_updated ?? "").toString(),
-        
+
               poemId,
               key: poemId,
               isFavorite: favSet.has(poemId),
@@ -576,6 +641,12 @@ const PoemSearch = () => {
   }, [filters, results, favSet]);
 
   const handleClearFilters = () => {
+    // clear sessionStorage
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(STORAGE_KEYS.SEARCH_QUERY);
+      sessionStorage.removeItem(STORAGE_KEYS.SEARCH_FILTERS);
+    }
+
     // Reset filters to their default state (keeping gender options)
     const clearedFilters = Object.keys(filters).reduce((acc, filterKey) => {
       const clearedOptions = Object.entries(filters[filterKey].options).reduce((optAcc, [optionKey, option]) => {
@@ -607,8 +678,9 @@ const PoemSearch = () => {
     setSearchSpeaker("");
     setSearchAddressee("");
     setSearchChapter("");
-    setSearchGenjiAge(""); // Now this will work
+    setSearchGenjiAge("");
     setSearchOther("");
+    setSearchUpdate("");
     
     // Close all dropdown sections
     setOpenSections(new Set());
@@ -1371,7 +1443,6 @@ const PoemSearch = () => {
                 openSections.has('other_filters') ? styles.expanded : ""
               }`}
             >
-
             {/* hide season filter for now */}
               {/* Season */}
               
