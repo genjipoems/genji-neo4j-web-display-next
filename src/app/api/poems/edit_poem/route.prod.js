@@ -53,7 +53,7 @@ export async function DELETE(request) {
     }
 
     // **Sanitize field name** - expanded to include season, age and other allowed fields
-    const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "Complete", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description", "otherTranslations"];
+    const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "Complete", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description", "otherTranslations", "otherRecipients", "unintendedRecipients", "groupParticipants"];
     if (!allowedFields.includes(field)) {
       return new Response(JSON.stringify({ error: "Invalid field param" }), { status: 400 });
     }
@@ -84,6 +84,48 @@ export async function DELETE(request) {
       const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} addressee relationships` }), { status: 200 });
     }
+
+    // Handle other recipient deletion specially (remove OTHER_RECIPIENT_OF relationship)
+    else if (field === "otherRecipient") {
+      const query = `
+        MATCH (c:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
+        DELETE r
+        RETURN count(r) as deletedCount
+      `;
+      
+      const result = await session.run(query, { pnum });
+      
+      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
+      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} other recipient relationships` }), { status: 200 });
+    }
+
+// Handle unintended recipient deletion specially (remove UNINTENDED_RECIPIENT_OF relationship)
+else if (field === "unintendedRecipients") {
+  const query = `
+    MATCH (c:Character)-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
+    DELETE r
+    RETURN count(r) as deletedCount
+  `;
+  
+  const result = await session.run(query, { pnum });
+  
+  const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
+  return new Response(JSON.stringify({ message: `Deleted ${deletedCount} unintended recipient relationships` }), { status: 200 });
+}
+
+// Handle group participant deletion specially (remove GROUP PARTICIPANT_OF relationship)
+else if (field === "groupParticipants") {
+  const query = `
+    MATCH (c:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum: $pnum})
+    DELETE r
+    RETURN count(r) as deletedCount
+  `;
+  
+  const result = await session.run(query, { pnum });
+  
+  const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
+  return new Response(JSON.stringify({ message: `Deleted ${deletedCount} group participant relationships` }), { status: 200 });
+}
     // Handle age deletion specially (remove AT_GENJI_AGE_OF relationship)
     else if (field === "age") {
       const query = `
@@ -348,7 +390,7 @@ export async function DELETE(request) {
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} other recipient relationships` }), { status: 200 });
     }
 
-    else if (field === "unintendedRecipient") {
+    else if (field === "unintendedRecipients") {
       const query = `
         MATCH (c:Character)-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
         DELETE r
@@ -361,7 +403,7 @@ export async function DELETE(request) {
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} unintended recipient relationships` }), { status: 200 });
     }
 
-    else if (field === "groupParticipant") {
+    else if (field === "groupParticipants") {
       const query = `
         MATCH (c:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum: $pnum})
         DELETE r
@@ -541,6 +583,149 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
+      // 1️⃣d Handle other recipient relationship
+      if (data.other_recipients !== undefined) {
+        // First, remove any existing other recipient relationship
+        await tx.run(`
+          MATCH (c:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
+          DELETE r
+        `, { pnum: pnum.toString() });
+
+         // Normalize to an array of names
+        let otherRecipientNames = [];
+        if (Array.isArray(data.other_recipients)) {
+          otherRecipientNames = data.other_recipients
+            .map((n) => (n || "").trim())
+            .filter(Boolean);
+        } else if (typeof data.other_recipients === "string") {
+          otherRecipientNames = data.other_recipients
+            .split(",")
+            .map((n) => n.trim())
+            .filter(Boolean);
+        }
+
+        for (const otherRecipientName of otherRecipientNames) {
+          const checkQuery = `
+            MATCH (c:Character {name: $otherRecipientName})
+            RETURN c.name as name
+          `;
+          
+          const checkResult = await tx.run(checkQuery, { otherRecipientName });
+          
+          if (checkResult.records.length === 0) {
+            // Create the Character node if it doesn't exist
+            await tx.run(`
+              CREATE (c:Character {name: $otherRecipientName})
+            `, { otherRecipientName });
+          }
+          
+          // Create the relationship
+          await tx.run(`
+            MATCH (g:Genji_Poem {pnum: $pnum})
+            MATCH (c:Character {name: $otherRecipientName})
+            CREATE (c)-[r:OTHER_RECIPIENT_OF]->(g)
+          `, { 
+            pnum: pnum.toString(), 
+            otherRecipientName: otherRecipientName
+          });
+        }
+      }
+
+       // 1️⃣e Handle unintended recipient relationship
+      if (data.unintended_recipients !== undefined) {
+        // First, remove any existing unintended recipient relationship
+        await tx.run(`
+          MATCH (c:Character)-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
+          DELETE r
+        `, { pnum: pnum.toString() });
+
+         // Normalize to an array of names
+        let unintendedRecipientNames = [];
+        if (Array.isArray(data.unintended_recipients)) {
+          unintendedRecipientNames = data.unintended_recipients
+            .map((n) => (n || "").trim())
+            .filter(Boolean);
+        } else if (typeof data.unintended_recipients === "string") {
+          unintendedRecipientNames = data.unintended_recipients
+            .split(",")
+            .map((n) => n.trim())
+            .filter(Boolean);
+        }
+
+        for (const unintendedRecipientName of unintendedRecipientNames) {
+          const checkQuery = `
+            MATCH (c:Character {name: $unintendedRecipientName})
+            RETURN c.name as name
+          `;
+          
+          const checkResult = await tx.run(checkQuery, { unintendedRecipientName });
+          
+          if (checkResult.records.length === 0) {
+            // Create the Character node if it doesn't exist
+            await tx.run(`
+              CREATE (c:Character {name: $unintendedRecipientName})
+            `, { unintendedRecipientName });
+          }
+          
+          // Create the relationship
+          await tx.run(`
+            MATCH (g:Genji_Poem {pnum: $pnum})
+            MATCH (c:Character {name: $unintendedRecipientName})
+            CREATE (c)-[r:UNINTENDED_RECIPIENT_OF]->(g)
+          `, { 
+            pnum: pnum.toString(), 
+            unintendedRecipientName: unintendedRecipientName
+          });
+        }
+      }
+
+         // 1️⃣f Handle group participant relationship
+      if (data.group_participants !== undefined) {
+        // First, remove any existing group participant relationship
+        await tx.run(`
+          MATCH (c:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum: $pnum})
+          DELETE r
+        `, { pnum: pnum.toString() });
+
+         // Normalize to an array of names
+        let groupParticipantNames = [];
+        if (Array.isArray(data.group_participants)) {
+          groupParticipantNames = data.group_participants
+            .map((n) => (n || "").trim())
+            .filter(Boolean);
+        } else if (typeof data.group_participants === "string") {
+          groupParticipantNames = data.group_participants
+            .split(",")
+            .map((n) => n.trim())
+            .filter(Boolean);
+        }
+
+        for (const groupParticipantName of groupParticipantNames) {
+          const checkQuery = `
+            MATCH (c:Character {name: $groupParticipantName})
+            RETURN c.name as name
+          `;
+          
+          const checkResult = await tx.run(checkQuery, { groupParticipantName });
+          
+          if (checkResult.records.length === 0) {
+            // Create the Character node if it doesn't exist
+            await tx.run(`
+              CREATE (c:Character {name: $groupParticipantName})
+            `, { groupParticipantName });
+          }
+          
+          // Create the relationship
+          await tx.run(`
+            MATCH (g:Genji_Poem {pnum: $pnum})
+            MATCH (c:Character {name: $groupParticipantName})
+            CREATE (c)-[r:GROUP_PARTICIPANT_OF]->(g)
+          `, { 
+            pnum: pnum.toString(), 
+            groupParticipantName: groupParticipantName
+          });
+        }
+      }
       // 2️⃣ Handle season relationship
       if (data.season !== undefined) {
         // First, remove any existing season relationship

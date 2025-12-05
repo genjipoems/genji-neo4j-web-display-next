@@ -121,7 +121,7 @@ const PoemDisplay = ({ poemData }) => {
         last_updated: "",
         otherTranslations: [],
         otherRecipients: [],
-        unintededRecipients: [],
+        unintendedRecipients: [],
         groupParticipants: []
     });
 
@@ -212,7 +212,7 @@ const PoemDisplay = ({ poemData }) => {
                 const tags = responseData[4];
                 const pls = responseData[6];
                 const otherRecipients = responseData[35] || [];
-                const unintededRecipients = responseData[36] || [];
+                const unintendedRecipients = responseData[36] || [];
                 const groupParticipants = responseData[37] || [];
                 
                 // form speaker set
@@ -341,12 +341,10 @@ const PoemDisplay = ({ poemData }) => {
                     last_updated: responseData[33],
                     otherTranslations: responseData[34] || [],
                     otherRecipients: [...otherRecipients],
-                    unintededRecipients: [...unintededRecipients],
+                    unintendedRecipients: [...unintendedRecipients],
                     groupParticipants: [...groupParticipants]
                 };
                 
-                console.log('this is', responseData);
-
                 setPoemState(prev => ({...prev, ...newPoemState}));
                 
                 try {
@@ -740,10 +738,10 @@ const PoemDisplay = ({ poemData }) => {
                                     </div>
                                 )}
 
-                                {Array.isArray(poemState.unintededRecipients) && poemState.unintededRecipients.length > 0 && (
+                                {Array.isArray(poemState.unintendedRecipients) && poemState.unintendedRecipients.length > 0 && (
                                     <div className={styles.detailItem}>
                                         <h3>UNINTENDED RECIPIENTS</h3>
-                                        {poemState.unintededRecipients.map((recipient, index) => (
+                                        {poemState.unintendedRecipients.map((recipient, index) => (
                                             <div key={index} className={styles.recipientItem}>
                                                 <FormatContent content={recipient} />
                                             </div>
