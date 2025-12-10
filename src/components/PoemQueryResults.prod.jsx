@@ -121,7 +121,7 @@ const PoemDisplay = ({ poemData }) => {
         last_updated: "",
         otherTranslations: [],
         otherRecipients: [],
-        unintededRecipients: [],
+        unintendedRecipients: [],
         groupParticipants: []
     });
 
@@ -172,6 +172,9 @@ const PoemDisplay = ({ poemData }) => {
       };
 
     // check cache
+    // refreshTrigger is used to trigger a refresh of the poem data
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
     useEffect(() => {
         const fetchPoemData = async () => {
             try {
@@ -211,9 +214,9 @@ const PoemDisplay = ({ poemData }) => {
                 const relatedWithEvidence = responseData[3];
                 const tags = responseData[4];
                 const pls = responseData[6];
-                const otherRecipients = responseData[34] || [];
-                const unintededRecipients = responseData[35] || [];
-                const groupParticipants = responseData[36] || [];
+                const otherRecipients = responseData[35] || [];
+                const unintendedRecipients = responseData[36] || [];
+                const groupParticipants = responseData[37] || [];
                 
                 // form speaker set
                 let speaker = [...new Set(exchange.map(e => e.start.properties.name))];
@@ -341,12 +344,10 @@ const PoemDisplay = ({ poemData }) => {
                     last_updated: responseData[33],
                     otherTranslations: responseData[34] || [],
                     otherRecipients: [...otherRecipients],
-                    unintededRecipients: [...unintededRecipients],
+                    unintendedRecipients: [...unintendedRecipients],
                     groupParticipants: [...groupParticipants]
                 };
                 
-                console.log('this is', responseData);
-
                 setPoemState(prev => ({...prev, ...newPoemState}));
                 
                 try {
@@ -364,7 +365,29 @@ const PoemDisplay = ({ poemData }) => {
         };
         
         fetchPoemData();
-    }, [chapter, number, numStr]);
+    }, [chapter, number, numStr, refreshTrigger]);
+    
+    // listen to the updatePoemData event and trigger a refresh of the poem data
+    useEffect(() => {
+        const handleUpdatePoemData = (event) => {
+            const { chapter: updatedChapter, number: updatedNumber } = event.detail;
+            // only refresh if the updated poem matches the currently displayed poem
+            if (updatedChapter === chapter && updatedNumber === number) {
+                setRefreshTrigger(prev => prev + 1);
+            }
+        };
+        
+        window.addEventListener('updatePoemData', handleUpdatePoemData);
+        
+        return () => {
+            window.removeEventListener('updatePoemData', handleUpdatePoemData);
+        };
+    }, [chapter, number]);
+
+    useEffect(() => {
+        setRefreshTrigger(0);
+    }, [chapter, number]);
+
 
     const SpeakerAddresseeInfo = ({ speaker, addressee, poemId }) => {
 
@@ -740,10 +763,10 @@ const PoemDisplay = ({ poemData }) => {
                                     </div>
                                 )}
 
-                                {Array.isArray(poemState.unintededRecipients) && poemState.unintededRecipients.length > 0 && (
+                                {Array.isArray(poemState.unintendedRecipients) && poemState.unintendedRecipients.length > 0 && (
                                     <div className={styles.detailItem}>
                                         <h3>UNINTENDED RECIPIENTS</h3>
-                                        {poemState.unintededRecipients.map((recipient, index) => (
+                                        {poemState.unintendedRecipients.map((recipient, index) => (
                                             <div key={index} className={styles.recipientItem}>
                                                 <FormatContent content={recipient} />
                                             </div>
