@@ -28,7 +28,7 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx"
-, "src/app/api/auth/[...nextauth]/route.js", "src/middleware.js", "src/lib/db.js", "src/auth.js", "src/components/Tiptap.prod.jsx"  ],
+, "src/app/api/auth/[...nextauth]/route.js", "src/middleware.js", "src/lib/db.js", "src/auth.js"  ],
   "exclude": [
     "node_modules"
   ]
