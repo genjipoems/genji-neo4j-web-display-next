@@ -3,15 +3,14 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-    color: #334155;
+    background: #737373;
+    color: #ffffff;
     font-family: 'Lexend', sans-serif;
 }
 
 .editorHeader {
-    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    background: #737373;
     padding: 20px;
-    border-bottom: 1px solid #cbd5e1;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -23,7 +22,7 @@
 }
 
 .blogTitle {
-    color: #1e40af !important;
+    color: #ffffff !important;
     font-size: 1.4rem !important;
     font-weight: 600 !important;
     margin: 0 !important;
@@ -35,11 +34,11 @@
 
 .titleInput {
     width: calc(100% - 20px);
-    background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+    background: #737373;
     border: 2px solid #cbd5e1;
     border-radius: 8px;
     padding: 12px;
-    color: #334155;
+    color: #ffffff;
     font-size: 1.4rem;
     font-weight: 600;
     font-family: 'Lexend', sans-serif;
@@ -49,12 +48,12 @@
 }
 
 .titleInput:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 2px 8px rgba(59, 130, 246, 0.15);
+    border-color: #ffffff33;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1), 0 2px 8px rgba(255, 255, 255, 0.15);
 }
 
 .titleInput::placeholder {
-    color: #64748b;
+    color: #ffffff;
 }
 
 .actionButtons {
@@ -77,19 +76,18 @@
 }
 
 .saveButton {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #ffffff33;
     color: white;
     border-color: transparent;
 }
 
 .saveButton:hover:not(:disabled) {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    background: #ffffff66;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
 }
 
 .saveButton:disabled {
-    background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+    background: #737373;
     border-color: transparent;
     cursor: not-allowed;
     transform: none;
@@ -97,8 +95,8 @@
 }
 
 .cancelButton {
-    background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%);
-    color: #64748b;
+    background: #ffffff;
+    color: #737373;
     border-color: #cbd5e1;
 }
 
@@ -109,15 +107,14 @@
 }
 
 .editButton {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: #ffffff33;
     color: white;
     border-color: transparent;
 }
 
 .editButton:hover {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+    background: #ffffff66;
+    transform: translateY(-2px); 
 }
 
 .closeButton {
@@ -194,8 +191,8 @@
 .metadata {
     margin-bottom: 20px;
     padding: 15px;
-    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-    border: 1px solid #cbd5e1;
+    background: #737373;
+    border: 1px solid #ffffff33;
     border-radius: 8px;
     display: flex;
     gap: 15px;
@@ -204,18 +201,18 @@
 }
 
 .author {
-    color: #475569;
+    color: #ffffff;
     font-size: 0.9rem;
 }
 
 .userBadge {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: #737373;
     color: white;
     padding: 4px 12px;
     border-radius: 12px;
     font-size: 0.8rem;
     font-weight: 600;
-    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 1px 3px rgba(255, 255, 255, 0.3);
 }
 
 .contentSection {
@@ -225,11 +222,12 @@
 }
 
 .contentLabel {
-    color: #1e40af;
+    color: #ffffff;
     font-size: 1.1rem;
     font-weight: 600;
     margin-bottom: 10px;
     display: block;
+    text-align: left;
 }
 
 .contentTextarea {
@@ -260,8 +258,8 @@
 
 .contentDisplay {
     flex: 1;
-    background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-    border: 2px solid #cbd5e1;
+    background: #737373;
+    border: 2px solid #ffffff33;
     border-radius: 8px;
     min-height: 400px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -271,7 +269,7 @@
     padding: 20px;
     line-height: 1.8;
     font-size: 1rem;
-    color: #334155 !important;
+    color: #ffffff !important;
     word-wrap: break-word;
     text-align: left !important;
 }
@@ -282,25 +280,25 @@
 .contentDisplay .renderedContent h4,
 .contentDisplay .renderedContent h5,
 .contentDisplay .renderedContent h6 {
-    color: #334155 !important;
+    color: #ffffff !important;
     text-align: left !important;
     padding-left: 32px !important;
 }
 
 .contentDisplay .renderedContent p {
-    color: #334155 !important;
+    color: #ffffff !important;
     text-align: left !important;
     padding-left: 32px !important;
 }
 
 .contentDisplay .renderedContent strong {
-    color: #334155 !important;
+    color: #ffffff !important;
     padding-left: 32px !important;
 }
 
 .emptyContent {
     padding: 20px;
-    color: #64748b;
+    color: #ffffff;
     font-style: italic;
     text-align: center;
     margin: 0;
@@ -368,8 +366,8 @@
 /* Checkbox Section Styles */
 .checkboxSection {
     padding: 15px 20px;
-    background: linear-gradient(145deg, #f1f5f9 0%, #e2e8f0 100%);
-    border-bottom: 1px solid #cbd5e1;
+    background: #737373;
+    border-bottom: 1px solid #ffffff33;
 }
 
 .checkboxLabel {
@@ -378,19 +376,19 @@
     gap: 10px;
     cursor: pointer;
     font-size: 0.95rem;
-    color: #475569;
+    color: #ffffff;
     font-weight: 500;
     transition: color 0.2s ease;
 }
 
 .checkboxLabel:hover {
-    color: #1e40af;
+    color: #ffffff;
 }
 
 .checkbox {
     width: 18px;
     height: 18px;
-    accent-color: #1e40af;
+    accent-color: #ffffff;
     cursor: pointer;
     transition: transform 0.2s ease;
 }

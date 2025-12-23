@@ -65,7 +65,7 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
     }
   }, [editable, editor]);
 
-  // 当选区变化或失焦时，收起下拉
+  // close dropdown when selection changes
   useEffect(() => {
     if (!editor) return;
     const hideDropdown = () => setIsTurnIntoOpen(false);
@@ -125,13 +125,13 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
           tippyOptions={{
             duration: 100,
             placement: 'top',
-            // 气泡隐藏时重置下拉
+            // reset dropdown when bubble menu is hidden
             onHidden: () => setIsTurnIntoOpen(false),
             onHide: () => setIsTurnIntoOpen(false),
           }}
         >
           <div className={styles.bubbleInner}>
-            {/* 左侧：Turn into 下拉菜单（点击触发，移出不自动关闭） */}
+            {/* left: Turn into dropdown */}
             <div className={styles.turnIntoWrapper}>
               <button
                 type="button"
