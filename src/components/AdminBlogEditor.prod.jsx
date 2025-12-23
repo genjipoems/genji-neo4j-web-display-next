@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styles from '../styles/pages/adminBlogEditor.module.css'
+import Tiptap from './Tiptap.prod';
 
 const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
     const [title, setTitle] = useState('');
@@ -21,6 +22,10 @@ const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
             setIsEditing(blog.isNew || false);
         }
     }, [blog]);
+
+    const handleContentChange = (newContent) => {
+        setContent(newContent);
+    };
 
     const handleSave = async () => {
         if (!title.trim()) {
@@ -228,35 +233,23 @@ const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
                 <div className={styles.contentSection}>
                     <label className={styles.contentLabel}>
                         Content:
-                        <span
-                            title="Formatting: **bold**, *italic*, # Header, &nbsp; for indent, [link title](URL) for links"
-                            style={{
-                                marginLeft: "0.5rem",
-                                cursor: "help",
-                                color: "#64748b",
-                                fontWeight: "normal",
-                                fontSize: "0.9rem"
-                            }}
-                        >
-                            ?
-                        </span>
                     </label>
                     {isEditing ? (
-                        <textarea
-                            value={content}
-                            onChange={(e) => setContent(e.target.value)}
-                            placeholder="Enter blog content..."
-                            className={styles.contentTextarea}
-                            disabled={isSaving}
-                            rows={20}
+                        // tiptap component
+                        <Tiptap
+                            content={content}
+                            onChange={handleContentChange}
+                            editable={true}
+                            placeholder="Write your blog content here..."
                         />
+                        
                     ) : (
                         <div className={styles.contentDisplay}>
                             {content ? (
                                 <div 
                                     className={styles.renderedContent}
-                                    dangerouslySetInnerHTML={{ 
-                                        __html: content.replace(/\n/g, '<br>') 
+                                    dangerouslySetInnerHTML={{
+                                        __html: content.replace(/\n/g, '<br>')
                                     }}
                                 />
                             ) : (
