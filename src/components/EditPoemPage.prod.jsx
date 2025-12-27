@@ -611,6 +611,15 @@ export default function EditPoemPage({ chapter, poemNum }) {
 
             await updatePoemData(pnum, cleaned);
 
+            // update cache
+            const cacheKey = `poem_${chapter}_${poemNum}`;
+            const cacheTimeKey = `poem_${chapter}_${poemNum}_time`;
+
+            localStorage.removeItem(cacheKey);
+            localStorage.removeItem(cacheTimeKey);
+            // dispatch event to PoemQueryResults.prod.jsx to update the cache
+            window.dispatchEvent(new CustomEvent('updatePoemData', { detail: { chapter, number: poemNum } }));
+
             setPoemData({ ...editData });
             setShowPopup(false);
         } catch (e) {

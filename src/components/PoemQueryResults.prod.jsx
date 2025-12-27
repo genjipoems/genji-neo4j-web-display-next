@@ -172,6 +172,9 @@ const PoemDisplay = ({ poemData }) => {
       };
 
     // check cache
+    // refreshTrigger is used to trigger a refresh of the poem data
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
     useEffect(() => {
         const fetchPoemData = async () => {
             try {
@@ -362,7 +365,29 @@ const PoemDisplay = ({ poemData }) => {
         };
         
         fetchPoemData();
-    }, [chapter, number, numStr]);
+    }, [chapter, number, numStr, refreshTrigger]);
+    
+    // listen to the updatePoemData event and trigger a refresh of the poem data
+    useEffect(() => {
+        const handleUpdatePoemData = (event) => {
+            const { chapter: updatedChapter, number: updatedNumber } = event.detail;
+            // only refresh if the updated poem matches the currently displayed poem
+            if (updatedChapter === chapter && updatedNumber === number) {
+                setRefreshTrigger(prev => prev + 1);
+            }
+        };
+        
+        window.addEventListener('updatePoemData', handleUpdatePoemData);
+        
+        return () => {
+            window.removeEventListener('updatePoemData', handleUpdatePoemData);
+        };
+    }, [chapter, number]);
+
+    useEffect(() => {
+        setRefreshTrigger(0);
+    }, [chapter, number]);
+
 
     const SpeakerAddresseeInfo = ({ speaker, addressee, poemId }) => {
 
