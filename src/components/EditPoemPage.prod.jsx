@@ -462,6 +462,28 @@ export default function EditPoemPage({ chapter, poemNum }) {
             if (key === "JPRM_Japanese" || key === "JPRM_Romaji") continue;
 
             const val = data[key];
+
+            if (key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
+                // val is a string like "Kiritsubo Emperor, Fujitsubo"; if edited, becomes an array
+                let arr;
+                if (Array.isArray(val)) {
+                    arr = val.map(v => v.trim()).filter(Boolean);
+                } else if (typeof val === "string") {
+                    arr = val.split(",").map(v => v.trim()).filter(Boolean);
+                } else {
+                    arr = [];
+                }
+
+                if (key === "otherRecipients") {
+                result.other_recipients = arr;
+                } else if (key === "unintendedRecipients") {
+                result.unintended_recipients = arr;
+                } else if (key === "groupParticipants") {
+                result.group_participants = arr;
+                }
+                continue;
+            }
+
             if (!val || val === "") {
             result[key] = null;
             continue;
@@ -487,25 +509,6 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 }
                 // Skip individual addressee fields from result, we'll use the combined addressees array
                 continue;
-                } else if (key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
-                    // val is a string like "Kiritsubo Emperor, Fujitsubo"; if edited, becomes an array
-                    let arr;
-                    if (Array.isArray(val)) {
-                        arr = val.map(v => v.trim()).filter(Boolean);
-                    } else if (typeof val === "string") {
-                        arr = val.split(",").map(v => v.trim()).filter(Boolean);
-                    } else {
-                        arr = [];
-                    }
-
-                    if (key === "otherRecipients") {
-                    result.other_recipients = arr;
-                    } else if (key === "unintendedRecipients") {
-                    result.unintended_recipients = arr;
-                    } else if (key === "groupParticipants") {
-                    result.group_participants = arr;
-                    }
-                    continue;
                 } else if (key === "pt") {
                 // Special handling for poetic techniques - ensure it's properly parsed
                 try {
@@ -879,17 +882,12 @@ export default function EditPoemPage({ chapter, poemNum }) {
                         }
                         
                         if (key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
-                            const arr = newValue
-                                .split(",")
-                                .map(v => v.trim())
-                                .filter(v => v.length > 0);
-                        
-                            setEditData(prev => ({ ...prev, [key]: arr }));
-                            
-                        } else {
+                            setEditData(prev => ({ ...prev, [key]: newValue })); // store raw string
+                          } else {
                             setEditData(prev => ({ ...prev, [key]: newValue }));
+                          }                          
                         }
-                    }}
+                    }
                 />
                 {/* Add datalist for character fields */}
                 {(key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants" ) && (

@@ -46,11 +46,24 @@ export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
     const pnum = searchParams.get("pnum");
-    const field = searchParams.get("field");
+    let field = searchParams.get("field");
 
     if (!pnum || !field) {
       return new Response(JSON.stringify({ error: "Missing pnum or field param" }), { status: 400 });
     }
+
+    // Normalize snake_case and legacy field names to canonical camelCase
+    const fieldAliases = {
+      other_recipients: "otherRecipients",
+      unintended_recipients: "unintendedRecipients",
+      group_participants: "groupParticipants",
+
+      // legacy / typo support
+      otherRecipient: "otherRecipients",
+    };
+
+    field = fieldAliases[field] || field;
+
 
     // **Sanitize field name** - expanded to include season, age and other allowed fields
     const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "Complete", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description", "otherTranslations", "otherRecipients", "unintendedRecipients", "groupParticipants"];
@@ -86,7 +99,7 @@ export async function DELETE(request) {
     }
 
     // Handle other recipient deletion specially (remove OTHER_RECIPIENT_OF relationship)
-    else if (field === "otherRecipient") {
+    else if (field === "otherRecipients") {
       const query = `
         MATCH (c:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
         DELETE r
@@ -350,71 +363,6 @@ else if (field === "groupParticipants") {
       const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} other translation relationships` }), { status: 200 });
     } 
-    // Handle speaker deletion specially (remove SPEAKER_OF relationship)
-    else if (field === "speaker") {
-      const query = `
-        MATCH (c:Character)-[r:SPEAKER_OF]->(g:Genji_Poem {pnum: $pnum})
-        DELETE r
-        RETURN count(r) as deletedCount
-      `;
-      
-      const result = await session.run(query, { pnum });
-      
-      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
-      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} speaker relationships` }), { status: 200 });
-    } 
-    // Handle addressee deletion specially (remove all ADDRESSEE_OF relationships)
-    else if (field === "addressee" || field === "addressee2" || field === "addressee3") {
-      const query = `
-        MATCH (c:Character)-[r:ADDRESSEE_OF]->(g:Genji_Poem {pnum: $pnum})
-        DELETE r
-        RETURN count(r) as deletedCount
-      `;
-      
-      const result = await session.run(query, { pnum });
-      
-      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
-      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} addressee relationships` }), { status: 200 });
-    } 
-
-    else if (field === "otherRecipient") {
-      const query = `
-        MATCH (c:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
-        DELETE r
-        RETURN count(r) as deletedCount
-      `;
-      
-      const result = await session.run(query, { pnum });
-      
-      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
-      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} other recipient relationships` }), { status: 200 });
-    }
-
-    else if (field === "unintendedRecipients") {
-      const query = `
-        MATCH (c:Character)-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
-        DELETE r
-        RETURN count(r) as deletedCount
-        `;
-
-      const result = await session.run(query, { pnum });
-      
-      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
-      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} unintended recipient relationships` }), { status: 200 });
-    }
-
-    else if (field === "groupParticipants") {
-      const query = `
-        MATCH (c:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum: $pnum})
-        DELETE r
-        RETURN count(r) as deletedCount
-        `;
-
-      const result = await session.run(query, { pnum });
-      
-      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
-      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} group participant relationships` }), { status: 200 });
-    }
 
     else {
       // Handle other field deletions (remove property)
