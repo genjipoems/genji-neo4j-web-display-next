@@ -21,6 +21,15 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
   const [charCount, setCharCount] = useState(0);
   const colorPickerRef = useRef(null);
   const isInteractingWithColorPicker = useRef(false);
+  
+  // Add content button state
+  const [currentBlockElement, setCurrentBlockElement] = useState(null);
+  const [isAddContentMenuOpen, setIsAddContentMenuOpen] = useState(false);
+  const addContentButtonRef = useRef(null);
+  const addContentMenuRef = useRef(null);
+  const rafIdRef = useRef(null);
+  const pendingMouseCoordsRef = useRef(null);
+  const isInteractingWithAddContent = useRef(false);
 
   // Update word count
   const updateWordCount = useCallback((editorInstance) => {
@@ -155,6 +164,225 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
     };
   }, [isColorMenuOpen]);
 
+  // Add content button mouse move detection
+  useEffect(() => {
+    if (!editor || !editable) return;
+
+    const view = editor.view;
+    const editorDom = view.dom;
+
+    // Helper function to find closest top-level block element
+    const findClosestTopLevelBlock = (element) => {
+      let current = element;
+      while (current && current.parentElement && current.parentElement !== editorDom) {
+        current = current.parentElement;
+      }
+      return current?.parentElement === editorDom ? current : null;
+    };
+
+    // Helper function to clamp coordinates to content bounds
+    const clampToContent = (x, y, inset = 5) => {
+      const container = editorDom;
+      const firstBlock = container.firstElementChild;
+      const lastBlock = container.lastElementChild;
+
+      if (!firstBlock || !lastBlock) {
+        return { x, y };
+      }
+
+      const topRect = firstBlock.getBoundingClientRect();
+      const botRect = lastBlock.getBoundingClientRect();
+      const clampedY = Math.min(Math.max(topRect.top + inset, y), botRect.bottom - inset);
+
+      const rowRect = topRect;
+      const clampedX = Math.min(Math.max(rowRect.left + inset, x), rowRect.right - inset);
+
+      return { x: clampedX, y: clampedY };
+    };
+
+    // Helper function to find element at coordinates
+    const findElementAtCoords = (x, y) => {
+      const { x: clampedX, y: clampedY } = clampToContent(x, y, 5);
+      const elements = document.elementsFromPoint(clampedX, clampedY);
+
+      let block = null;
+      for (const el of elements) {
+        if (!editorDom.contains(el)) continue;
+        const candidate = findClosestTopLevelBlock(el);
+        if (candidate) {
+          block = candidate;
+          break;
+        }
+      }
+
+      return block;
+    };
+
+    // Handle mouse move with RAF throttling
+    const handleMouseMove = (e) => {
+      if (!editable) return;
+
+      // Don't process if hovering over drag handle or add content button/menu
+      const target = e.target;
+      if (
+        target.closest('.drag-handle') ||
+        addContentButtonRef.current?.contains(target) ||
+        addContentMenuRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      // If menu is open, don't update block element (keep it stable)
+      if (isAddContentMenuOpen || isInteractingWithAddContent.current) {
+        return;
+      }
+
+      // Store mouse coordinates
+      pendingMouseCoordsRef.current = { x: e.clientX, y: e.clientY };
+
+      // Schedule RAF if not already scheduled
+      if (rafIdRef.current) return;
+
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+
+        if (!pendingMouseCoordsRef.current) return;
+
+        const { x, y } = pendingMouseCoordsRef.current;
+        pendingMouseCoordsRef.current = null;
+
+        const blockElement = findElementAtCoords(x, y);
+
+        if (!blockElement || blockElement === editorDom) {
+          // Only hide if not hovering over buttons and menu is not open
+          if (!isAddContentMenuOpen && !isInteractingWithAddContent.current) {
+            const elementsAtPoint = document.elementsFromPoint(x, y);
+            const isHoveringButtons = elementsAtPoint.some(
+              (el) =>
+                el.closest('.drag-handle') ||
+                addContentButtonRef.current?.contains(el) ||
+                addContentMenuRef.current?.contains(el)
+            );
+            if (!isHoveringButtons) {
+              setCurrentBlockElement(null);
+            }
+          }
+          return;
+        }
+
+        // Check if it's a valid block element
+        if (blockElement.nodeType !== 1) {
+          if (!isAddContentMenuOpen && !isInteractingWithAddContent.current) {
+            setCurrentBlockElement(null);
+          }
+          return;
+        }
+
+        // Update current block
+        if (blockElement !== currentBlockElement) {
+          setCurrentBlockElement(blockElement);
+        }
+      });
+    };
+
+    // Handle mouse leave
+    const handleMouseLeave = (e) => {
+      // Don't hide if moving to add content button, menu, or drag handle
+      const relatedTarget = e.relatedTarget;
+      if (
+        relatedTarget &&
+        (relatedTarget.closest('.drag-handle') ||
+          addContentButtonRef.current?.contains(relatedTarget) ||
+          addContentMenuRef.current?.contains(relatedTarget))
+      ) {
+        return;
+      }
+      
+      if (!isAddContentMenuOpen && !isInteractingWithAddContent.current) {
+        setCurrentBlockElement(null);
+      }
+    };
+
+    // Handle keydown 
+    const handleKeyDown = () => {
+      if (view.hasFocus()) {
+        // Only hide button if menu is not open
+        if (!isAddContentMenuOpen && !isInteractingWithAddContent.current) {
+          setCurrentBlockElement(null);
+        }
+      }
+    };
+
+    
+    editorDom.addEventListener('mousemove', handleMouseMove);
+    editorDom.addEventListener('mouseleave', handleMouseLeave);
+    editorDom.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      editorDom.removeEventListener('mousemove', handleMouseMove);
+      editorDom.removeEventListener('mouseleave', handleMouseLeave);
+      editorDom.removeEventListener('keydown', handleKeyDown);
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+      pendingMouseCoordsRef.current = null;
+    };
+  }, [editor, editable, currentBlockElement]);
+
+  // Attach add content button to block element
+  useEffect(() => {
+    if (!currentBlockElement || !addContentButtonRef.current) return;
+
+    const updateButtonPosition = () => {
+      if (!currentBlockElement || !addContentButtonRef.current) return;
+      
+      const rect = currentBlockElement.getBoundingClientRect();
+      const button = addContentButtonRef.current;
+      
+      // Position button next to drag handle
+      button.style.position = 'fixed';
+      button.style.top = `${rect.top}px`;
+      button.style.left = `${rect.left - 15}px`;
+    };
+
+    updateButtonPosition();
+
+    // Update on scroll
+    const handleScroll = () => updateButtonPosition();
+    window.addEventListener('scroll', handleScroll, true);
+    const scrollContainer = currentBlockElement.closest('[data-scroll-container]') || document;
+    scrollContainer.addEventListener('scroll', handleScroll, true);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      scrollContainer.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [currentBlockElement]);
+
+  // Close add content menu when clicking outside
+  useEffect(() => {
+    if (!isAddContentMenuOpen) return;
+    const handleClickOutside = (event) => {
+      const target = event.target;
+      // Don't close if clicking on button, menu, or drag handle
+      if (
+        addContentButtonRef.current?.contains(target) ||
+        addContentMenuRef.current?.contains(target) ||
+        target.closest('.drag-handle')
+      ) {
+        return;
+      }
+      setIsAddContentMenuOpen(false);
+      isInteractingWithAddContent.current = false;
+    };
+    // Use capture phase to catch events early
+    document.addEventListener('mousedown', handleClickOutside, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside, true);
+    };
+  }, [isAddContentMenuOpen]);
+
   // close dropdown after clicking block type menu item
   const runBlockCommand = (fn) => {
     if (!editor) return;
@@ -178,6 +406,82 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
     }
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   };
+
+  // Handle add content menu item click
+  const handleAddContent = useCallback((type) => {
+    if (!editor || !currentBlockElement) return;
+
+    try {
+      const pos = editor.view.posAtDOM(currentBlockElement, 0);
+      const resolvedPos = editor.state.doc.resolve(pos);
+      const endPos = resolvedPos.end();
+
+      // Insert new block after current block
+      if (type === 'paragraph') {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(endPos)
+          .insertContent('<p></p>')
+          .run();
+      } else if (type === 'heading1') {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(endPos)
+          .insertContent('<h1></h1>')
+          .run();
+      } else if (type === 'heading2') {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(endPos)
+          .insertContent('<h2></h2>')
+          .run();
+      } else if (type === 'heading3') {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(endPos)
+          .insertContent('<h3></h3>')
+          .run();
+      } else if (type === 'bulletList') {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(endPos)
+          .insertContent('<ul><li></li></ul>')
+          .run();
+      } else if (type === 'orderedList') {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(endPos)
+          .insertContent('<ol><li></li></ol>')
+          .run();
+      } else if (type === 'codeBlock') {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(endPos)
+          .insertContent('<pre><code></code></pre>')
+          .run();
+      } else if (type === 'blockquote') {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(endPos)
+          .insertContent('<blockquote><p></p></blockquote>')
+          .run();
+      }
+
+      // Close menu after selection (like bubble menu)
+      setIsAddContentMenuOpen(false);
+      isInteractingWithAddContent.current = false;
+    } catch (error) {
+      console.error('Error adding content:', error);
+    }
+  }, [editor, currentBlockElement]);
 
   if (!editor) {
     return <div className={styles.loading}>Loading editor...</div>;
@@ -702,6 +1006,155 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
       )}
 
       <EditorContent editor={editor} />
+      
+      {/* Add Content Button */}
+      {editable && currentBlockElement && (
+        <>
+          <button
+            ref={addContentButtonRef}
+            type="button"
+            className={styles.addContentButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              isInteractingWithAddContent.current = true;
+              setIsAddContentMenuOpen(!isAddContentMenuOpen);
+            }}
+            onMouseEnter={(e) => {
+              e.stopPropagation();
+              isInteractingWithAddContent.current = true;
+            }}
+            onMouseLeave={(e) => {
+              // Don't hide if moving to menu or drag handle
+              if (
+                e.relatedTarget &&
+                (addContentMenuRef.current?.contains(e.relatedTarget) ||
+                  e.relatedTarget.closest('.drag-handle'))
+              ) {
+                return;
+              }
+            
+              if (!isAddContentMenuOpen) {
+                isInteractingWithAddContent.current = false;
+              }
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              isInteractingWithAddContent.current = true;
+            }}
+          >
+            +
+          </button>
+
+          {isAddContentMenuOpen && currentBlockElement && (() => {
+            const rect = currentBlockElement.getBoundingClientRect();
+            return (
+              <div
+                ref={addContentMenuRef}
+                className={styles.addContentMenu}
+                style={{
+                  top: `${rect.top + rect.height / 2}px`,
+                  left: `${rect.left}px`,
+                }}
+                onMouseEnter={() => {
+                  isInteractingWithAddContent.current = true;
+                }}
+                onMouseLeave={(e) => {
+                  // Don't hide if moving to button or drag handle
+                  const relatedTarget = e.relatedTarget;
+                  if (
+                    relatedTarget &&
+                    (addContentButtonRef.current?.contains(relatedTarget) ||
+                      relatedTarget.closest('.drag-handle'))
+                  ) {
+                    return;
+                  }
+                  
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  isInteractingWithAddContent.current = true;
+                }}
+              >
+                <div className={styles.menuHeader}>Add content</div>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => handleAddContent('paragraph')}
+                >
+                  <span className={styles.menuIcon}>T</span>
+                  <span className={styles.menuLabel}>Text</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => handleAddContent('heading1')}
+                >
+                  <span className={styles.menuIcon}>H1</span>
+                  <span className={styles.menuLabel}>Heading 1</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => handleAddContent('heading2')}
+                >
+                  <span className={styles.menuIcon}>H2</span>
+                  <span className={styles.menuLabel}>Heading 2</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => handleAddContent('heading3')}
+                >
+                  <span className={styles.menuIcon}>H3</span>
+                  <span className={styles.menuLabel}>Heading 3</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => handleAddContent('bulletList')}
+                >
+                  <span className={styles.menuIcon}>•</span>
+                  <span className={styles.menuLabel}>Bulleted list</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => handleAddContent('orderedList')}
+                >
+                  <span className={styles.menuIcon}>1.</span>
+                  <span className={styles.menuLabel}>Numbered list</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => handleAddContent('codeBlock')}
+                >
+                  <span className={styles.menuIcon}>{'</>'}</span>
+                  <span className={styles.menuLabel}>Code</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => handleAddContent('blockquote')}
+                >
+                  <span className={styles.menuIcon}>❝</span>
+                  <span className={styles.menuLabel}>Quote</span>
+                </button>
+              </div>
+            );
+          })()}
+        </>
+      )}
       
       {/* Word count display */}
       {editable && editor && (

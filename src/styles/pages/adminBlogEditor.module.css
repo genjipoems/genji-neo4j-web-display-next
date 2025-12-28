@@ -267,33 +267,171 @@
 
 .renderedContent {
     padding: 20px;
-    line-height: 1.8;
+    line-height: 1.6;
     font-size: 1rem;
     color: #ffffff !important;
     word-wrap: break-word;
     text-align: left !important;
 }
 
-.contentDisplay .renderedContent h1,
-.contentDisplay .renderedContent h2,
-.contentDisplay .renderedContent h3,
-.contentDisplay .renderedContent h4,
-.contentDisplay .renderedContent h5,
-.contentDisplay .renderedContent h6 {
-    color: #ffffff !important;
-    text-align: left !important;
-    padding-left: 32px !important;
-}
-
+/* Paragraphs - match edit mode */
 .contentDisplay .renderedContent p {
-    color: #ffffff !important;
+    margin: 0.5em 0 !important;
     text-align: left !important;
-    padding-left: 32px !important;
+    color: #ffffff !important;
 }
 
-.contentDisplay .renderedContent strong {
+.contentDisplay .renderedContent p:first-child {
+    margin-top: 0 !important;
+}
+
+.contentDisplay .renderedContent p:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* Headings - match edit mode */
+.contentDisplay .renderedContent h1 {
+    font-size: 2em !important;
+    font-weight: bold !important;
+    margin: 0.5em 0 !important;
+    line-height: 1.2 !important;
     color: #ffffff !important;
-    padding-left: 32px !important;
+    text-align: left !important;
+}
+
+.contentDisplay .renderedContent h2 {
+    font-size: 1.5em !important;
+    font-weight: bold !important;
+    margin: 0.5em 0 !important;
+    line-height: 1.3 !important;
+    color: #ffffff !important;
+    text-align: left !important;
+}
+
+.contentDisplay .renderedContent h3 {
+    font-size: 1.25em !important;
+    font-weight: bold !important;
+    margin: 0.5em 0 !important;
+    line-height: 1.4 !important;
+    color: #ffffff !important;
+    text-align: left !important;
+}
+
+.contentDisplay .renderedContent h4 {
+    font-size: 1.1em !important;
+    font-weight: bold !important;
+    margin: 0.5em 0 !important;
+    color: #ffffff !important;
+    text-align: left !important;
+}
+
+.contentDisplay .renderedContent h5 {
+    font-size: 1em !important;
+    font-weight: bold !important;
+    margin: 0.5em 0 !important;
+    color: #ffffff !important;
+    text-align: left !important;
+}
+
+.contentDisplay .renderedContent h6 {
+    font-size: 0.9em !important;
+    font-weight: bold !important;
+    margin: 0.5em 0 !important;
+    color: #ffffff !important;
+    text-align: left !important;
+}
+
+/* Lists - match edit mode */
+.contentDisplay .renderedContent ul,
+.contentDisplay .renderedContent ol {
+    padding-left: 30px !important;
+    margin: 0.5em 0 !important;
+    text-align: left !important;
+}
+
+.contentDisplay .renderedContent li {
+    margin: 0.25em 0 !important;
+    color: #ffffff !important;
+}
+
+/* Blockquote - match edit mode */
+.contentDisplay .renderedContent blockquote {
+    border-left: 3px solid #cbd5e1 !important;
+    padding-left: 1em !important;
+    margin: 0.5em 0 !important;
+    font-style: italic !important;
+    color: #ffffff !important;
+    text-align: left !important;
+}
+
+/* Code - match edit mode */
+.contentDisplay .renderedContent code {
+    background-color: #737373 !important;
+    padding: 0.2em 0.4em !important;
+    border-radius: 3px !important;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+    font-size: 0.9em !important;
+    color: #e11d48 !important;
+}
+
+.contentDisplay .renderedContent pre {
+    background-color: #737373 !important;
+    color: #ffffff !important;
+    padding: 1em !important;
+    border-radius: 8px !important;
+    margin: 0.5em 0 !important;
+    overflow-x: auto !important;
+}
+
+.contentDisplay .renderedContent pre code {
+    background-color: transparent !important;
+    padding: 0 !important;
+    color: inherit !important;
+    font-size: 0.9em !important;
+}
+
+/* Text Formatting - match edit mode */
+.contentDisplay .renderedContent strong {
+    font-weight: bold !important;
+    color: #ffffff !important;
+}
+
+.contentDisplay .renderedContent em {
+    font-style: italic !important;
+    color: #ffffff !important;
+}
+
+.contentDisplay .renderedContent s {
+    text-decoration: line-through !important;
+    color: #ffffff !important;
+}
+
+/* Links - match edit mode */
+.contentDisplay .renderedContent a {
+    color: #60a5fa !important;
+    text-decoration: underline !important;
+}
+
+.contentDisplay .renderedContent a:hover {
+    color: #93c5fd !important;
+}
+
+/* Horizontal Rule - match edit mode */
+.contentDisplay .renderedContent hr {
+    border: none !important;
+    border-top: 2px solid #ffffff33 !important;
+    margin: 1em 0 !important;
+}
+
+/* Mark/Highlight - match edit mode (inherit from browser default) */
+.contentDisplay .renderedContent mark {
+    background-color: inherit;
+    color: inherit;
+}
+
+/* Box sizing - match edit mode */
+.contentDisplay .renderedContent * {
+    box-sizing: border-box !important;
 }
 
 .emptyContent {
