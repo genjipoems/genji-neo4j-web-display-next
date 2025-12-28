@@ -9,14 +9,31 @@ import DragHandle from '@tiptap/extension-drag-handle'
 import Highlight from '@tiptap/extension-highlight'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
-import { useEffect, useState, useRef, useMemo, memo } from 'react';
+import Text from '@tiptap/extension-text'
+import Typography from '@tiptap/extension-typography'
+import { useEffect, useState, useRef, useMemo, memo, useCallback } from 'react';
 import styles from '../styles/pages/tiptap.module.css';
 
 const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write something...' }) => {
   const [isTurnIntoOpen, setIsTurnIntoOpen] = useState(false);
   const [isColorMenuOpen, setIsColorMenuOpen] = useState(false);
+  const [wordCount, setWordCount] = useState(0);
+  const [charCount, setCharCount] = useState(0);
   const colorPickerRef = useRef(null);
   const isInteractingWithColorPicker = useRef(false);
+
+  // Update word count
+  const updateWordCount = useCallback((editorInstance) => {
+    if (!editorInstance) return;
+    const text = editorInstance.getText();
+    const characters = text.length;
+    // Count words
+    const words = text.trim().split(/\s+/).filter(word => word.length > 0);
+    const wordsCount = text.trim() === '' ? 0 : words.length;
+    
+    setCharCount(characters);
+    setWordCount(wordsCount);
+  }, []);
 
   const editor = useEditor({
     extensions: [
@@ -24,6 +41,8 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
       Underline,
       TextStyle,
       Color,
+      Text,
+      Typography,
       Highlight.configure({
         multicolor: true,
       }),
@@ -51,6 +70,8 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
       if (onChange) {
         onChange(editor.getHTML());
       }
+      // Update word and character count
+      updateWordCount(editor);
     },
     editorProps: {
       attributes: {
@@ -67,8 +88,24 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
       if (currentContent !== content) {
         editor.commands.setContent(content || '');
       }
+      // Update word count when content changes
+      updateWordCount(editor);
     }
   }, [content, editor]);
+
+  // Update word count on selection changes 
+  useEffect(() => {
+    if (!editor) return;
+    const handleSelectionUpdate = () => {
+      updateWordCount(editor);
+    };
+    editor.on('selectionUpdate', handleSelectionUpdate);
+    editor.on('update', handleSelectionUpdate);
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate);
+      editor.off('update', handleSelectionUpdate);
+    };
+  }, [editor]);
 
   useEffect(() => {
     if (editor) {
@@ -665,6 +702,19 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
       )}
 
       <EditorContent editor={editor} />
+      
+      {/* Word count display */}
+      {editable && editor && (
+        <div className={styles.wordCount}>
+          <span className={styles.wordCountItem}>
+            {wordCount} {wordCount === 1 ? 'word' : 'words'}
+          </span>
+          <span className={styles.wordCountSeparator}>·</span>
+          <span className={styles.wordCountItem}>
+            {charCount} {charCount === 1 ? 'character' : 'characters'}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
