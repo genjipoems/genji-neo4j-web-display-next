@@ -283,6 +283,94 @@
   opacity: 1;
 }
 
+/* Color Menu Wrapper */
+.colorMenuWrapper {
+  position: relative;
+}
+
+/* Color Picker */
+.colorPicker {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  min-width: 200px;
+  background: #2f3136;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  padding: 8px;
+  z-index: 1001;
+}
+
+.colorPickerHeader {
+  padding: 8px 8px 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #a3a2a0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.colorPickerHeader:first-child {
+  padding-top: 4px;
+}
+
+.colorPickerHeader:not(:first-child) {
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid #3a3a3a;
+}
+
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 4px;
+}
+
+.colorSwatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid #4a4a4a;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  padding: 0;
+  position: relative;
+}
+
+.colorSwatch:hover {
+  transform: scale(1.1);
+  border-color: #6b6b6b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1;
+}
+
+.colorSwatch[style*="transparent"] {
+  background: repeating-linear-gradient(
+    45deg,
+    #4a4a4a,
+    #4a4a4a 4px,
+    #3a3a3a 4px,
+    #3a3a3a 8px
+  );
+}
+
+.defaultIcon {
+  color: #a3a2a0;
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.colorSwatchActive {
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 0 1px #2f3136;
+}
+
 
 /* notion-style bubble menu */
 .notionBubbleMenu {
