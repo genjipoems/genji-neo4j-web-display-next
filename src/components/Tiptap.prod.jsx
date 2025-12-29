@@ -893,6 +893,7 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
     );
   });
 
+  ColorPicker.displayName = 'ColorPicker';
 
   return (
     <div className={styles.tiptapWrapper}>
