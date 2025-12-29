@@ -11,10 +11,13 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import Text from '@tiptap/extension-text'
 import Typography from '@tiptap/extension-typography'
+import Image from '@tiptap/extension-image'
+import FileHandler from '@tiptap/extension-file-handler'
+import { Dropcursor } from '@tiptap/extensions'
 import { useEffect, useState, useRef, useMemo, memo, useCallback } from 'react';
 import styles from '../styles/pages/tiptap.module.css';
 
-const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write something...' }) => {
+const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write something...', blogTitle = '' }) => {
   const [isTurnIntoOpen, setIsTurnIntoOpen] = useState(false);
   const [isColorMenuOpen, setIsColorMenuOpen] = useState(false);
   const [wordCount, setWordCount] = useState(0);
@@ -44,6 +47,91 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
     setWordCount(wordsCount);
   }, []);
 
+  // Upload image to server
+  const uploadImage = useCallback(async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('blogTitle', blogTitle || 'default');
+
+    try {
+      const response = await fetch('/api/blog/uploadImage', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
+  }, [blogTitle]);
+
+  // Download image from URL and convert to File (via server proxy to avoid CORS)
+  const downloadImageFromUrl = useCallback(async (imageUrl) => {
+    try {
+      const response = await fetch('/api/blog/downloadImage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+
+      if (!blob.type.startsWith('image/')) {
+        throw new Error('URL does not point to an image');
+      }
+
+      // Get filename from response header or extract from URL
+      const fileName = response.headers.get('X-Image-Filename') || imageUrl.split('/').pop() || 'image.jpg';
+
+      // Convert blob to File
+      const file = new File([blob], fileName, { type: blob.type });
+
+      return file;
+    } catch (error) {
+      console.error('Error downloading image from URL:', error);
+      throw error;
+    }
+  }, []);
+
+  // Handle image files from paste/drop
+  const handleImageFiles = useCallback(async (editorInstance, files, pos = null) => {
+    if (!files || files.length === 0) return;
+
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+
+      try {
+        // Upload image
+        const imageUrl = await uploadImage(file);
+        if (!imageUrl) {
+          console.error('Failed to upload image');
+          continue;
+        }
+
+        // Insert image into editor
+        if (pos !== null) {
+          editorInstance.chain().focus().setTextSelection(pos).setImage({ src: imageUrl, alt: file.name }).run();
+        } else {
+          editorInstance.chain().focus().setImage({ src: imageUrl, alt: file.name }).run();
+        }
+      } catch (error) {
+        console.error('Error handling image file:', error);
+      }
+    }
+  }, [uploadImage]);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -52,6 +140,16 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
       Color,
       Text,
       Typography,
+      Image.configure({
+        resize: {
+          enabled: true,
+          directions: ['left', 'right'],
+          minWidth: 50,
+          minHeight: 50,
+          alwaysPreserveAspectRatio: true,
+        }
+      }),
+      Dropcursor,
       Highlight.configure({
         multicolor: true,
       }),
@@ -70,6 +168,18 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
           ['paragraph', 'heading', 'bulletList', 'orderedList', 'blockquote', 'codeBlock', 'image'].includes(
             node.type.name,
           ),
+      }),
+      FileHandler.configure({
+        allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+        onPaste: async (editorInstance, files, htmlContent) => {
+          // Handle paste
+          if (files && files.length > 0) {
+            await handleImageFiles(editorInstance, files);
+          }
+        },
+        onDrop: async (editorInstance, files, pos) => {
+          await handleImageFiles(editorInstance, files, pos);
+        },
       }),
     ],
     content: content || '',
@@ -313,7 +423,7 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
       }
     };
 
-    
+
     editorDom.addEventListener('mousemove', handleMouseMove);
     editorDom.addEventListener('mouseleave', handleMouseLeave);
     editorDom.addEventListener('keydown', handleKeyDown);
@@ -408,7 +518,7 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
   };
 
   // Handle add content menu item click
-  const handleAddContent = useCallback((type) => {
+  const handleAddContent = useCallback(async (type) => {
     if (!editor || !currentBlockElement) return;
 
     try {
@@ -473,6 +583,55 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
           .setTextSelection(endPos)
           .insertContent('<blockquote><p></p></blockquote>')
           .run();
+      } else if (type === 'image') {
+        // Handle image insertion via file picker
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/jpeg,image/jpg,image/png,image/gif,image/webp';
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            try {
+              const imageUrl = await uploadImage(file);
+              if (imageUrl) {
+                editor
+                  .chain()
+                  .focus()
+                  .setTextSelection(endPos)
+                  .setImage({ src: imageUrl, alt: file.name })
+                  .run();
+              }
+            } catch (error) {
+              console.error('Error uploading image:', error);
+            }
+          }
+        };
+        input.click();
+      } 
+      else if (type === 'imageLink') {
+        const imageUrl = window.prompt('Enter image URL', 'https://');
+        if (!imageUrl || !imageUrl.trim()) return;
+        
+        try {
+          // Download image from URL
+          const file = await downloadImageFromUrl(imageUrl.trim());
+          
+          // Upload to server
+          const uploadedUrl = await uploadImage(file);
+          
+          if (uploadedUrl) {
+            // Insert image with uploaded URL
+            editor
+              .chain()
+              .focus()
+              .setTextSelection(endPos)
+              .setImage({ src: uploadedUrl, alt: file.name })
+              .run();
+          }
+        } catch (error) {
+          console.error('Error processing image URL:', error);
+          alert(`Failed to download/upload image: ${error.message}`);
+        }
       }
 
       // Close menu after selection (like bubble menu)
@@ -481,7 +640,7 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
     } catch (error) {
       console.error('Error adding content:', error);
     }
-  }, [editor, currentBlockElement]);
+  }, [editor, currentBlockElement, uploadImage, downloadImageFromUrl]);
 
   if (!editor) {
     return <div className={styles.loading}>Loading editor...</div>;
@@ -1149,6 +1308,24 @@ const Tiptap = ({ content, onChange, editable = true, placeholder = 'Write somet
                 >
                   <span className={styles.menuIcon}>❝</span>
                   <span className={styles.menuLabel}>Quote</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => handleAddContent('image')}
+                >
+                  <span className={styles.menuIcon}>🖼️</span>
+                  <span className={styles.menuLabel}>Image</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  onClick={() => handleAddContent('imageLink')}
+                >
+                  <span className={styles.menuIcon}>🔗</span>
+                  <span className={styles.menuLabel}>Image link</span>
                 </button>
               </div>
             );

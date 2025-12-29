@@ -326,6 +326,91 @@
   transform: translateX(-100%);
 }
 
+/* Image Styles */
+.tiptapWrapper .tiptapEditor img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em 0;
+  cursor: pointer;
+}
+
+/* Resizable Image */
+.tiptapWrapper .tiptapEditor img[data-resize-handle] {
+  position: relative;
+}
+
+/* Resize Handles */
+.tiptapWrapper .tiptapEditor [data-resize-handle] {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Resize handle cursors based on direction */
+.tiptapWrapper .tiptapEditor [data-resize-handle="top"] {
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="bottom"] {
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="left"] {
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="right"] {
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="top-right"] {
+  top: -6px;
+  right: -6px;
+  cursor: nesw-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="top-left"] {
+  top: -6px;
+  left: -6px;
+  cursor: nwse-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="bottom-right"] {
+  bottom: -6px;
+  right: -6px;
+  cursor: nwse-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="bottom-left"] {
+  bottom: -6px;
+  left: -6px;
+  cursor: nesw-resize;
+}
+
+/* Selected image outline */
+.tiptapWrapper .tiptapEditor .ProseMirror-selectednode img {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
 /* Color Menu Wrapper */
 .colorMenuWrapper {
   position: relative;
