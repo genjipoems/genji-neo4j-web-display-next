@@ -143,37 +143,25 @@ const AdministratorPage = () => {
         }
     };
 
-    const handleBlogUpdate = async (title, content, showOnPage) => {
+    const handleBlogUpdate = async (originalTitle, newTitle, content, showOnPage) => {
         try {
-            // Update blog content
+            // Update blog content, title, and showOnPage in one call
             const contentResponse = await fetch('/api/administrator/updateBlog', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ title, content }),
+                body: JSON.stringify({ originalTitle, newTitle, content, showOnPage }),
             });
 
             if (!contentResponse.ok) {
-                throw new Error('Failed to update blog content');
+                throw new Error('Failed to update blog');
             }
 
-            // Update showOnPage property
-            const showOnPageResponse = await fetch('/api/administrator/updateBlogShowOnPage', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ title, showOnPage }),
-            });
-
-            if (!showOnPageResponse.ok) {
-                throw new Error('Failed to update blog showOnPage property');
-            }
-
-            // Update the selected blog content and showOnPage
+            // Update the selected blog with new title, content and showOnPage
             setSelectedBlog(prev => ({
                 ...prev,
+                title: newTitle,
                 content,
                 showOnPage
             }));

@@ -5,6 +5,7 @@ import styles from '../styles/pages/adminBlogEditor.module.css'
 import Tiptap from './Tiptap.prod';
 
 const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
+    const [originalTitle, setOriginalTitle] = useState('');
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [showOnPage, setShowOnPage] = useState(false);
@@ -16,6 +17,7 @@ const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
 
     useEffect(() => {
         if (blog) {
+            setOriginalTitle(blog.title || '');
             setTitle(blog.title || '');
             setContent(blog.content || '');
             setShowOnPage(blog.showOnPage || false);
@@ -46,7 +48,7 @@ const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
             if (blog.isNew) {
                 result = await onCreate(title.trim(), content, showOnPage);
             } else {
-                result = await onUpdate(title.trim(), content, showOnPage);
+                result = await onUpdate(originalTitle.trim(), title.trim(), content, showOnPage);
             }
 
             if (result.success) {
@@ -241,6 +243,7 @@ const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
                             onChange={handleContentChange}
                             editable={true}
                             placeholder="Write your blog content here..."
+                            blogTitle={title}
                         />
                         
                     ) : (

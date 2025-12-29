@@ -1,14 +1,14 @@
 const { getSession } = require('../../neo4j_driver/route.prod.js');
 import { auth } from "../../../../auth.prod";
 
-async function updateBlog(title, content) {
+async function updateBlog(originalTitle, newTitle, content, showOnPage) {
   const session = await getSession();
 
   try {
     const result = await session.writeTransaction(tx => 
       tx.run(
-        'MATCH (b:Blog {title: $title}) SET b.content = $content RETURN b',
-        { title, content }
+        'MATCH (b:Blog {title: $originalTitle}) SET b.title = $newTitle, b.content = $content, b.showOnPage = $showOnPage RETURN b',
+        { originalTitle, newTitle, content, showOnPage }
       )
     );
     
@@ -44,16 +44,16 @@ export const POST = async (request) => {
       });
     }
 
-    const { title, content } = await request.json();
+    const { originalTitle, newTitle, content, showOnPage } = await request.json();
     
-    if (!title || content === undefined) {
-      return new Response(JSON.stringify({ message: "Title and content are required" }), { 
+    if (!originalTitle || !newTitle || content === undefined) {
+      return new Response(JSON.stringify({ message: "originalTitle, newTitle and content are required" }), { 
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
     
-    const result = await updateBlog(title, content);
+    const result = await updateBlog(originalTitle, newTitle, content, showOnPage ?? false);
     
     return new Response(JSON.stringify({ 
       success: true, 
