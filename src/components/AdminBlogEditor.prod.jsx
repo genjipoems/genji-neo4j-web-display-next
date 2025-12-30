@@ -252,7 +252,7 @@ const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
                                 <div 
                                     className={styles.renderedContent}
                                     dangerouslySetInnerHTML={{
-                                        __html: content.replace(/\n/g, '<br>')
+                                        __html: content
                                     }}
                                 />
                             ) : (
