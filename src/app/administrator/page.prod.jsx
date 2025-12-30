@@ -39,7 +39,7 @@ const AdministratorPage = () => {
         fetchBlogs();
         fetchChapters();
         fetchCharacters();
-    }, [isAuthenticated, isAdmin, isLoading, router]);
+    }, [isAuthenticated, isAdmin, isLoading, router,]);
 
     const fetchBlogs = async () => {
         try {
@@ -154,9 +154,16 @@ const AdministratorPage = () => {
                 body: JSON.stringify({ originalTitle, newTitle, content, showOnPage }),
             });
 
+            const responseData = await contentResponse.json();
+
             if (!contentResponse.ok) {
-                throw new Error('Failed to update blog');
+                // Extract detailed error message from response
+                const errorMessage = responseData.error || responseData.message || 'Failed to update blog';
+                throw new Error(errorMessage);
             }
+
+            // Refresh the blog list to update sidebar
+            await fetchBlogs();
 
             // Update the selected blog with new title, content and showOnPage
             setSelectedBlog(prev => ({
@@ -242,8 +249,12 @@ const AdministratorPage = () => {
                 body: JSON.stringify({ title, content, showOnPage }),
             });
 
+            const responseData = await response.json();
+
             if (!response.ok) {
-                throw new Error('Failed to create blog');
+                // Extract detailed error message from response
+                const errorMessage = responseData.error || responseData.message || 'Failed to create blog';
+                throw new Error(errorMessage);
             }
 
             // Refresh the blog list
