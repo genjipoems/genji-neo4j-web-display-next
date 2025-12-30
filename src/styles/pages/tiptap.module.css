@@ -1,0 +1,670 @@
+/* TipTap Editor Wrapper */
+.tiptapWrapper {
+  flex: 1;
+  background: #737373;
+  border: 2px solid #ffffff33;
+  border-radius: 8px;
+  min-height: 400px;
+  box-shadow: 0 1px 3px rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.tiptapWrapper:focus-within {
+  border-color: #ffffff33;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1), 0 2px 8px rgba(255, 255, 255, 0.15);
+}
+
+.loading {
+  padding: 20px;
+  text-align: center;
+  color: #64748b;
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* TipTap Editor Content - scoped to wrapper only */
+.tiptapWrapper .tiptapEditor {
+  padding: 20px;
+  min-height: 400px;
+  outline: none;
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.6;
+  text-align: left;
+}
+
+/* Placeholder - scoped to wrapper */
+.tiptapWrapper .tiptapEditor p.is-editor-empty:first-child::before {
+  color: #ffffff;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Paragraphs - scoped to wrapper */
+.tiptapWrapper .tiptapEditor p {
+  margin: 0.5em 0;
+  text-align: left;
+  color: #ffffff;
+}
+
+.tiptapWrapper .tiptapEditor p:first-child {
+  margin-top: 0;
+}
+
+.tiptapWrapper .tiptapEditor p:last-child {
+  margin-bottom: 0;
+}
+
+/* Headings - scoped to wrapper */
+.tiptapWrapper .tiptapEditor h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 0.5em 0;
+  line-height: 1.2;
+  color: #ffffff;
+  text-align: left;
+}
+
+.tiptapWrapper .tiptapEditor h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 0.5em 0;
+  line-height: 1.3;
+  color: #ffffff;
+  text-align: left;
+}
+
+.tiptapWrapper .tiptapEditor h3 {
+  font-size: 1.25em;
+  font-weight: bold;
+  margin: 0.5em 0;
+  line-height: 1.4;
+  color: #ffffff;
+  text-align: left;
+}
+
+.tiptapWrapper .tiptapEditor h4 {
+  font-size: 1.1em;
+  font-weight: bold;
+  margin: 0.5em 0;
+  color: #ffffff;
+  text-align: left;
+}
+
+.tiptapWrapper .tiptapEditor h5 {
+  font-size: 1em;
+  font-weight: bold;
+  margin: 0.5em 0;
+  color: #ffffff;
+  text-align: left;
+}
+
+.tiptapWrapper .tiptapEditor h6 {
+  font-size: 0.9em;
+  font-weight: bold;
+  margin: 0.5em 0;
+  color: #ffffff;
+  text-align: left;
+}
+
+/* Lists - scoped to wrapper */
+.tiptapWrapper .tiptapEditor ul,
+.tiptapWrapper .tiptapEditor ol {
+  padding-left: 60px;
+  margin: 0.5em 0;
+  text-align: left;
+}
+
+.tiptapWrapper .tiptapEditor li {
+  margin: 0.25em 0;
+}
+
+.tiptapWrapper .tiptapEditor ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.tiptapWrapper .tiptapEditor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+}
+
+.tiptapWrapper .tiptapEditor ul[data-type="taskList"] li > label {
+  flex: 0 0 auto;
+  margin-right: 0.5rem;
+  user-select: none;
+}
+
+.tiptapWrapper .tiptapEditor ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+}
+
+/* Blockquote - scoped to wrapper */
+.tiptapWrapper .tiptapEditor blockquote {
+  border-left: 3px solid #cbd5e1;
+  padding-left: 1em;
+  margin: 0.5em 0;
+  font-style: italic;
+  color: #ffffff;
+  text-align: left;
+}
+
+/* Code - scoped to wrapper */
+.tiptapWrapper .tiptapEditor code {
+  background-color: #737373;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  color: #e11d48;
+}
+
+.tiptapWrapper .tiptapEditor pre {
+  background-color: #737373;
+  color: #ffffff;
+  padding: 1em;
+  border-radius: 8px;
+  margin: 0.5em 0;
+  overflow-x: auto;
+}
+
+.tiptapWrapper .tiptapEditor pre code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.9em;
+}
+
+/* Text Formatting - scoped to wrapper */
+.tiptapWrapper .tiptapEditor strong {
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.tiptapWrapper .tiptapEditor em {
+  font-style: italic;
+}
+
+.tiptapWrapper .tiptapEditor s {
+  text-decoration: line-through;
+}
+
+/* Links - scoped to wrapper */
+.tiptapWrapper .tiptapEditor a {
+  color: #ffffff;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tiptapWrapper .tiptapEditor a:hover {
+  color: #ffffff;
+}
+
+/* Horizontal Rule - scoped to wrapper */
+.tiptapWrapper .tiptapEditor hr {
+  border: none;
+  border-top: 2px solid #ffffff33;
+  margin: 1em 0;
+}
+
+/* Selection - scoped to wrapper */
+.tiptapWrapper .tiptapEditor ::selection {
+  background-color: #ffffff33;
+}
+
+/* Disabled state */
+.tiptapWrapper:has(.tiptapEditor[contenteditable="false"]) {
+  background: #737373;
+  cursor: default;
+}
+
+/* Ensure editor is visible - only apply to elements inside tiptapEditor */
+.tiptapWrapper .tiptapEditor * {
+  box-sizing: border-box;
+}
+
+/* Global text alignment - ensure everything is left-aligned, but only inside tiptapWrapper */
+.tiptapWrapper .tiptapEditor {
+  text-align: left;
+}
+
+.tiptapWrapper .tiptapEditor > * {
+  text-align: left;
+}
+
+/* Drag handle */
+.tiptapWrapper :global(.ProseMirror) > * {
+  position: relative;
+  padding-left: 32px;
+}
+
+.tiptapWrapper :global(.drag-handle) {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-20%);
+  width: 15px;
+  height: 20px;
+  border-radius: 6px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 30px;
+  margin-top: 5px;
+  opacity: 0.75;
+  transition: opacity 0.15s, color 0.15s, background 0.15s, box-shadow 0.15s;
+  cursor: grab;
+  font-size: 13px;
+  z-index: 5;
+}
+
+.tiptapWrapper :global(.drag-handle)::before {
+  content: "⋮⋮";
+  line-height: 1;
+}
+
+.tiptapWrapper :global(.drag-handle):hover {
+  opacity: 0.5;
+  background: #ffffff33;
+  color: #ffffff;
+}
+
+.tiptapWrapper :global(.drag-handle):active {
+  cursor: grabbing;
+}
+
+.tiptapWrapper :global(.ProseMirror) > *:hover :global(.drag-handle),
+.tiptapWrapper :global(.ProseMirror) > *:focus-within :global(.drag-handle) {
+  opacity: 1;
+}
+
+/* Add Content Button */
+.addContentButton {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: none;
+  margin-left: 10px;
+  background: transparent;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.15s, color 0.15s, background 0.15s, box-shadow 0.15s;
+  z-index: 5;
+  line-height: 1;
+}
+
+.addContentButton:hover {
+  background: #ffffff33;
+  color: #ffffff;
+  opacity: 1 !important;
+}
+
+/* Add Content Menu */
+.addContentMenu {
+  position: fixed;
+  background: #2d2d2d;
+  border: 1px solid #404040;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 150px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 4px;
+  z-index: 1000;
+  transform: translateX(-100%);
+}
+
+/* Image Styles */
+.tiptapWrapper .tiptapEditor img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em 0;
+  cursor: pointer;
+}
+
+/* Resizable Image */
+.tiptapWrapper .tiptapEditor img[data-resize-handle] {
+  position: relative;
+}
+
+/* Resize Handles */
+.tiptapWrapper .tiptapEditor [data-resize-handle] {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 2px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Resize handle cursors based on direction */
+.tiptapWrapper .tiptapEditor [data-resize-handle="top"] {
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="bottom"] {
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="left"] {
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="right"] {
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="top-right"] {
+  top: -6px;
+  right: -6px;
+  cursor: nesw-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="top-left"] {
+  top: -6px;
+  left: -6px;
+  cursor: nwse-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="bottom-right"] {
+  bottom: -6px;
+  right: -6px;
+  cursor: nwse-resize;
+}
+
+.tiptapWrapper .tiptapEditor [data-resize-handle="bottom-left"] {
+  bottom: -6px;
+  left: -6px;
+  cursor: nesw-resize;
+}
+
+/* Selected image outline */
+.tiptapWrapper .tiptapEditor .ProseMirror-selectednode img {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Color Menu Wrapper */
+.colorMenuWrapper {
+  position: relative;
+}
+
+/* Color Picker */
+.colorPicker {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  min-width: 200px;
+  background: #2f3136;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  padding: 8px;
+  z-index: 1001;
+}
+
+.colorPickerHeader {
+  padding: 8px 8px 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #a3a2a0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.colorPickerHeader:first-child {
+  padding-top: 4px;
+}
+
+.colorPickerHeader:not(:first-child) {
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid #3a3a3a;
+}
+
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 4px;
+}
+
+.colorSwatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid #4a4a4a;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  padding: 0;
+  position: relative;
+}
+
+.colorSwatch:hover {
+  transform: scale(1.1);
+  border-color: #6b6b6b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1;
+}
+
+.colorSwatch[style*="transparent"] {
+  background: repeating-linear-gradient(
+    45deg,
+    #4a4a4a,
+    #4a4a4a 4px,
+    #3a3a3a 4px,
+    #3a3a3a 8px
+  );
+}
+
+.defaultIcon {
+  color: #a3a2a0;
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.colorSwatchActive {
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 0 1px #2f3136;
+}
+
+/* Word Count */
+.wordCount {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #ffffff;
+  background: #737373;
+  gap: 8px;
+}
+
+.wordCountItem {
+  color: #ffffff;
+}
+
+.wordCountSeparator {
+  color: #ffffff;
+}
+
+
+/* notion-style bubble menu */
+.notionBubbleMenu {
+  background: transparent;
+  border-radius: 6px;
+  padding: 0;
+}
+
+.bubbleInner {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  background: #2f3136;
+  color: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+}
+
+/* left Turn into dropdown */
+.turnIntoWrapper {
+  position: relative;
+}
+
+.turnIntoTrigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #e5e5e5;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.turnIntoTrigger:hover {
+  background: #3a3c42;
+}
+
+.triggerLabel {
+  font-weight: 500;
+}
+
+.triggerChevron {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.turnIntoDropdown {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  min-width: 180px;
+  background: #2f3136;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  padding: 6px 4px 6px 4px;
+  z-index: 1000;
+}
+
+.menuHeader {
+  padding: 4px 10px 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #a3a2a0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.menuItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #f3f3f1;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.menuItem:hover {
+  background: #3a3c42;
+}
+
+.menuItem.active {
+  background: #3a3c42;
+}
+
+.menuIcon {
+  width: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #b0afac;
+}
+
+.menuLabel {
+  flex: 1;
+}
+
+.checkmark {
+  font-size: 13px;
+  color: #b0afac;
+}
+
+.menuItem.active .checkmark {
+  color: #ffffff;
+}
+
+.inlineToolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 2px;
+  border-left: 1px solid #3f4147;
+  margin-left: 2px;
+}
+
+.inlineButton {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #e5e5e5;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inlineButton:hover {
+  background: #3a3c42;
+}
+
+.inlineActive {
+  background: #3a3c42;
+  color: #ffffff;
+}
+

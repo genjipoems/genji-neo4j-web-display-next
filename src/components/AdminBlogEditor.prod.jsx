@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import styles from '../styles/pages/adminBlogEditor.module.css'
+import Tiptap from './Tiptap.prod';
 
 const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
+    const [originalTitle, setOriginalTitle] = useState('');
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [showOnPage, setShowOnPage] = useState(false);
@@ -15,12 +17,17 @@ const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
 
     useEffect(() => {
         if (blog) {
+            setOriginalTitle(blog.title || '');
             setTitle(blog.title || '');
             setContent(blog.content || '');
             setShowOnPage(blog.showOnPage || false);
             setIsEditing(blog.isNew || false);
         }
     }, [blog]);
+
+    const handleContentChange = (newContent) => {
+        setContent(newContent);
+    };
 
     const handleSave = async () => {
         if (!title.trim()) {
@@ -41,7 +48,7 @@ const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
             if (blog.isNew) {
                 result = await onCreate(title.trim(), content, showOnPage);
             } else {
-                result = await onUpdate(title.trim(), content, showOnPage);
+                result = await onUpdate(originalTitle.trim(), title.trim(), content, showOnPage);
             }
 
             if (result.success) {
@@ -228,35 +235,24 @@ const AdminBlogEditor = ({ blog, onUpdate, onCreate, onClose, onDelete }) => {
                 <div className={styles.contentSection}>
                     <label className={styles.contentLabel}>
                         Content:
-                        <span
-                            title="Formatting: **bold**, *italic*, # Header, &nbsp; for indent, [link title](URL) for links"
-                            style={{
-                                marginLeft: "0.5rem",
-                                cursor: "help",
-                                color: "#64748b",
-                                fontWeight: "normal",
-                                fontSize: "0.9rem"
-                            }}
-                        >
-                            ?
-                        </span>
                     </label>
                     {isEditing ? (
-                        <textarea
-                            value={content}
-                            onChange={(e) => setContent(e.target.value)}
-                            placeholder="Enter blog content..."
-                            className={styles.contentTextarea}
-                            disabled={isSaving}
-                            rows={20}
+                        // tiptap component
+                        <Tiptap
+                            content={content}
+                            onChange={handleContentChange}
+                            editable={true}
+                            placeholder="Write your blog content here..."
+                            blogTitle={title}
                         />
+                        
                     ) : (
                         <div className={styles.contentDisplay}>
                             {content ? (
                                 <div 
                                     className={styles.renderedContent}
-                                    dangerouslySetInnerHTML={{ 
-                                        __html: content.replace(/\n/g, '<br>') 
+                                    dangerouslySetInnerHTML={{
+                                        __html: content
                                     }}
                                 />
                             ) : (

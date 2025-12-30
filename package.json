@@ -23,6 +23,20 @@
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "@fortawesome/react-fontawesome": "^0.2.2",
+    "@tiptap/extension-collaboration": "^3.14.0",
+    "@tiptap/extension-color": "^3.14.0",
+    "@tiptap/extension-drag-handle": "^3.14.0",
+    "@tiptap/extension-file-handler": "^3.14.0",
+    "@tiptap/extension-highlight": "^3.14.0",
+    "@tiptap/extension-image": "^3.14.0",
+    "@tiptap/extension-node-range": "^3.14.0",
+    "@tiptap/extension-text": "^3.14.0",
+    "@tiptap/extension-text-style": "^3.14.0",
+    "@tiptap/extension-typography": "^3.14.0",
+    "@tiptap/extensions": "^3.14.0",
+    "@tiptap/react": "^3.14.0",
+    "@tiptap/starter-kit": "^3.14.0",
+    "@tiptap/y-tiptap": "^3.0.1",
     "antd": "^4.24.12",
     "bcryptjs": "^2.4.3",
     "chart.js": "^4.4.8",
@@ -47,13 +61,20 @@
     "react-router-dom": "^6.14.1",
     "react-simple-maps": "^3.0.0",
     "reactflow": "^11.7.4",
-    "sass": "^1.86.0"
+    "sass": "^1.86.0",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.28"
   },
   "devDependencies": {
     "@shadcn/ui": "^0.0.4",
     "@svgr/webpack": "^8.1.0",
     "@types/node": "20.14.2",
-    "@types/react": "18.3.3"
+    "@types/react": "18.3.3",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0"
   },
   "engines": {
     "node": "22.x"

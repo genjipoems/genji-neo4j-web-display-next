@@ -14,7 +14,7 @@ async function createBlog(title, content, userEmail, showOnPage = false) {
     );
 
     if (existingResult.records.length > 0) {
-      throw new Error('Blog with this title already exists');
+      throw new Error(`A blog with the title "${title}" already exists. Please choose a different title. Each blog must have a unique title.`);
     }
 
     // Create the blog
@@ -83,12 +83,13 @@ export const POST = withAdminAuth(async (request, session) => {
     let statusCode = 500;
     let message = "Internal server error";
     
-    if (error.message === 'Blog with this title already exists') {
+    if (error.message.includes('already exists')) {
       statusCode = 409;
-      message = error.message;
+      message = "Blog title conflict";
     }
     
     return new Response(JSON.stringify({ 
+      success: false,
       message: message,
       error: error.message 
     }), { 
