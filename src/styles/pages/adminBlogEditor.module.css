@@ -272,6 +272,7 @@
     color: #ffffff !important;
     word-wrap: break-word;
     text-align: left !important;
+    white-space: pre-wrap; /* Preserve whitespace from Tiptap editor */
 }
 
 /* Paragraphs - match edit mode */
