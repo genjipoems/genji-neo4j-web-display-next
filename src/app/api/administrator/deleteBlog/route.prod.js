@@ -1,5 +1,6 @@
 const { getSession } = require('../../neo4j_driver/route.prod.js');
 import { auth } from "../../../../auth.prod";
+import { deleteBlogImageDirectory } from '../../blog/imageTools/route.prod';
 
 async function deleteBlog(title) {
   const session = await getSession();
@@ -28,6 +29,16 @@ async function deleteBlog(title) {
   }
 }
 
+// delete blog image directory when blog is deleted
+async function deleteBlogImageDirectoryWrapper(title) {
+  try {
+    await deleteBlogImageDirectory(title);
+  } catch(error) {
+    console.error('Failed to delete blog image directory:', error);
+    throw error;
+  }
+}
+  
 export const DELETE = async (request) => {
   try {
     // Check if user is authenticated
@@ -58,6 +69,7 @@ export const DELETE = async (request) => {
     }
     
     const result = await deleteBlog(title.trim());
+    await deleteBlogImageDirectoryWrapper(title.trim());
     
     return new Response(JSON.stringify({ 
       success: true, 
@@ -74,6 +86,11 @@ export const DELETE = async (request) => {
     
     if (error.message === 'Blog not found') {
       statusCode = 404;
+      message = error.message;
+    }
+
+    if (error.message === 'Failed to delete blog image directory') {
+      statusCode = 500;
       message = error.message;
     }
     
