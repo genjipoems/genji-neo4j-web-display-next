@@ -37,6 +37,7 @@
     "@tiptap/react": "^3.14.0",
     "@tiptap/starter-kit": "^3.14.0",
     "@tiptap/y-tiptap": "^3.0.1",
+    "@vercel/blob": "^2.0.0",
     "antd": "^4.24.12",
     "bcryptjs": "^2.4.3",
     "chart.js": "^4.4.8",
