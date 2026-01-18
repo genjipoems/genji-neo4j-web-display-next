@@ -1956,7 +1956,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                                             }}
                                             style={{
                                                 padding: "8px 12px",
-                                                backgroundColor: "#28a745",
+                                                backgroundColor: "#007cba",
                                                 color: "white",
                                                 border: "none",
                                                 borderRadius: "4px",
