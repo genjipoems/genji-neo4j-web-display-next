@@ -1,14 +1,14 @@
 const { getSession } = require('../../neo4j_driver/route.prod.js');
 import { withAdminAuth } from "../../../../lib/auth-utils";
 
-async function updateBlogShowOnPage(title, showOnPage) {
+async function updateBlogShowOnPage(originalTitle, showOnPage) {
   const session = await getSession();
 
   try {
     const result = await session.writeTransaction(tx => 
       tx.run(
-        'MATCH (b:Blog {title: $title}) SET b.showOnPage = $showOnPage RETURN b',
-        { title, showOnPage }
+        'MATCH (b:Blog {title: $originalTitle}) SET b.showOnPage = $showOnPage RETURN b',
+        { originalTitle, showOnPage }
       )
     );
 
@@ -27,10 +27,10 @@ async function updateBlogShowOnPage(title, showOnPage) {
 
 export const POST = withAdminAuth(async (request, session) => {
   try {
-    const { title, showOnPage } = await request.json();
+    const { originalTitle, showOnPage } = await request.json();
     
-    if (!title || !title.trim()) {
-      return new Response(JSON.stringify({ message: "Title is required" }), { 
+    if (!originalTitle || !originalTitle.trim()) {
+      return new Response(JSON.stringify({ message: "originalTitle is required" }), { 
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -43,7 +43,7 @@ export const POST = withAdminAuth(async (request, session) => {
       });
     }
     
-    const result = await updateBlogShowOnPage(title.trim(), showOnPage);
+    const result = await updateBlogShowOnPage(originalTitle.trim(), showOnPage);
     
     return new Response(JSON.stringify({ 
       success: true, 

@@ -91,6 +91,7 @@
     font-family: 'Lexend', sans-serif;
     color: #ffffff !important;
     font-size: 16px;
+    white-space: pre-wrap; /* Preserve whitespace from Tiptap editor */
 }
 
 .descriptionText a {
@@ -105,6 +106,144 @@
     margin-bottom: 0.5em !important;
     color: inherit !important;
     font-family: inherit !important;
+}
+
+/* HTML content styles (from Tiptap editor) */
+.descriptionText p {
+    margin: 0.5em 0 !important;
+    line-height: 1.6 !important;
+    color: #ffffff !important;
+}
+
+.descriptionText p:first-child {
+    margin-top: 0 !important;
+}
+
+.descriptionText p:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* Empty paragraphs for blank lines */
+.descriptionText p:empty {
+    min-height: 1.5em !important;
+    margin: 0.5em 0 !important;
+}
+
+.descriptionText h1,
+.descriptionText h2,
+.descriptionText h3,
+.descriptionText h4,
+.descriptionText h5,
+.descriptionText h6 {
+    font-weight: bold !important;
+    margin: 0.75em 0 0.5em 0 !important;
+    line-height: 1.2 !important;
+    color: #ffffff !important;
+    font-family: 'Lexend', sans-serif !important;
+}
+
+.descriptionText h1 {
+    font-size: 2em !important;
+}
+
+.descriptionText h2 {
+    font-size: 1.5em !important;
+}
+
+.descriptionText h3 {
+    font-size: 1.25em !important;
+}
+
+.descriptionText h4 {
+    font-size: 1.1em !important;
+}
+
+.descriptionText h5 {
+    font-size: 1em !important;
+}
+
+.descriptionText h6 {
+    font-size: 0.9em !important;
+}
+
+.descriptionText ul,
+.descriptionText ol {
+    padding-left: 30px !important;
+    margin: 0.5em 0 !important;
+}
+
+.descriptionText li {
+    margin: 0.25em 0 !important;
+    color: #ffffff !important;
+}
+
+.descriptionText blockquote {
+    border-left: 3px solid rgba(255, 255, 255, 0.5) !important;
+    padding-left: 1em !important;
+    margin: 0.5em 0 !important;
+    font-style: italic !important;
+    color: #ffffff !important;
+}
+
+.descriptionText code {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    padding: 0.2em 0.4em !important;
+    border-radius: 3px !important;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+    font-size: 0.9em !important;
+    color: #ffffff !important;
+}
+
+.descriptionText pre {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    color: #ffffff !important;
+    padding: 1em !important;
+    border-radius: 8px !important;
+    margin: 0.5em 0 !important;
+    overflow-x: auto !important;
+}
+
+.descriptionText pre code {
+    background-color: transparent !important;
+    padding: 0 !important;
+    color: inherit !important;
+}
+
+.descriptionText strong {
+    font-weight: bold !important;
+    color: #ffffff !important;
+}
+
+.descriptionText em {
+    font-style: italic !important;
+    color: #ffffff !important;
+}
+
+.descriptionText s {
+    text-decoration: line-through !important;
+    color: #ffffff !important;
+}
+
+.descriptionText img {
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0.5em 0 !important;
+    border-radius: 4px !important;
+}
+
+.descriptionText hr {
+    border: none !important;
+    border-top: 2px solid rgba(255, 255, 255, 0.3) !important;
+    margin: 1em 0 !important;
+}
+
+/* Mark/Highlight - preserve inline styles from Tiptap */
+.descriptionText mark {
+    color: #ffffff;
+    padding: 0.1em 0.2em;
+    border-radius: 2px;
+    /* Default background only if no inline style */
+    background-color: rgba(255, 255, 0, 0.3);
 }
 
 .translatorList {

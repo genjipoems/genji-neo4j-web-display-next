@@ -39,7 +39,7 @@ const AdministratorPage = () => {
         fetchBlogs();
         fetchChapters();
         fetchCharacters();
-    }, [isAuthenticated, isAdmin, isLoading, router]);
+    }, [isAuthenticated, isAdmin, isLoading, router,]);
 
     const fetchBlogs = async () => {
         try {
@@ -143,37 +143,32 @@ const AdministratorPage = () => {
         }
     };
 
-    const handleBlogUpdate = async (title, content, showOnPage) => {
+    const handleBlogUpdate = async (originalTitle, newTitle, content, showOnPage) => {
         try {
-            // Update blog content
+            // Update blog content, title, and showOnPage in one call
             const contentResponse = await fetch('/api/administrator/updateBlog', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ title, content }),
+                body: JSON.stringify({ originalTitle, newTitle, content, showOnPage }),
             });
+
+            const responseData = await contentResponse.json();
 
             if (!contentResponse.ok) {
-                throw new Error('Failed to update blog content');
+                // Extract detailed error message from response
+                const errorMessage = responseData.error || responseData.message || 'Failed to update blog';
+                throw new Error(errorMessage);
             }
 
-            // Update showOnPage property
-            const showOnPageResponse = await fetch('/api/administrator/updateBlogShowOnPage', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ title, showOnPage }),
-            });
+            // Refresh the blog list to update sidebar
+            await fetchBlogs();
 
-            if (!showOnPageResponse.ok) {
-                throw new Error('Failed to update blog showOnPage property');
-            }
-
-            // Update the selected blog content and showOnPage
+            // Update the selected blog with new title, content and showOnPage
             setSelectedBlog(prev => ({
                 ...prev,
+                title: newTitle,
                 content,
                 showOnPage
             }));
@@ -254,8 +249,12 @@ const AdministratorPage = () => {
                 body: JSON.stringify({ title, content, showOnPage }),
             });
 
+            const responseData = await response.json();
+
             if (!response.ok) {
-                throw new Error('Failed to create blog');
+                // Extract detailed error message from response
+                const errorMessage = responseData.error || responseData.message || 'Failed to create blog';
+                throw new Error(errorMessage);
             }
 
             // Refresh the blog list

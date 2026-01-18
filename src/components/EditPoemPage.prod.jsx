@@ -116,13 +116,14 @@ async function updatePoemData(pnum, updatedData) {
 
 // Order of fields to render - updated to match actual data structure
 const fieldOrder = [
-  "speaker", "addressee", "addressee2", "addressee3", "poemId", "age", "JPRM_Japanese", "JPRM_Romaji",
+  "speaker", "addressee", "addressee2", "addressee3", "otherRecipients", "unintendedRecipients", "groupParticipants", "poemId", 
+  "age", "JPRM_Japanese", "JPRM_Romaji",
   "Waley", "Seidensticker", "Tyler", "Washburn", "Cranston",
   "otherTranslations",
   "narrativeContext", "paraphrase", "notes", "paperMediumType", "deliveryStyle",
-  "season", "season_evidence", "spoken", "written", "complete", "spoken_or_written_evidence", 
-  "pt", "tag", "otherTags", "placeOfComp", "placeOfComp_evidence",
-  "placeOfReceipt", "placeOfReceipt_evidence",
+  "season", "seasonEvidence", "spoken", "written", "complete", "spokenOrWrittenEvidence", 
+  "pt", "tag", "otherTags", "placeOfComp", "placeOfCompEvidence",
+  "placeOfReceipt", "placeOfReceiptEvidence",
   "pw", "messenger", "replyPoems",
   "proxy", "kigo", "handwritingDescription", 
 ];
@@ -240,6 +241,9 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     const relatedWithEvidence = responseData[3];
                     const tags = responseData[4];
                     const pls = responseData[6];
+                    const otherRecipients = responseData[35] || [];
+                    const unintendedRecipients = responseData[36] || [];
+                    const groupParticipants = responseData[37] || [];
 
                     let speaker = [...new Set(exchange.map(e => e.start.properties.name))];
                     let addressee = [...new Set(exchange.map(e => e.end.properties.name))];
@@ -348,14 +352,17 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     placeOfReceipt: responseData[21],
                     spoken: responseData[22],
                     written: responseData[23],
-                    season_evidence: responseData[24],
-                    placeOfComp_evidence: responseData[25],
-                    placeOfReceipt_evidence: responseData[26],
+                    seasonEvidence: responseData[24],
+                    placeOfCompEvidence: responseData[25],
+                    placeOfReceiptEvidence: responseData[26],
                     groupPoems: responseData[27],
                     replyPoems: responseData[31],
                     furtherReadings: responseData[29],
-                    spoken_or_written_evidence: responseData[30],
+                    spokenOrWrittenEvidence: responseData[30],
                     complete: responseData[32],
+                    otherRecipients: [...otherRecipients],
+                    unintendedRecipients: [...unintendedRecipients],
+                    groupParticipants: [...groupParticipants],
                     otherTranslations: responseData[34] || []
                     };
 
@@ -409,6 +416,12 @@ export default function EditPoemPage({ chapter, poemNum }) {
                             } else {
                                 serialized[key] = JSON.stringify([]);
                             }
+                        } else if (key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
+                            if (Array.isArray(val)) {
+                                serialized[key] = val.join(", ");
+                            } else if (typeof(val) === "string") {
+                                serialized[key] = val;
+                            }
                         } else if (key === "otherTranslations") {
                             // Special handling for other translations - serialize as JSON
                             if (Array.isArray(val)) {
@@ -417,7 +430,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                                 serialized[key] = JSON.stringify([]);
                             }
                         } else if (typeof val === "object") {
-                            serialized[key] = JSON.stringify(val, null, 2);
+                            serialized[key] = JSON.stringify(val, null, 2);                       
                         } else {
                             serialized[key] = val.toString();
                         }
@@ -474,7 +487,26 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 }
                 // Skip individual addressee fields from result, we'll use the combined addressees array
                 continue;
-            } else if (key === "pt") {
+                } else if (key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
+                    // val is a string like "Kiritsubo Emperor, Fujitsubo"; if edited, becomes an array
+                    let arr;
+                    if (Array.isArray(val)) {
+                        arr = val.map(v => v.trim()).filter(Boolean);
+                    } else if (typeof val === "string") {
+                        arr = val.split(",").map(v => v.trim()).filter(Boolean);
+                    } else {
+                        arr = [];
+                    }
+
+                    if (key === "otherRecipients") {
+                    result.other_recipients = arr;
+                    } else if (key === "unintendedRecipients") {
+                    result.unintended_recipients = arr;
+                    } else if (key === "groupParticipants") {
+                    result.group_participants = arr;
+                    }
+                    continue;
+                } else if (key === "pt") {
                 // Special handling for poetic techniques - ensure it's properly parsed
                 try {
                     if (!val || val.trim() === "") {
@@ -576,6 +608,15 @@ export default function EditPoemPage({ chapter, poemNum }) {
 
             await updatePoemData(pnum, cleaned);
 
+            // update cache
+            const cacheKey = `poem_${chapter}_${poemNum}`;
+            const cacheTimeKey = `poem_${chapter}_${poemNum}_time`;
+
+            localStorage.removeItem(cacheKey);
+            localStorage.removeItem(cacheTimeKey);
+            // dispatch event to PoemQueryResults.prod.jsx to update the cache
+            window.dispatchEvent(new CustomEvent('updatePoemData', { detail: { chapter, number: poemNum } }));
+
             setPoemData({ ...editData });
             setShowPopup(false);
         } catch (e) {
@@ -610,20 +651,23 @@ export default function EditPoemPage({ chapter, poemNum }) {
             notes: "notes",
             paperMediumType: "paper_or_medium_type",
             deliveryStyle: "delivery_style",
-            season_evidence: "season_evidence",
-            spoken_or_written_evidence: "evidence_for_spoken_or_written",
+            seasonEvidence: "seasonEvidence",
+            spokenOrWrittenEvidence: "spokenOrWrittenEvidence",
             pt: "pt", // poetic techniques map directly
             tag: "tag", // poem types/tags map directly
             otherTags: "otherTags", // other tags have separate handling
             placeOfComp: "placeOfComp", // place of composition maps directly
             placeOfReceipt: "placeOfReceipt", // place of receipt maps directly
-            placeOfComp_evidence: "placeOfComp_evidence",
-            placeOfReceipt_evidence: "placeOfReceipt_evidence",
+            placeOfCompEvidence: "placeOfCompEvidence",
+            placeOfReceiptEvidence: "placeOfReceiptEvidence",
             messenger: "messenger", // messenger maps directly
             proxy: "proxy", // proxy maps directly
             replyPoems: "replyPoems", // reply poems map directly
             kigo: "kigo", // seasonal words/kigo map directly
             handwritingDescription: "handwriting_description", // handwriting description maps directly
+            otherRecipients: "other_recipients",
+            unintendedRecipients: "unintended_recipients",
+            groupParticipants: "group_participants",
             otherTranslations: "otherTranslations", // other translations map directly
         };
         const fieldToDelete = fieldMap[key] || key;
@@ -654,9 +698,12 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 updated[key] = JSON.stringify([]);
             } else if (key === "otherTranslations") {
                 updated[key] = JSON.stringify([]);
-            } else if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3") {
-                // For speaker and addressee fields, set to empty string
-                updated[key] = "";
+            } else if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
+                if ( key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
+                    updated[key] = [];
+                } else {
+                    updated[key] = "";
+                }
             } else if (key === "complete") {
                 // For complete field, set to empty string (same as speaker/addressee)
                 updated[key] = "";
@@ -688,6 +735,9 @@ export default function EditPoemPage({ chapter, poemNum }) {
         if (key === 'handwritingDescription') return 'Handwriting Description';
         if (key === 'addressee2') return 'Addressee 2';
         if (key === 'addressee3') return 'Addressee 3';
+        if (key === 'other_recipients') return 'Other Recipients';
+        if (key === 'unintended_recipients') return 'Unintended Recipients';
+        if (key === 'group_participants') return 'Group Participants';
         if (key === 'otherTranslations') return 'Other Translations';
         
         return key
@@ -711,6 +761,9 @@ export default function EditPoemPage({ chapter, poemNum }) {
             "addressee",
             "addressee2",
             "addressee3",
+            "otherRecipients",
+            "unintendedRecipients",
+            "groupParticipants",
             "poemId",
             "season",
             "age",
@@ -728,10 +781,31 @@ export default function EditPoemPage({ chapter, poemNum }) {
         const compactItems = compactFields.map((key) => {
             const isReadOnly = readOnlyFields.includes(key);
 
-            // For spoken and written, ensure value is either "true" or "false"
-            let inputValue = editData[key] ?? "";
+            // Convert to correct inputValue format BEFORE rendering
+        const rawValue = editData[key];
+        let inputValue;
 
+        // Multi-value fields (arrays)
+        if (
+            key === "otherRecipients" ||
+            key === "unintendedRecipients" ||
+            key === "groupParticipants"
+        ) {
+            if (Array.isArray(rawValue)) {
+                // Convert array -> string for input display
+                inputValue = rawValue.join(", ");
+            } else if (typeof rawValue === "string") {
+                inputValue = rawValue;
+            } else {
+                inputValue = "";
+            }
+        } else if (key === "spoken" || key === "written" || key === "complete") {
+            // For spoken, written, complete - ensure value is either "true" or "false"
             inputValue = editData[key] ?? "";
+        } else {
+            // Single-value fields
+            inputValue = rawValue ?? "";
+    }
 
             return (
             <div key={key} className="compact-field-container">
@@ -794,11 +868,11 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 <input
                     type="text"
                     className="compact-field-input"
-                    list={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" ? `${key}-characters-compact` : undefined}
+                    list={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants" ? `${key}-characters-compact` : undefined}
                     value={inputValue}
                     readOnly={isReadOnly}
                     style={isReadOnly ? { backgroundColor: "#f5f5f5" } : {}}
-                    placeholder={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" ? "Type or select character name" : undefined}
+                    placeholder={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants" ? "Type or select character name" : undefined}
                     onChange={(e) => {
                         if (isReadOnly) return;
 
@@ -813,11 +887,21 @@ export default function EditPoemPage({ chapter, poemNum }) {
                             newValue = newValue.charAt(0).toUpperCase() + newValue.slice(1).toLowerCase();
                         }
                         
-                        setEditData((prev) => ({ ...prev, [key]: newValue }));
+                        if (key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
+                            const arr = newValue
+                                .split(",")
+                                .map(v => v.trim())
+                                .filter(v => v.length > 0);
+                        
+                            setEditData(prev => ({ ...prev, [key]: arr }));
+                            
+                        } else {
+                            setEditData(prev => ({ ...prev, [key]: newValue }));
+                        }
                     }}
                 />
                 {/* Add datalist for character fields */}
-                {(key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3") && (
+                {(key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants" ) && (
                     <datalist id={`${key}-characters-compact`}>
                         {availableCharacters.map((character) => (
                             <option key={character} value={character} />

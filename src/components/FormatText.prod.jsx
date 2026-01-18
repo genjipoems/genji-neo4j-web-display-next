@@ -279,46 +279,64 @@ const FormatContent = ({ content, className }) => {
     }
 
     try {
-        // Split by single \n and keep empty strings to preserve multiple line breaks
-        const paragraphs = String(content)
-            .split('\\n')
-            .map(p => p.trim());
+        const contentStr = String(content);
+        
+        // Check if content is HTML (contains HTML tags)
+        // Simple check: if it contains < and > characters that form valid HTML tags
+        const isHTML = /<[a-z][\s\S]*>/i.test(contentStr);
+        
+        if (isHTML) {
+            // Render HTML content directly (from Tiptap editor)
+            const containerClassName = className || '';
+            return (
+                <div 
+                    className={containerClassName}
+                    dangerouslySetInnerHTML={{ __html: contentStr }}
+                />
+            );
+        } else {
+            // Legacy: Handle plain text/Markdown format
+            // Split by single \n and keep empty strings to preserve multiple line breaks
+            const paragraphs = contentStr
+                .split('\\n')
+                .map(p => p.trim());
 
-        const containerClassName = className ? `${className} space-y-4` : "space-y-4";
+            const containerClassName = className ? `${className} space-y-4` : "space-y-4";
 
-        // Group consecutive empty paragraphs to create multiple line breaks
-        const result = [];
-        let emptyCount = 0;
+            // Group consecutive empty paragraphs to create multiple line breaks
+            const result = [];
+            let emptyCount = 0;
 
-        for (let i = 0; i < paragraphs.length; i++) {
-            if (paragraphs[i] === '') {
-                emptyCount++;
-            } else {
-                // If we had empty lines before this paragraph, add appropriate breaks
-                if (emptyCount > 0) {
-                    for (let j = 0; j < emptyCount; j++) {
-                        result.push(<div key={`break-${i}-${j}`} style={{ height: '1em' }} />);
+            for (let i = 0; i < paragraphs.length; i++) {
+                if (paragraphs[i] === '') {
+                    emptyCount++;
+                } else {
+                    // If we had empty lines before this paragraph, add appropriate breaks
+                    if (emptyCount > 0) {
+                        for (let j = 0; j < emptyCount; j++) {
+                            result.push(<div key={`break-${i}-${j}`} style={{ height: '1em' }} />);
+                        }
+                        emptyCount = 0;
                     }
-                    emptyCount = 0;
+                    result.push(
+                        <FormatText key={i} text={paragraphs[i]} className={className} />
+                    );
                 }
-                result.push(
-                    <FormatText key={i} text={paragraphs[i]} className={className} />
-                );
             }
-        }
 
-        // Handle any remaining empty lines at the end
-        if (emptyCount > 0) {
-            for (let j = 0; j < emptyCount; j++) {
-                result.push(<div key={`break-end-${j}`} style={{ height: '1em' }} />);
+            // Handle any remaining empty lines at the end
+            if (emptyCount > 0) {
+                for (let j = 0; j < emptyCount; j++) {
+                    result.push(<div key={`break-end-${j}`} style={{ height: '1em' }} />);
+                }
             }
-        }
 
-        return (
-            <div className={containerClassName}>
-                {result}
-            </div>
-        );
+            return (
+                <div className={containerClassName}>
+                    {result}
+                </div>
+            );
+        }
     } catch (error) {
         console.error('Error formatting content:', error);
         return <div>Error formatting content</div>;
