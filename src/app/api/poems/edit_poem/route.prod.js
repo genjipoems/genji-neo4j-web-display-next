@@ -53,7 +53,15 @@ export async function DELETE(request) {
     }
 
     // **Sanitize field name** - expanded to include season, age and other allowed fields
-    const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "Complete", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description", "otherTranslations", "otherRecipients", "unintendedRecipients", "groupParticipants"];
+    const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "Complete", 
+                          "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", 
+                          "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", 
+                          "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", 
+                          "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description", "otherTranslations", 
+                          "otherRecipient1", "otherRecipient2", "otherRecipient3", "other_recipient_notes",
+                          "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3", "unintended_recipient_notes",
+                          "groupParticipant1", "groupParticipant2", "groupParticipant3", "group_participant_notes"];
+
     if (!allowedFields.includes(field)) {
       return new Response(JSON.stringify({ error: "Invalid field param" }), { status: 400 });
     }
@@ -86,7 +94,7 @@ export async function DELETE(request) {
     }
 
     // Handle other recipient deletion specially (remove OTHER_RECIPIENT_OF relationship)
-    else if (field === "otherRecipient") {
+    else if (field === "otherRecipient1" || field === "otherRecipient2" || field === "otherRecipient3") {
       const query = `
         MATCH (c:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
         DELETE r
@@ -100,7 +108,7 @@ export async function DELETE(request) {
     }
 
 // Handle unintended recipient deletion specially (remove UNINTENDED_RECIPIENT_OF relationship)
-else if (field === "unintendedRecipients") {
+else if (field === "unintendedRecipient1" || field === "unintendedRecipient2" || field === "unintendedRecipient3") {
   const query = `
     MATCH (c:Character)-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
     DELETE r
@@ -114,7 +122,7 @@ else if (field === "unintendedRecipients") {
 }
 
 // Handle group participant deletion specially (remove GROUP PARTICIPANT_OF relationship)
-else if (field === "groupParticipants") {
+else if (field === "groupParticipant1" || field === "groupParticipant2" || field === "groupParticipant3") {
   const query = `
     MATCH (c:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum: $pnum})
     DELETE r
@@ -377,7 +385,7 @@ else if (field === "groupParticipants") {
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} addressee relationships` }), { status: 200 });
     } 
 
-    else if (field === "otherRecipient") {
+    else if (field === "otherRecipients") {
       const query = `
         MATCH (c:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
         DELETE r
@@ -498,6 +506,9 @@ async function updatePoemProperties(pnum, data) {
       if (data.repCharacter !== undefined) props.representative_character = data.repCharacter || null;
       if (data.groupPoems !== undefined) props.group_poems = data.groupPoems || null;
       if (data.furtherReadings !== undefined) props.further_readings = data.furtherReadings || null;
+      if (data.other_recipient_notes !== undefined) props.other_recipient_notes = data.other_recipient_notes || null;
+      if (data.unintended_recipient_notes !== undefined) props.unintended_recipient_notes = data.unintended_recipient_notes || null;
+      if (data.group_participant_notes !== undefined) props.group_participant_notes = data.group_participant_notes || null;
 
       await tx.run(query, { pnum: pnum.toString(), props });
 
@@ -584,148 +595,134 @@ async function updatePoemProperties(pnum, data) {
       }
 
       // 1️⃣d Handle other recipient relationship
-      if (data.other_recipients !== undefined) {
+      if (data.otherRecipients !== undefined) {
         // First, remove any existing other recipient relationship
         await tx.run(`
           MATCH (c:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
           DELETE r
         `, { pnum: pnum.toString() });
 
-         // Normalize to an array of names
-        let otherRecipientNames = [];
-        if (Array.isArray(data.other_recipients)) {
-          otherRecipientNames = data.other_recipients
-            .map((n) => (n || "").trim())
-            .filter(Boolean);
-        } else if (typeof data.other_recipients === "string") {
-          otherRecipientNames = data.other_recipients
-            .split(",")
-            .map((n) => n.trim())
-            .filter(Boolean);
-        }
-
-        for (const otherRecipientName of otherRecipientNames) {
-          const checkQuery = `
-            MATCH (c:Character {name: $otherRecipientName})
-            RETURN c.name as name
-          `;
-          
-          const checkResult = await tx.run(checkQuery, { otherRecipientName });
-          
-          if (checkResult.records.length === 0) {
-            // Create the Character node if it doesn't exist
-            await tx.run(`
-              CREATE (c:Character {name: $otherRecipientName})
-            `, { otherRecipientName });
+      // Then, create new relationships for each other recipient
+      if (Array.isArray(data.otherRecipients)) {
+        for (const otherRecipientName of data.otherRecipients) {
+          if (otherRecipientName && otherRecipientName.trim()) {
+                          const cleanName = otherRecipientName.trim();
+              
+              // First check if Character node exists, create if it doesn't
+              const checkQuery = `
+                MATCH (c:Character {name: $otherRecipientName})
+                RETURN c.name as name
+              `;
+              
+              const checkResult = await tx.run(checkQuery, { otherRecipientName: cleanName });
+              
+              if (checkResult.records.length === 0) {
+                // Create the Character node if it doesn't exist
+                await tx.run(`
+                  CREATE (c:Character {name: $otherRecipientName})
+                `, { otherRecipientName: cleanName });
+              }
+              
+              // Create the relationship
+              await tx.run(`
+                MATCH (g:Genji_Poem {pnum: $pnum})
+                MATCH (c:Character {name: $otherRecipientName})
+                CREATE (c)-[r:OTHER_RECIPIENT_OF]->(g)
+              `, { 
+                pnum: pnum.toString(), 
+                otherRecipientName: cleanName
+              });
+            }
           }
-          
-          // Create the relationship
-          await tx.run(`
-            MATCH (g:Genji_Poem {pnum: $pnum})
-            MATCH (c:Character {name: $otherRecipientName})
-            CREATE (c)-[r:OTHER_RECIPIENT_OF]->(g)
-          `, { 
-            pnum: pnum.toString(), 
-            otherRecipientName: otherRecipientName
-          });
         }
       }
 
-       // 1️⃣e Handle unintended recipient relationship
-      if (data.unintended_recipients !== undefined) {
+      // 1️⃣e Handle unintended recipient relationship
+      if (data.unintendedRecipients !== undefined) {
         // First, remove any existing unintended recipient relationship
         await tx.run(`
           MATCH (c:Character)-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
           DELETE r
         `, { pnum: pnum.toString() });
 
-         // Normalize to an array of names
-        let unintendedRecipientNames = [];
-        if (Array.isArray(data.unintended_recipients)) {
-          unintendedRecipientNames = data.unintended_recipients
-            .map((n) => (n || "").trim())
-            .filter(Boolean);
-        } else if (typeof data.unintended_recipients === "string") {
-          unintendedRecipientNames = data.unintended_recipients
-            .split(",")
-            .map((n) => n.trim())
-            .filter(Boolean);
-        }
-
-        for (const unintendedRecipientName of unintendedRecipientNames) {
-          const checkQuery = `
-            MATCH (c:Character {name: $unintendedRecipientName})
-            RETURN c.name as name
-          `;
-          
-          const checkResult = await tx.run(checkQuery, { unintendedRecipientName });
-          
-          if (checkResult.records.length === 0) {
-            // Create the Character node if it doesn't exist
-            await tx.run(`
-              CREATE (c:Character {name: $unintendedRecipientName})
-            `, { unintendedRecipientName });
+        // Then, create new relationships for each unintended recipient
+        if (Array.isArray(data.unintendedRecipients)) {
+          for (const unintendedRecipientName of data.unintendedRecipients) {
+            if (unintendedRecipientName && unintendedRecipientName.trim()) {
+              const cleanName = unintendedRecipientName.trim();
+              
+              // First check if Character node exists, create if it doesn't
+              const checkQuery = `
+                MATCH (c:Character {name: $unintendedRecipientName})
+                RETURN c.name as name
+              `;
+              
+              const checkResult = await tx.run(checkQuery, { unintendedRecipientName: cleanName });
+              
+              if (checkResult.records.length === 0) {
+                // Create the Character node if it doesn't exist
+                await tx.run(`
+                  CREATE (c:Character {name: $unintendedRecipientName})
+                `, { unintendedRecipientName: cleanName });
+              }
+              
+              // Create the relationship
+              await tx.run(`
+                MATCH (g:Genji_Poem {pnum: $pnum})
+                MATCH (c:Character {name: $unintendedRecipientName})
+                CREATE (c)-[r:UNINTENDED_RECIPIENT_OF]->(g)
+              `, { 
+                pnum: pnum.toString(), 
+                unintendedRecipientName: cleanName
+              });
+            }
           }
-          
-          // Create the relationship
-          await tx.run(`
-            MATCH (g:Genji_Poem {pnum: $pnum})
-            MATCH (c:Character {name: $unintendedRecipientName})
-            CREATE (c)-[r:UNINTENDED_RECIPIENT_OF]->(g)
-          `, { 
-            pnum: pnum.toString(), 
-            unintendedRecipientName: unintendedRecipientName
-          });
         }
       }
 
-         // 1️⃣f Handle group participant relationship
-      if (data.group_participants !== undefined) {
+      // 1️⃣f Handle group participant relationship
+      if (data.groupParticipants !== undefined) {
         // First, remove any existing group participant relationship
         await tx.run(`
           MATCH (c:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum: $pnum})
           DELETE r
         `, { pnum: pnum.toString() });
 
-         // Normalize to an array of names
-        let groupParticipantNames = [];
-        if (Array.isArray(data.group_participants)) {
-          groupParticipantNames = data.group_participants
-            .map((n) => (n || "").trim())
-            .filter(Boolean);
-        } else if (typeof data.group_participants === "string") {
-          groupParticipantNames = data.group_participants
-            .split(",")
-            .map((n) => n.trim())
-            .filter(Boolean);
-        }
-
-        for (const groupParticipantName of groupParticipantNames) {
-          const checkQuery = `
-            MATCH (c:Character {name: $groupParticipantName})
-            RETURN c.name as name
-          `;
-          
-          const checkResult = await tx.run(checkQuery, { groupParticipantName });
-          
-          if (checkResult.records.length === 0) {
-            // Create the Character node if it doesn't exist
-            await tx.run(`
-              CREATE (c:Character {name: $groupParticipantName})
-            `, { groupParticipantName });
+          // Then, create new relationships for each group participant
+          if (Array.isArray(data.groupParticipants)) {
+          for (const groupParticipantName of data.groupParticipants) {
+            if (groupParticipantName && groupParticipantName.trim()) {
+              const cleanName = groupParticipantName.trim();
+              
+              // First check if Character node exists, create if it doesn't
+              const checkQuery = `
+                MATCH (c:Character {name: $groupParticipantName})
+                RETURN c.name as name
+              `;
+              
+              const checkResult = await tx.run(checkQuery, { groupParticipantName: cleanName });
+              
+              if (checkResult.records.length === 0) {
+                // Create the Character node if it doesn't exist
+                await tx.run(`
+                  CREATE (c:Character {name: $groupParticipantName})
+                `, { groupParticipantName: cleanName });
+              }
+              
+              // Create the relationship
+              await tx.run(`
+                MATCH (g:Genji_Poem {pnum: $pnum})
+                MATCH (c:Character {name: $groupParticipantName})
+                CREATE (c)-[r:GROUP_PARTICIPANT_OF]->(g)
+              `, { 
+                pnum: pnum.toString(), 
+                groupParticipantName: cleanName
+              });
+            }
           }
-          
-          // Create the relationship
-          await tx.run(`
-            MATCH (g:Genji_Poem {pnum: $pnum})
-            MATCH (c:Character {name: $groupParticipantName})
-            CREATE (c)-[r:GROUP_PARTICIPANT_OF]->(g)
-          `, { 
-            pnum: pnum.toString(), 
-            groupParticipantName: groupParticipantName
-          });
         }
       }
+
       // 2️⃣ Handle season relationship
       if (data.season !== undefined) {
         // First, remove any existing season relationship
