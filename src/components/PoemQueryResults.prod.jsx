@@ -345,7 +345,10 @@ const PoemDisplay = ({ poemData }) => {
                     otherTranslations: responseData[34] || [],
                     otherRecipients: [...otherRecipients],
                     unintendedRecipients: [...unintendedRecipients],
-                    groupParticipants: [...groupParticipants]
+                    groupParticipants: [...groupParticipants],
+                    otherRecipientNotes: responseData[38],
+                    unintendedRecipientNotes: responseData[39],
+                    groupParticipantNotes: responseData[40]
                 };
                 
                 setPoemState(prev => ({...prev, ...newPoemState}));
@@ -763,6 +766,13 @@ const PoemDisplay = ({ poemData }) => {
                                     </div>
                                 )}
 
+                                {poemState.otherRecipientNotes && (
+                                    <div className={styles.detailItem}>
+                                        <h3>OTHER RECIPIENT NOTES</h3>
+                                        {poemState.otherRecipientNotes && <FormatContent content={poemState.otherRecipientNotes} />}
+                                    </div>
+                                )}
+
                                 {Array.isArray(poemState.unintendedRecipients) && poemState.unintendedRecipients.length > 0 && (
                                     <div className={styles.detailItem}>
                                         <h3>UNINTENDED RECIPIENTS</h3>
@@ -771,6 +781,13 @@ const PoemDisplay = ({ poemData }) => {
                                                 <FormatContent content={recipient} />
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+
+                                {poemState.unintendedRecipientNotes && (
+                                    <div className={styles.detailItem}>
+                                        <h3>UNINTENDED RECIPIENT NOTES</h3>
+                                        {poemState.unintendedRecipientNotes && <FormatContent content={poemState.unintendedRecipientNotes} />}
                                     </div>
                                 )}
 
@@ -784,8 +801,14 @@ const PoemDisplay = ({ poemData }) => {
                                         ))}
                                     </div>
                                 )}
+
+                                {poemState.groupParticipantNotes && (
+                                    <div className={styles.detailItem}>
+                                        <h3>GROUP PARTICIPANT NOTES</h3>
+                                        {poemState.groupParticipantNotes && <FormatContent content={poemState.groupParticipantNotes} />}
+                                    </div>
+                                )}
                                     
-                                
                                 {poemState.paperMediumType && (
                                     <div className={styles.detailItem}>
                                         <h3>PAPER/MEDIUM</h3>

@@ -9,7 +9,7 @@ async function getData (chapter, number){
 	//all the get method and return the db data
 	const queries = {
 
-		res: 'MATCH poem=(g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH "' + number + '" OPTIONAL MATCH speaker_rel=(s:Character)-[:SPEAKER_OF]->(g) OPTIONAL MATCH addressee_rel=(g)<-[:ADDRESSEE_OF]-(a:Character) OPTIONAL MATCH trans=(g)-[:TRANSLATION_OF]-(:Translation)-[:TRANSLATOR_OF]-(:People) OPTIONAL MATCH other_recipients=(otherChar:Character)-[:OTHER_RECIPIENT_OF]->(g) OPTIONAL MATCH unintended_recipients=(unintendedChar:Character)-[:UNINTENDED_RECIPIENT_OF]->(g) OPTIONAL MATCH group_participants=(groupChar:Character)-[:GROUP_PARTICIPANT_OF]->(g) RETURN poem, speaker_rel, addressee_rel, trans, other_recipients, unintended_recipients, group_participants, g.narrative_context as narrative_context, g.paraphrase as paraphrase, g.handwriting_description as handwriting_description, g.paper_or_medium_type as paper_or_medium_type, g.delivery_style as delivery_style, g.Spoken as spoken, g.Written as written, g.evidence_for_spoken_or_written as spoken_or_written_evidence, g.Complete as complete, g.last_updated as last_updated',
+		res: 'MATCH poem=(g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH "' + number + '" OPTIONAL MATCH speaker_rel=(s:Character)-[:SPEAKER_OF]->(g) OPTIONAL MATCH addressee_rel=(g)<-[:ADDRESSEE_OF]-(a:Character) OPTIONAL MATCH trans=(g)-[:TRANSLATION_OF]-(:Translation)-[:TRANSLATOR_OF]-(:People) OPTIONAL MATCH other_recipients=(otherChar:Character)-[:OTHER_RECIPIENT_OF]->(g) OPTIONAL MATCH unintended_recipients=(unintendedChar:Character)-[:UNINTENDED_RECIPIENT_OF]->(g) OPTIONAL MATCH group_participants=(groupChar:Character)-[:GROUP_PARTICIPANT_OF]->(g) RETURN poem, speaker_rel, addressee_rel, trans, other_recipients, unintended_recipients, group_participants, g.narrative_context as narrative_context, g.paraphrase as paraphrase, g.handwriting_description as handwriting_description, g.paper_or_medium_type as paper_or_medium_type, g.delivery_style as delivery_style, g.Spoken as spoken, g.Written as written, g.evidence_for_spoken_or_written as spoken_or_written_evidence, g.Complete as complete, g.last_updated as last_updated, g.other_recipient_notes as other_recipient_notes, g.unintended_recipient_notes as unintended_recipient_notes, g.group_participant_notes as group_participant_notes',
 		resHonkaInfo:  'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[n:ALLUDES_TO]->(h:Honka)-[r:ANTHOLOGIZED_IN]-(s:Source), (h)<-[:AUTHOR_OF]-(a:People), (h)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(p:People) where g.pnum ends with "' + number + '" return h.Honka as honka, h.Romaji as romaji, s.title as title, a.name as poet, r.order as order, p.name as translator, t.translation as translation, n.notes as notes',
 		resRel : 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[r:INTERNAL_ALLUSION_TO]->(s:Genji_Poem) where g.pnum ends with "' + number + '" return s.pnum as rel, r.evidence as internal_allusion_evidence',
 		resPnum : 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(c:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH (CASE WHEN "' + number + '" < 10 THEN \'0\' + toString("' + number + '") ELSE toString($number) END) RETURN g.pnum as pnum',
@@ -149,7 +149,9 @@ exchange = Array.from(exchangeByKey.values());
 		const unintendedRecipientList = Array.from(unintendedRecipientNames);
 		const groupParticipantList = Array.from(groupParticipantNames);
 
-
+		const other_recipient_notes = result['res'].records[0]?.get('other_recipient_notes') ?? null;
+		const unintended_recipient_notes = result['res'].records[0]?.get('unintended_recipient_notes') ?? null;
+		const group_participant_notes = result['res'].records[0]?.get('group_participant_notes') ?? null;
 		
 		let narrative_context = result['res'].records[0]?.get('narrative_context') || null;
 		let	paraphrase = result['res'].records[0]?.get('paraphrase') || null;
@@ -368,7 +370,10 @@ exchange = Array.from(exchangeByKey.values());
 						otherTranslations,
 						otherRecipientList,
 						unintendedRecipientList,
-						groupParticipantList
+						groupParticipantList,
+						other_recipient_notes,
+						unintended_recipient_notes,
+						group_participant_notes
 					];
 
 		return (data);
