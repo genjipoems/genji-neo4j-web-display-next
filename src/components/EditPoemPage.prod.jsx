@@ -36,14 +36,14 @@ function cleanProps(input) {
   let otherTags = [];
 
   const notesFields = new Set([
-    "other_recipient_notes",
-    "unintended_recipient_notes",
-    "group_participant_notes",
     "handwritingDescription",
     "notes",
     "narrativeContext",
     "paraphrase",
-    "spoken_or_written_evidence"
+    "spoken_or_written_evidence",
+    "other_recipient_evidence",
+    "unintended_recipient_evidence",
+    "group_participant_evidence",
   ]);
   
   
@@ -139,11 +139,13 @@ async function updatePoemData(pnum, updatedData) {
 
 // Order of fields to render - updated to match actual data structure
 const fieldOrder = [
-  "speaker", "addressee", "addressee2", "addressee3", "otherRecipient1", "otherRecipient2", "otherRecipient3",
-  "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3", "groupParticipant1", "groupParticipant2", "groupParticipant3",
+  "speaker", "addressee", "addressee2", "addressee3", 
+  "otherRecipient1", "otherRecipient2", "otherRecipient3",
+  "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3",
+  "groupParticipant1", "groupParticipant2", "groupParticipant3",
   "poemId", "age", "JPRM_Japanese", "JPRM_Romaji",
   "Waley", "Seidensticker", "Tyler", "Washburn", "Cranston",
-  "otherRecipientNotes", "unintendedRecipientNotes", "groupParticipantNotes", 
+  "otherRecipientEvidence", "unintendedRecipientEvidence", "groupParticipantEvidence", 
   "otherTranslations", "narrativeContext", "paraphrase", "notes", "paperMediumType", "deliveryStyle",
   "season", "seasonEvidence", "spoken", "written", "complete", "spokenOrWrittenEvidence", 
   "pt", "tag", "otherTags", "placeOfComp", "placeOfCompEvidence",
@@ -253,7 +255,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 });
         }
     }, [showPopup, availableOtherTranslations.length]);
-
+      
     useEffect(() => {
         if (showPopup && !poemData) {
             setLoading(true);
@@ -268,6 +270,9 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     const otherRecipients = responseData[35] || [];
                     const unintendedRecipients = responseData[36] || [];
                     const groupParticipants = responseData[37] || [];
+                    const otherRecipientData = responseData[38] || [];
+                    const unintendedRecipientData = responseData[39] || [];
+                    const groupParticipantData = responseData[40] || []
 
                     let speaker = [...new Set(exchange.map(e => e.start.properties.name))];
                     let addressee = [...new Set(exchange.map(e => e.end.properties.name))];
@@ -340,6 +345,25 @@ export default function EditPoemPage({ chapter, poemNum }) {
                         });
                     }
 
+                    function collapseToGlobalEvidence(arr) {
+                        if (!Array.isArray(arr) || arr.length === 0) return "";
+                    
+                        // collect unique non-empty evidence strings
+                        const uniq = Array.from(
+                            new Set(
+                            arr
+                                .map(x => (x?.evidence ?? "").toString().trim())
+                                .filter(Boolean)
+                            )
+                        );
+                    
+                        if (uniq.length === 0) return "";
+                        if (uniq.length === 1) return uniq[0];
+                    
+                        // if somehow edges diverged, show them all (or pick first)
+                        return uniq.join("\n\n---\n\n");
+                    }                    
+
                     // Build state with translators as separate fields
                     const newPoemState = {
                     speaker: speaker[0] || "", // Take first speaker
@@ -387,15 +411,15 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     otherRecipient1: otherRecipients[0] || "",
                     otherRecipient2: otherRecipients[1] || "",
                     otherRecipient3: otherRecipients[2] || "",
-                    otherRecipientNotes: responseData[38],
+                    otherRecipientEvidence: collapseToGlobalEvidence(otherRecipientData),
                     unintendedRecipient1: unintendedRecipients[0] || "",
                     unintendedRecipient2: unintendedRecipients[1] || "",
                     unintendedRecipient3: unintendedRecipients[2] || "",
-                    unintendedRecipientNotes: responseData[39],
+                    unintendedRecipientEvidence: collapseToGlobalEvidence(unintendedRecipientData),
                     groupParticipant1: groupParticipants[0] || "",
                     groupParticipant2: groupParticipants[1] || "",
                     groupParticipant3: groupParticipants[2] || "",
-                    groupParticipantNotes: responseData[40],
+                    groupParticipantEvidence: collapseToGlobalEvidence(groupParticipantData),
                     otherTranslations: responseData[34] || []
                     };
 
@@ -522,41 +546,33 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 
                 // Skip individual addressee fields from result, we'll use the combined addressees array
                 continue;
-                } else if (key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3") {
-                    // Handle otherRecipient fields - collect them into an array for backend
-                    if (val && val.trim()) 
-                        result.otherRecipients.push(val.trim());
-                    
-                    // Skip individual otherRecipient fields from result, we'll use the combined otherRecipient array
-                    continue;
+            
+            } else if (key.startsWith("otherRecipient") && !key.includes("Evidence")) {
+                if (val && val.trim()) result.otherRecipients.push(val.trim());    
+                continue;
 
-                } else if (key === "otherRecipientNotes") {
-                    result.other_recipient_notes = (val && val.trim()) ? val : null;
-                    continue;
-                } else if (key === "unintendedRecipientNotes") {
-                    result.unintended_recipient_notes = (val && val.trim()) ? val : null;
-                    continue;
-                } else if (key === "groupParticipantNotes") {
-                    result.group_participant_notes = (val && val.trim()) ? val : null;
-                    continue;
-                } else if (key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3") {
-                    // Handle unintendedRecipient fields - collect them into an array for backend
-                    if (val && val.trim()) 
-                        result.unintendedRecipients.push(val.trim());
-                    
-                    // Skip individual unintendedRecipient fields from result, we'll use the combined unintendedRecipient array
-                    continue;
+            } else if (key === "otherRecipientEvidence") {
+                result.other_recipient_evidence = (val && val.trim()) ? val : null;
+                continue;
 
-                } else if (key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3") {
-                    // Handle groupParticipant fields - collect them into an array for backend
-                    
-                    if (val && val.trim()) 
-                        result.groupParticipants.push(val.trim());
-                    
-                    // Skip individual groupParticipant fields from result, we'll use the combined groupParticipant array
-                    continue;
-                } else if (key === "pt") {
-                // Special handling for poetic techniques - ensure it's properly parsed
+            } else if (key.startsWith("unintendedRecipient") && !key.includes("Evidence")) {
+                if (val && val.trim()) result.unintendedRecipients.push(val.trim());
+                continue;
+            
+            } else if (key === "unintendedRecipientEvidence") {
+                result.unintended_recipient_evidence = (val && val.trim()) ? val : null;
+                continue
+            
+            } else if (key.startsWith("groupParticipant") && !key.includes("Evidence")) {
+                if (val && val.trim()) result.groupParticipants.push(val.trim());
+                continue;
+            
+            } else if (key === "groupParticipantEvidence") {
+                result.group_participant_evidence = (val && val.trim()) ? val : null;
+                continue
+            
+            } else if (key === "pt") {
+            // Special handling for poetic techniques - ensure it's properly parsed
                 try {
                     if (!val || val.trim() === "") {
                         result[key] = [];
@@ -634,6 +650,18 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 result[key] = val;
             }
             }
+        }
+
+        if (!result.groupParticipants || result.groupParticipants.length === 0) {
+            result.group_participant_evidence = null; // forces clear in DB
+        }
+        
+        if (!result.otherRecipients || result.otherRecipients.length === 0) {
+            result.other_recipient_evidence = null;
+        }
+        
+        if (!result.unintendedRecipients || result.unintendedRecipients.length === 0) {
+            result.unintended_recipient_evidence = null;
         }
 
         return result;
@@ -717,15 +745,15 @@ export default function EditPoemPage({ chapter, poemNum }) {
             otherRecipient1: "otherRecipient1",
             otherRecipient2: "otherRecipient2",
             otherRecipient3: "otherRecipient3",
-            otherRecipientNotes: "other_recipient_notes",
+            otherRecipientEvidence: "other_recipient_evidence",
             unintendedRecipient1: "unintendedRecipient1",
             unintendedRecipient2: "unintendedRecipient2",
             unintendedRecipient3: "unintendedRecipient3",
-            unintendedRecipientNotes: "unintended_recipient_notes",
+            unintendedRecipientEvidence: "unintended_recipient_evidence",
             groupParticipant1: "groupParticipant1",
             groupParticipant2: "groupParticipant2",
             groupParticipant3: "groupParticipant3",
-            groupParticipantNotes: "group_participant_notes",
+            groupParticipantEvidence: "group_participant_evidence",
             otherTranslations: "otherTranslations", // other translations map directly
         };
         const fieldToDelete = fieldMap[key] || key;
@@ -792,15 +820,15 @@ export default function EditPoemPage({ chapter, poemNum }) {
         if (key === 'otherRecipient1') return 'Other Recipient 1';
         if (key === 'otherRecipient2') return 'Other Recipient 2';
         if (key === 'otherRecipient3') return 'Other Recipient 3';
-        if (key === 'otherRecipientNotes') return 'Other Recipient Notes';
+        if (key === 'otherRecipientEvidence') return 'Other Recipient Evidence';
         if (key === 'unintendedRecipient1') return 'Unintended Recipient 1';
         if (key === 'unintendedRecipient2') return 'Unintended Recipient 2';
         if (key === 'unintendedRecipient3') return 'Unintended Recipient 3';
-        if (key === 'unintendedRecipientNotes') return 'Unintended Recipient Notes';
+        if (key === 'unintendedRecipientEvidence') return 'Unintended Recipient Evidence';
         if (key === 'groupParticipant1') return 'Group Participant 1';
         if (key === 'groupParticipant2') return 'Group Participant 2';
         if (key === 'groupParticipant3') return 'Group Participant 3';
-        if (key === 'groupParticipantNotes') return 'Group Participant Notes';
+        if (key === 'groupParticipantEvidence') return 'Group Participant Evidence';
         if (key === 'otherTranslations') return 'Other Translations';
         
         return key
