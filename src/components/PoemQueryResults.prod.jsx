@@ -122,7 +122,12 @@ const PoemDisplay = ({ poemData }) => {
         otherTranslations: [],
         otherRecipients: [],
         unintendedRecipients: [],
-        groupParticipants: []
+        groupParticipants: [],
+        otherRecipientData: [],
+        unintendedRecipientData: [],
+        groupParticipantData: [],
+
+        userNotes: ""
     });
 
     const chapter = poemData.chapterNum;
@@ -153,6 +158,7 @@ const PoemDisplay = ({ poemData }) => {
         context: false,
         commentary: false,
         details: false,
+        userNotes: false,
         discussion: false
       });
       
@@ -201,7 +207,6 @@ const PoemDisplay = ({ poemData }) => {
                     localStorage.removeItem(cacheTimeKey);
                 }
 
-                
                 const response = await fetch(`/api/poems?chapter=${chapter}&&number=${numStr}`);
                 if (response.status !== 200) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -293,13 +298,11 @@ const PoemDisplay = ({ poemData }) => {
                 }
             });
 
-                
                 // set peom id
                 let poemId = null;
                 if (pls && pls[0]) {
                     poemId = Object.values(pls[0])[0] || null;
                 }
-                
 
                 const newPoemState = {
                     speaker: speaker,
@@ -346,9 +349,11 @@ const PoemDisplay = ({ poemData }) => {
                     otherRecipients: [...otherRecipients],
                     unintendedRecipients: [...unintendedRecipients],
                     groupParticipants: [...groupParticipants],
-                    otherRecipientNotes: responseData[38],
-                    unintendedRecipientNotes: responseData[39],
-                    groupParticipantNotes: responseData[40]
+                    otherRecipientData: Array.isArray(responseData[38]) ? responseData[38] : [],
+                    unintendedRecipientData: Array.isArray(responseData[39]) ? responseData[39] : [],
+                    groupParticipantData: Array.isArray(responseData[40]) ? responseData[40] : [],
+                    
+                    userNotes: exchange[0]?.segments[0]?.end?.properties?.userNotes
                 };
                 
                 setPoemState(prev => ({...prev, ...newPoemState}));
@@ -445,6 +450,7 @@ const PoemDisplay = ({ poemData }) => {
     const hasContext = !!poemState.narrativeContext;
     const hasSummary = !!poemState.paraphrase;
     const hasCommentary = !!poemState.notes;
+    const hasUserNotes = !!poemState.userNotes;
     const hasDetails = Boolean(
     poemState.paperMediumType ||
     poemState.deliveryStyle ||
@@ -755,58 +761,85 @@ const PoemDisplay = ({ poemData }) => {
                                 </div>
                                 <div className={`${styles.panelContent} ${expandedPanels.details ? styles.expanded : styles.collapsed}`}>
 
+                                {/* Other Recipients */}
                                 {Array.isArray(poemState.otherRecipients) && poemState.otherRecipients.length > 0 && (
-                                    <div className={styles.detailItem}>
-                                        <h3>OTHER RECIPIENTS</h3>
-                                        {poemState.otherRecipients.map((recipient, index) => (
-                                            <div key={index} className={styles.recipientItem}>
-                                                <FormatContent content={recipient} />
-                                            </div>
-                                        ))}
-                                    </div>
+                                <div className={styles.detailItem}>
+                                    <h3>OTHER RECIPIENTS</h3>
+
+                                    {(() => {
+                                    // display string: "Yugao, Genji"
+                                    const recipientsText = poemState.otherRecipients
+                                        .map((r) => (typeof r === "string" ? r.trim() : ""))
+                                        .filter(Boolean)
+                                        .join(", ");
+
+                                    // single evidence value (assumes same on each edge)
+                                    // pick the first non-empty evidence you find among recipient edges
+                                    const sharedEvidence =
+                                        (poemState.otherRecipientData ?? []).find((item) => item?.evidence?.trim())?.evidence ??
+                                        "";
+
+                                    return (
+                                        <div className={styles.recipientItem}>
+                                        <div className={styles.withEvidence}>
+                                            <EvidenceDropdown content={recipientsText} evidence={sharedEvidence} />
+                                        </div>
+                                        </div>
+                                    );
+                                    })()}
+                                </div>
                                 )}
 
-                                {poemState.otherRecipientNotes && (
-                                    <div className={styles.detailItem}>
-                                        <h3>OTHER RECIPIENT NOTES</h3>
-                                        {poemState.otherRecipientNotes && <FormatContent content={poemState.otherRecipientNotes} />}
-                                    </div>
-                                )}
-
+                                {/* Unintended Recipients */}
                                 {Array.isArray(poemState.unintendedRecipients) && poemState.unintendedRecipients.length > 0 && (
-                                    <div className={styles.detailItem}>
-                                        <h3>UNINTENDED RECIPIENTS</h3>
-                                        {poemState.unintendedRecipients.map((recipient, index) => (
-                                            <div key={index} className={styles.recipientItem}>
-                                                <FormatContent content={recipient} />
-                                            </div>
-                                        ))}
-                                    </div>
+                                <div className={styles.detailItem}>
+                                    <h3>UNINTENDED RECIPIENTS</h3>
+
+                                    {(() => {
+                                    const recipientsText = poemState.unintendedRecipients
+                                        .map((r) => (typeof r === "string" ? r.trim() : ""))
+                                        .filter(Boolean)
+                                        .join(", ");
+
+                                    const sharedEvidence =
+                                        (poemState.unintendedRecipientData ?? []).find((item) => item?.evidence?.trim())?.evidence ??
+                                        "";
+
+                                    return (
+                                        <div className={styles.recipientItem}>
+                                        <div className={styles.withEvidence}>
+                                            <EvidenceDropdown content={recipientsText} evidence={sharedEvidence} />
+                                        </div>
+                                        </div>
+                                    );
+                                    })()}
+                                </div>
                                 )}
 
-                                {poemState.unintendedRecipientNotes && (
-                                    <div className={styles.detailItem}>
-                                        <h3>UNINTENDED RECIPIENT NOTES</h3>
-                                        {poemState.unintendedRecipientNotes && <FormatContent content={poemState.unintendedRecipientNotes} />}
-                                    </div>
-                                )}
-
+                                {/* Group Participants */}
                                 {Array.isArray(poemState.groupParticipants) && poemState.groupParticipants.length > 0 && (
-                                    <div className={styles.detailItem}>
-                                        <h3>GROUP PARTICIPANTS</h3>
-                                        {poemState.groupParticipants.map((participant, index) => (
-                                            <div key={index} className={styles.recipientItem}>
-                                                <FormatContent content={participant} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                <div className={styles.detailItem}>
+                                    <h3>GROUP PARTICIPANTS</h3>
 
-                                {poemState.groupParticipantNotes && (
-                                    <div className={styles.detailItem}>
-                                        <h3>GROUP PARTICIPANT NOTES</h3>
-                                        {poemState.groupParticipantNotes && <FormatContent content={poemState.groupParticipantNotes} />}
-                                    </div>
+                                    {(() => {
+                                    const recipientsText = poemState.groupParticipants
+                                        .map((r) => (typeof r === "string" ? r.trim() : ""))
+                                        .filter(Boolean)
+                                        .join(", ");
+
+                                    const sharedEvidence =
+                                        (poemState.groupParticipantData ?? []).find((item) => item?.evidence?.trim())?.evidence ??
+                                        "";
+
+                                    return (
+                                        <div className={styles.recipientItem}>
+                                        <div className={styles.withEvidence}>
+                                            <EvidenceDropdown content={recipientsText} evidence={sharedEvidence} />
+                                        </div>
+                                        </div>
+                                    );
+                                    })()}
+                                </div>
                                 )}
                                     
                                 {poemState.paperMediumType && (
@@ -1088,7 +1121,18 @@ const PoemDisplay = ({ poemData }) => {
                                 </div>
                             </div>
 
-
+                            {/* User Notes Panel */}
+                            <div className={styles.analysisPanel}>
+                                <div className={`${styles.panelHeader} ${!hasUserNotes ? styles.panelHeaderEmpty : ''}`} onClick={() => togglePanel('user notes')}>
+                                    <h2>USER NOTES</h2>
+                                    <div className={`${styles.toggleArrow} ${expandedPanels.userNotes ? styles.arrowExpanded : styles.arrowCollapsed}`}>
+                                        ▼
+                                    </div>
+                                </div>
+                                <div className={`${styles.panelContent} ${expandedPanels.userNotes ? styles.expanded : styles.collapsed}`}>
+                                    {poemState.userNotes && <FormatContent content={poemState.userNotes} />}
+                                </div>
+                            </div>
 
                             {/* Discussion Panel */}
                             <div className={styles.analysisPanel}>

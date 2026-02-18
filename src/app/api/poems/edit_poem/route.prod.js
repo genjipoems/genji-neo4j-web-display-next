@@ -6,6 +6,7 @@ export async function PUT(request) {
   try {
     // Check if user is admin before allowing poem edits
     const { isAdmin } = await checkServerSideAdmin();
+
     if (!isAdmin) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized. Admin access required to edit poems.' }), 
@@ -58,9 +59,9 @@ export async function DELETE(request) {
                           "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", 
                           "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", 
                           "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description", "otherTranslations", 
-                          "otherRecipient1", "otherRecipient2", "otherRecipient3", "other_recipient_notes",
-                          "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3", "unintended_recipient_notes",
-                          "groupParticipant1", "groupParticipant2", "groupParticipant3", "group_participant_notes"];
+                          "otherRecipient1", "otherRecipient2", "otherRecipient3","otherRecipients", "other_recipient_evidence",
+                          "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3", "unintendedRecipients", "unintended_recipient_evidence",
+                          "groupParticipant1", "groupParticipant2", "groupParticipant3", "groupParticipants", "group_participant_evidence"];
 
     if (!allowedFields.includes(field)) {
       return new Response(JSON.stringify({ error: "Invalid field param" }), { status: 400 });
@@ -107,6 +108,14 @@ export async function DELETE(request) {
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} other recipient relationships` }), { status: 200 });
     }
 
+    else if (field === "other_recipient_evidence") {
+      await session.run(`
+        MATCH (:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum:$pnum})
+        REMOVE r.evidence
+      `, { pnum });
+      return new Response(JSON.stringify({ message: "Cleared OTHER_RECIPIENT evidence" }), { status: 200 });
+    }
+
 // Handle unintended recipient deletion specially (remove UNINTENDED_RECIPIENT_OF relationship)
 else if (field === "unintendedRecipient1" || field === "unintendedRecipient2" || field === "unintendedRecipient3") {
   const query = `
@@ -119,6 +128,15 @@ else if (field === "unintendedRecipient1" || field === "unintendedRecipient2" ||
   
   const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
   return new Response(JSON.stringify({ message: `Deleted ${deletedCount} unintended recipient relationships` }), { status: 200 });
+}
+
+
+else if (field === "unintended_recipient_evidence") {
+  await session.run(`
+    MATCH (:Character)-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum:$pnum})
+    REMOVE r.evidence
+  `, { pnum });
+  return new Response(JSON.stringify({ message: "Cleared UNINTENDED_RECIPIENT evidence" }), { status: 200 });
 }
 
 // Handle group participant deletion specially (remove GROUP PARTICIPANT_OF relationship)
@@ -134,6 +152,16 @@ else if (field === "groupParticipant1" || field === "groupParticipant2" || field
   const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
   return new Response(JSON.stringify({ message: `Deleted ${deletedCount} group participant relationships` }), { status: 200 });
 }
+
+
+else if (field === "group_participant_evidence") {
+  await session.run(`
+    MATCH (:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum:$pnum})
+    REMOVE r.evidence
+  `, { pnum });
+  return new Response(JSON.stringify({ message: "Cleared GROUP_PARTICIPANT evidence" }), { status: 200 });
+}
+
     // Handle age deletion specially (remove AT_GENJI_AGE_OF relationship)
     else if (field === "age") {
       const query = `
@@ -475,6 +503,47 @@ async function updatePoemProperties(pnum, data) {
 
   const validSeasons = ["Spring", "Summer", "Autumn", "Winter"];
 
+  // Normalize input into [{ name, evidence }] format
+  function normalizeNameEvidenceArray(input) {
+    if (!Array.isArray(input)) return [];
+    return input
+      .map((x) => {
+        if (typeof x === "string") {
+          const name = x.trim();
+          return name ? { name, evidence: null } : null;
+        }
+        if (x && typeof x === "object") {
+          const name = (x.name ?? "").toString().trim();
+          const evidence = (x.evidence ?? "").toString().trim() || null;
+          return name ? { name, evidence } : null;
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+  
+  // --- Helper 2: The Core Logic for Upserting Relationships ---
+  async function upsertCharacterRelsWithEvidence(tx, pnum, relType, items) {
+    const rows = normalizeNameEvidenceArray(items);
+
+    // Delete  existing relationships of this type for this poem
+    await tx.run(
+      `MATCH (c:Character)-[r:${relType}]->(g:Genji_Poem {pnum: $pnum}) DELETE r`,
+      { pnum: pnum.toString() }
+    );
+
+    // Create new relationships with specific evidence per person
+    for (const { name, evidence } of rows) {
+      // Ensure Character exists
+      await tx.run(`MERGE (c:Character {name: $name})`, { name });
+      // Create relationship with evidence property
+      await tx.run(`MATCH (g:Genji_Poem {pnum: $pnum}) MATCH (c:Character {name: $name}) CREATE (c)-[r:${relType}]->(g) SET r.evidence = $evidence`,
+        { pnum: pnum.toString(), name, evidence }
+      );
+
+    }
+  }
+
   try {
     await session.writeTransaction(async (tx) => {
       // 1️⃣ Update main Genji_Poem properties
@@ -506,11 +575,9 @@ async function updatePoemProperties(pnum, data) {
       if (data.repCharacter !== undefined) props.representative_character = data.repCharacter || null;
       if (data.groupPoems !== undefined) props.group_poems = data.groupPoems || null;
       if (data.furtherReadings !== undefined) props.further_readings = data.furtherReadings || null;
-      if (data.other_recipient_notes !== undefined) props.other_recipient_notes = data.other_recipient_notes || null;
-      if (data.unintended_recipient_notes !== undefined) props.unintended_recipient_notes = data.unintended_recipient_notes || null;
-      if (data.group_participant_notes !== undefined) props.group_participant_notes = data.group_participant_notes || null;
 
-      await tx.run(query, { pnum: pnum.toString(), props });
+      // await tx.run(query, { pnum: pnum.toString(), props });
+      const mainResult = await tx.run(query, { pnum: pnum.toString(), props });
 
       // 1️⃣b Handle speaker relationship
       if (data.speaker !== undefined) {
@@ -594,133 +661,37 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 1️⃣d Handle other recipient relationship
+      // 1️⃣d Handle other recipients
       if (data.otherRecipients !== undefined) {
-        // First, remove any existing other recipient relationship
-        await tx.run(`
-          MATCH (c:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
-          DELETE r
-        `, { pnum: pnum.toString() });
-
-      // Then, create new relationships for each other recipient
-      if (Array.isArray(data.otherRecipients)) {
-        for (const otherRecipientName of data.otherRecipients) {
-          if (otherRecipientName && otherRecipientName.trim()) {
-                          const cleanName = otherRecipientName.trim();
-              
-              // First check if Character node exists, create if it doesn't
-              const checkQuery = `
-                MATCH (c:Character {name: $otherRecipientName})
-                RETURN c.name as name
-              `;
-              
-              const checkResult = await tx.run(checkQuery, { otherRecipientName: cleanName });
-              
-              if (checkResult.records.length === 0) {
-                // Create the Character node if it doesn't exist
-                await tx.run(`
-                  CREATE (c:Character {name: $otherRecipientName})
-                `, { otherRecipientName: cleanName });
-              }
-              
-              // Create the relationship
-              await tx.run(`
-                MATCH (g:Genji_Poem {pnum: $pnum})
-                MATCH (c:Character {name: $otherRecipientName})
-                CREATE (c)-[r:OTHER_RECIPIENT_OF]->(g)
-              `, { 
-                pnum: pnum.toString(), 
-                otherRecipientName: cleanName
-              });
-            }
-          }
+        let items = data.otherRecipients;
+        const legacyEvidence = (data.other_recipient_evidence ?? "").toString().trim() || null;
+        if (legacyEvidence && Array.isArray(items) && items.length > 0 && typeof items[0] === "string") {
+          items = items.map((name) => ({ name, evidence: legacyEvidence }));
         }
+
+        await upsertCharacterRelsWithEvidence(tx, pnum, "OTHER_RECIPIENT_OF", items);
       }
 
-      // 1️⃣e Handle unintended recipient relationship
+      // 1️⃣e Handle unintended recipients
       if (data.unintendedRecipients !== undefined) {
-        // First, remove any existing unintended recipient relationship
-        await tx.run(`
-          MATCH (c:Character)-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
-          DELETE r
-        `, { pnum: pnum.toString() });
-
-        // Then, create new relationships for each unintended recipient
-        if (Array.isArray(data.unintendedRecipients)) {
-          for (const unintendedRecipientName of data.unintendedRecipients) {
-            if (unintendedRecipientName && unintendedRecipientName.trim()) {
-              const cleanName = unintendedRecipientName.trim();
-              
-              // First check if Character node exists, create if it doesn't
-              const checkQuery = `
-                MATCH (c:Character {name: $unintendedRecipientName})
-                RETURN c.name as name
-              `;
-              
-              const checkResult = await tx.run(checkQuery, { unintendedRecipientName: cleanName });
-              
-              if (checkResult.records.length === 0) {
-                // Create the Character node if it doesn't exist
-                await tx.run(`
-                  CREATE (c:Character {name: $unintendedRecipientName})
-                `, { unintendedRecipientName: cleanName });
-              }
-              
-              // Create the relationship
-              await tx.run(`
-                MATCH (g:Genji_Poem {pnum: $pnum})
-                MATCH (c:Character {name: $unintendedRecipientName})
-                CREATE (c)-[r:UNINTENDED_RECIPIENT_OF]->(g)
-              `, { 
-                pnum: pnum.toString(), 
-                unintendedRecipientName: cleanName
-              });
-            }
-          }
+        let items = data.unintendedRecipients;
+        const legacyEvidence = (data.unintended_recipient_evidence ?? "").toString().trim() || null;
+        if (legacyEvidence && Array.isArray(items) && items.length > 0 && typeof items[0] === "string") {
+          items = items.map((name) => ({ name, evidence: legacyEvidence }));
         }
+
+        await upsertCharacterRelsWithEvidence(tx, pnum, "UNINTENDED_RECIPIENT_OF", items);
       }
 
       // 1️⃣f Handle group participant relationship
       if (data.groupParticipants !== undefined) {
-        // First, remove any existing group participant relationship
-        await tx.run(`
-          MATCH (c:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum: $pnum})
-          DELETE r
-        `, { pnum: pnum.toString() });
-
-          // Then, create new relationships for each group participant
-          if (Array.isArray(data.groupParticipants)) {
-          for (const groupParticipantName of data.groupParticipants) {
-            if (groupParticipantName && groupParticipantName.trim()) {
-              const cleanName = groupParticipantName.trim();
-              
-              // First check if Character node exists, create if it doesn't
-              const checkQuery = `
-                MATCH (c:Character {name: $groupParticipantName})
-                RETURN c.name as name
-              `;
-              
-              const checkResult = await tx.run(checkQuery, { groupParticipantName: cleanName });
-              
-              if (checkResult.records.length === 0) {
-                // Create the Character node if it doesn't exist
-                await tx.run(`
-                  CREATE (c:Character {name: $groupParticipantName})
-                `, { groupParticipantName: cleanName });
-              }
-              
-              // Create the relationship
-              await tx.run(`
-                MATCH (g:Genji_Poem {pnum: $pnum})
-                MATCH (c:Character {name: $groupParticipantName})
-                CREATE (c)-[r:GROUP_PARTICIPANT_OF]->(g)
-              `, { 
-                pnum: pnum.toString(), 
-                groupParticipantName: cleanName
-              });
-            }
-          }
+        let items = data.groupParticipants;
+        const legacyEvidence = (data.group_participant_evidence ?? "").toString().trim() || null;
+        if (legacyEvidence && Array.isArray(items) && items.length > 0 && typeof items[0] === "string") {
+          items = items.map((name) => ({ name, evidence: legacyEvidence }));
         }
+
+        await upsertCharacterRelsWithEvidence(tx, pnum, "GROUP_PARTICIPANT_OF", items);
       }
 
       // 2️⃣ Handle season relationship

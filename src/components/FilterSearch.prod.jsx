@@ -390,7 +390,6 @@ const PoemSearch = () => {
         }
 
         const data = await response.json();
-        console.log("API Response:", data);
 
         // If the query is =#=, set results to data otherwise process the data
         // if (queryToUse === "=#=") {

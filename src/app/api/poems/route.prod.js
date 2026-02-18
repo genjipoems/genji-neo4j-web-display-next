@@ -9,7 +9,26 @@ async function getData (chapter, number){
 	//all the get method and return the db data
 	const queries = {
 
-		res: 'MATCH poem=(g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH "' + number + '" OPTIONAL MATCH speaker_rel=(s:Character)-[:SPEAKER_OF]->(g) OPTIONAL MATCH addressee_rel=(g)<-[:ADDRESSEE_OF]-(a:Character) OPTIONAL MATCH trans=(g)-[:TRANSLATION_OF]-(:Translation)-[:TRANSLATOR_OF]-(:People) OPTIONAL MATCH other_recipients=(otherChar:Character)-[:OTHER_RECIPIENT_OF]->(g) OPTIONAL MATCH unintended_recipients=(unintendedChar:Character)-[:UNINTENDED_RECIPIENT_OF]->(g) OPTIONAL MATCH group_participants=(groupChar:Character)-[:GROUP_PARTICIPANT_OF]->(g) RETURN poem, speaker_rel, addressee_rel, trans, other_recipients, unintended_recipients, group_participants, g.narrative_context as narrative_context, g.paraphrase as paraphrase, g.handwriting_description as handwriting_description, g.paper_or_medium_type as paper_or_medium_type, g.delivery_style as delivery_style, g.Spoken as spoken, g.Written as written, g.evidence_for_spoken_or_written as spoken_or_written_evidence, g.Complete as complete, g.last_updated as last_updated, g.other_recipient_notes as other_recipient_notes, g.unintended_recipient_notes as unintended_recipient_notes, g.group_participant_notes as group_participant_notes',
+		res: 'MATCH poem=(g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH "' + number + '" \
+				OPTIONAL MATCH speaker_rel=(s:Character)-[:SPEAKER_OF]->(g) \
+				OPTIONAL MATCH addressee_rel=(g)<-[:ADDRESSEE_OF]-(a:Character) \
+				OPTIONAL MATCH trans=(g)-[:TRANSLATION_OF]-(:Translation)-[:TRANSLATOR_OF]-(:People) \
+				CALL {WITH g OPTIONAL MATCH (otherChar:Character)-[otherRel:OTHER_RECIPIENT_OF]->(g) \
+					RETURN collect(DISTINCT { name: otherChar.name, evidence: CASE WHEN otherRel.evidence IS NULL OR trim(toString(otherRel.evidence)) = "" THEN null ELSE otherRel.evidence END }) AS other_recipients} \
+				CALL {WITH g OPTIONAL MATCH (unintendedChar:Character)-[unintendedRel:UNINTENDED_RECIPIENT_OF]->(g) \
+					RETURN collect(DISTINCT { name: unintendedChar.name, evidence: CASE WHEN unintendedRel.evidence IS NULL OR trim(toString(unintendedRel.evidence)) = "" THEN null ELSE unintendedRel.evidence END }) AS unintended_recipients} \
+				CALL {WITH g OPTIONAL MATCH (groupChar:Character)-[groupRel:GROUP_PARTICIPANT_OF]->(g) \
+					RETURN collect(DISTINCT { name: groupChar.name, evidence: CASE WHEN groupRel.evidence IS NULL OR trim(toString(groupRel.evidence)) = "" THEN null ELSE groupRel.evidence END }) AS group_participants} \
+				RETURN poem, speaker_rel, addressee_rel, trans, other_recipients, unintended_recipients, group_participants, \
+					g.narrative_context as narrative_context, \
+					g.paraphrase as paraphrase, \
+					g.handwriting_description as handwriting_description, \
+					g.paper_or_medium_type as paper_or_medium_type, \
+					g.delivery_style as delivery_style, \
+					g.Spoken as spoken, g.Written as written, \
+					g.evidence_for_spoken_or_written as spoken_or_written_evidence, \
+					g.Complete as complete, \
+					g.last_updated as last_updated',
 		resHonkaInfo:  'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[n:ALLUDES_TO]->(h:Honka)-[r:ANTHOLOGIZED_IN]-(s:Source), (h)<-[:AUTHOR_OF]-(a:People), (h)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(p:People) where g.pnum ends with "' + number + '" return h.Honka as honka, h.Romaji as romaji, s.title as title, a.name as poet, r.order as order, p.name as translator, t.translation as translation, n.notes as notes',
 		resRel : 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[r:INTERNAL_ALLUSION_TO]->(s:Genji_Poem) where g.pnum ends with "' + number + '" return s.pnum as rel, r.evidence as internal_allusion_evidence',
 		resPnum : 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(c:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH (CASE WHEN "' + number + '" < 10 THEN \'0\' + toString("' + number + '") ELSE toString($number) END) RETURN g.pnum as pnum',
@@ -45,60 +64,47 @@ async function getData (chapter, number){
 		result['res'].records.forEach(record => {
 			const speakerRel = record.get('speaker_rel');
 			const addresseeRel = record.get('addressee_rel');
-			const otherRecipientsRel = record.get('other_recipients');
-			const unintendedRecipientsRel = record.get('unintended_recipients');
-			const groupParticipantsRel = record.get('group_participants');
+
+			const filterValid = (arr) => (arr || []).filter(item => item && item.name);
+
+			const otherRecipientsArr = filterValid(record.get('other_recipients'));
+			const unintendedRecipientsArr = filterValid(record.get('unintended_recipients'));
+			const groupParticipantsArr = filterValid(record.get('group_participants'));
 			
 			// Only process if we have at least one relationship
-			if (speakerRel || addresseeRel || otherRecipientsRel || unintendedRecipientsRel || groupParticipantsRel) {
+			if (speakerRel || addresseeRel || otherRecipientsArr.length || unintendedRecipientsArr.length || groupParticipantsArr.length) {
 				const speakerRelNative = speakerRel ? toNativeTypes(speakerRel) : null;
-				const addresseeRelNative = addresseeRel ? toNativeTypes(addresseeRel) : null;
-				const otherRecipientsRelNative = otherRecipientsRel ? toNativeTypes(otherRecipientsRel) : null;
-				const unintendedRecipientsRelNative = unintendedRecipientsRel ? toNativeTypes(unintendedRecipientsRel) : null;
-				const groupParticipantsRelNative = groupParticipantsRel ? toNativeTypes(groupParticipantsRel) : null;
-
-				// Turn relationships that could be multiple into arrays of end nodes
-				const relsToNodes = (relNative, useStart = false) => {
-					if (!relNative) return [];
-					const rels = Array.isArray(relNative) ? relNative : [relNative];
-					return rels.map(r => useStart ? r.start : r.end);
-				};
-	
+				const addresseeRelNative = addresseeRel ? toNativeTypes(addresseeRel) : null;			
 				const speaker = speakerRelNative ? speakerRelNative.start : (addresseeRelNative ? addresseeRelNative.end : null);
 				const addressee = addresseeRelNative ? addresseeRelNative.end : speaker; // Default to speaker for self-addressed
-				const otherRecipients = relsToNodes(otherRecipientsRelNative, true);
-				const unintendedRecipients = relsToNodes(unintendedRecipientsRelNative, true);
-				const groupParticipants = relsToNodes(groupParticipantsRelNative, true);
-
 				const poem = speakerRelNative ? speakerRelNative.end : addresseeRelNative ? addresseeRelNative.end : null;
-				
+
+				const asPseudoNode = (x) => ({ properties: { name: x.name } });
+
 				if (speaker && poem) {
 					exchange.push({
 						start: speaker,
 						end: addressee,
 						segments: [
-							{
-								start: speaker,
-								end: poem
-							},
-							{
-								start: poem,
-								end: addressee
-							},
-							...otherRecipients.map(r => ({
-								start: r,
+							{ start: speaker, end: poem },
+							{ start: poem, end: addressee },
+							...otherRecipientsArr.map(x => ({
+								start: asPseudoNode(x),
 								end: poem,
-								role: "otherRecipient"
+								role: "otherRecipient",
+								evidence: x.evidence ?? null
 							})), 
-							...unintendedRecipients.map(r => ({
-								start: r,
+							...unintendedRecipientsArr.map(x => ({
+								start: asPseudoNode(x),
 								end: poem,
-								role: "unintendedRecipient"
+								role: "unintendedRecipient",
+								evidence: x.evidence ?? null
 							})),
-							...groupParticipants.map(r => ({
-								start: r,
+							...groupParticipantsArr.map(x => ({
+								start: asPseudoNode(x),
 								end: poem,
-								role: "groupParticipant"
+								role: "groupParticipant",
+								evidence: x.evidence ?? null
 							}))
 					
 						]
@@ -145,14 +151,6 @@ exchange = Array.from(exchangeByKey.values());
 		});
 		});
 
-		const otherRecipientList = Array.from(otherRecipientNames);
-		const unintendedRecipientList = Array.from(unintendedRecipientNames);
-		const groupParticipantList = Array.from(groupParticipantNames);
-
-		const other_recipient_notes = result['res'].records[0]?.get('other_recipient_notes') ?? null;
-		const unintended_recipient_notes = result['res'].records[0]?.get('unintended_recipient_notes') ?? null;
-		const group_participant_notes = result['res'].records[0]?.get('group_participant_notes') ?? null;
-		
 		let narrative_context = result['res'].records[0]?.get('narrative_context') || null;
 		let	paraphrase = result['res'].records[0]?.get('paraphrase') || null;
 		let	handwriting_description = result['res'].records[0]?.get('handwriting_description') || null;
@@ -163,6 +161,15 @@ exchange = Array.from(exchangeByKey.values());
 		let spoken_or_written_evidence = result['res'].records[0]?.get('spoken_or_written_evidence') || null;
 		let complete = result['res'].records[0]?.get('complete') || null; // poem is complete annotated mark
 		let last_updated = result['res'].records[0]?.get('last_updated') || null; // last updated time
+		let otherRecipientList = Array.from(otherRecipientNames);
+		let unintendedRecipientList = Array.from(unintendedRecipientNames);
+		let groupParticipantList = Array.from(groupParticipantNames);
+
+		const filterValid = (arr) => (arr || []).filter(item => item && item.name);
+		let otherRecipientData = filterValid(result['res'].records[0]?.get('other_recipients'));
+		let unintendedRecipientData = filterValid(result['res'].records[0]?.get('unintended_recipients'));
+		let groupParticipantData = filterValid(result['res'].records[0]?.get('group_participants'));
+
 
 		//for transtemp
 		let transTemp = result['res'].records.map(e => {
@@ -368,12 +375,12 @@ exchange = Array.from(exchangeByKey.values());
 						complete,
 						last_updated,
 						otherTranslations,
-						otherRecipientList,
+						otherRecipientList, // This is names only
 						unintendedRecipientList,
 						groupParticipantList,
-						other_recipient_notes,
-						unintended_recipient_notes,
-						group_participant_notes
+						otherRecipientData, // This has evidence
+						unintendedRecipientData,
+						groupParticipantData,
 					];
 
 		return (data);
