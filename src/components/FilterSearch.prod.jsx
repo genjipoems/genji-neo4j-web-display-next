@@ -129,6 +129,7 @@ const PoemSearch = () => {
   const [searchGenjiAge, setSearchGenjiAge] = useState('');
   const [searchOther, setSearchOther] = useState('');
   const [searchUpdate, setSearchUpdate] = useState("");
+  const [searchTranslator, setSearchTranslator] = useState("");
 
   const ageOptions = {};
   for (let age = 1; age <= 75; age++) {
@@ -146,6 +147,16 @@ const PoemSearch = () => {
     chapterNum: {
       label: "Chapter",
       options: {},
+    },
+    translator_filter: {
+      label: "Translator Filter",
+      options: {
+        waley: { checked: false, label: "Waley" },
+        washburn: { checked: false, label: "Washburn" },
+        seidensticker: { checked: false, label: "Seidensticker" },
+        tyler: { checked: false, label: "Tyler" },
+        cranston: { checked: false, label: "Cranston" },
+      },
     },
     speaker_name: {
       label: "Poem From >>",
@@ -380,7 +391,18 @@ const PoemSearch = () => {
         // const response = await fetch(
         //   `/api/poems/poem_search?q=${encodeURIComponent(queryToUse)}`
         // );
-        const response = await fetch(`/api/poems/poem_search?q=${encodeURIComponent(queryToUse)}`);
+
+          // Translator filter (keys: waley, tyler, etc.)
+          const selectedTranslators = Object.entries(filters.translator_filter.options)
+            .filter(([_, v]) => v.checked)
+            .map(([k]) => k);
+
+          // If none selected => default = all translators (don’t send param)
+          if (selectedTranslators.length > 0) {
+            params.append("translators", selectedTranslators.join(","));
+          }
+          const response = await fetch(`/api/poems/poem_search?${params.toString()}`);
+        // const response = await fetch(`/api/poems/poem_search?q=${encodeURIComponent(queryToUse)}`);
           // ? await fetch("/poems/default_poems.json")
           // : await fetch(`/api/poems/poem_search?q=${encodeURIComponent(queryToUse)}`);
 
@@ -468,7 +490,13 @@ const PoemSearch = () => {
         setIsLoading(false);
       }
     }, 300),
-    [setResults, setShowResults, favSet]
+    [
+      setResults,
+      setShowResults,
+      favSet,
+      filters.speaker_gender.options,
+      filters.translator_filter.options,
+    ]
   );
 
   useEffect(() => {
@@ -522,9 +550,13 @@ const PoemSearch = () => {
   const filteredResults = useMemo(() => {
     const activeFilters = Object.entries(filters).reduce(
       (acc, [category, { options }]) => {
+        // translator_filter is handled server-side (keyword search), not client-side filtering
+        if (category === "translator_filter") return acc;
+
         const activeOptions = Object.entries(options)
           .filter(([_, { checked }]) => checked)
           .map(([key]) => key);
+
         if (activeOptions.length) acc[category] = activeOptions;
         return acc;
       },
@@ -674,6 +706,7 @@ const PoemSearch = () => {
     setQuery("");
     
     // Clear all search inputs
+    setSearchTranslator("");
     setSearchSpeaker("");
     setSearchAddressee("");
     setSearchChapter("");
@@ -961,6 +994,12 @@ const PoemSearch = () => {
       return newSet;
     });
   };
+
+  useEffect(() => {
+    if (searchTranslator.trim() !== '') {
+      setOpenSections(prev => new Set([...prev, 'translator_filter']));
+    }
+  }, [searchTranslator]);
   
   // Auto-open sections when searching
   useEffect(() => {
@@ -1026,6 +1065,10 @@ const PoemSearch = () => {
     const filteredAddresseeOptions = Object.entries(
       filters.addressee_name.options
     ).filter(([name, { gender }]) => selectedAddresseeGenders.includes(gender));
+
+    const handleTranslatorSearch = (e) => {
+      setSearchTranslator(e.target.value.toLowerCase());
+    };
   
     // Function to handle search input change for speaker names
     const handleSpeakerSearch = (e) => {
@@ -1090,6 +1133,54 @@ const PoemSearch = () => {
         </div>
         
         <div className={styles.filterScroll}>
+          {/* Translator Filter */}
+          <div className={styles.filterSection}>
+            <div
+              className={styles.filterSectionHeader}
+              onClick={() => toggleSection('translator_filter')}
+            >
+              <input
+                type="text"
+                placeholder="TRANSLATOR FILTER"
+                value={searchTranslator}
+                onChange={handleTranslatorSearch}
+                className={styles.searchInput}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span
+                className={`${styles.arrow} ${
+                  openSections.has('translator_filter') ? styles.arrowDown : ""
+                }`}
+              >
+                ▸
+              </span>
+            </div>
+
+            <div
+              className={`${styles.filterContent} ${
+                openSections.has('translator_filter') ? styles.expanded : ""
+              }`}
+            >
+              <div className={styles.filterCheckboxContainer}>
+                {Object.entries(filters.translator_filter.options)
+                  .filter(([key, opt]) => {
+                    const label = (opt.label || key).toLowerCase();
+                    return label.includes((searchTranslator || "").toLowerCase());
+                  })
+                  .map(([key, opt]) => (
+                    <Checkbox
+                      key={key}
+                      checked={!!opt.checked}
+                      onChange={() => handleFilterChange('translator_filter', key)}
+                      className={`${styles.filterCheckbox} ${styles.alignLeft}`}
+                      style={{ marginLeft: "0px" }}
+                    >
+                      {opt.label || key}
+                    </Checkbox>
+                  ))}
+              </div>
+            </div>
+          </div>
           {/* Chapter Search Filter */}
           <div className={styles.filterSection}>
             <div
