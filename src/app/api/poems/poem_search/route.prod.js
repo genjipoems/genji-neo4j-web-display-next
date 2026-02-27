@@ -33,7 +33,7 @@ const { getSession } = require('../../neo4j_driver/route.prod.js');
 //   }
 
 // api for keyword poem search
-async function generalSearch(q) {
+async function generalSearch(q, gender, translatorNames = []) {
     try {
         const session = await getSession();
         //const searchTerms = await tokenizeJapanese(q);
@@ -43,14 +43,33 @@ async function generalSearch(q) {
         // Neo4j cypher query to filter poems' Japanese, Romaji(, Translation) with search keyword q
         const query = `
             MATCH (p:Genji_Poem)
-            ${q.toLowerCase() !== '=#=' ? `
-            WHERE toLower(p.Japanese) CONTAINS toLower($q) 
-            OR toLower(p.Romaji) CONTAINS toLower($q)
-            OR EXISTS {
+            ${
+            q.toLowerCase() !== '=#='
+                ? `
+            WHERE
+            // If translators selected -> ONLY search those translators' translations
+            (
+                size($translatorNames) > 0 AND EXISTS {
+                (p)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(tr:People)
+                WHERE tr.name IN $translatorNames
+                    AND toLower(t.translation) CONTAINS toLower($q)
+                }
+            )
+            OR
+            // If none selected -> default search behavior
+            (
+                size($translatorNames) = 0 AND (
+                toLower(p.Japanese) CONTAINS toLower($q)
+                OR toLower(p.Romaji) CONTAINS toLower($q)
+                OR EXISTS {
                     (p)<-[:TRANSLATION_OF]-(t:Translation)
                     WHERE toLower(t.translation) CONTAINS toLower($q)
                 }
-            ` : ''}
+                )
+            )
+                `
+                : ''
+            }
             WITH DISTINCT p
             OPTIONAL MATCH (p)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(translator:People)
             OPTIONAL MATCH (p)<-[:ADDRESSEE_OF]-(addressee:Character)
@@ -69,6 +88,7 @@ async function generalSearch(q) {
                 pt,
                 ga,
                 collect(DISTINCT tag.Type) AS poem_types
+            WHERE ($genders IS NULL OR toLower(speaker.gender) IN $genders)
             RETURN DISTINCT
                 COALESCE(p.pnum, "") AS pnum,
                 COALESCE(p.Japanese, "") AS Japanese,
@@ -106,7 +126,17 @@ async function generalSearch(q) {
 
         let res;
         try {
-            res = await session.readTransaction(tx => tx.run(query, { q }));
+            const genders = gender
+            ? gender.split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
+            : null;
+
+            res = await session.readTransaction(tx =>
+            tx.run(query, {
+                q,
+                translatorNames,
+                genders,
+            })
+            );
         } catch (queryError) {
             console.error('Cypher query execution failed:', queryError);
             throw queryError;
@@ -169,6 +199,21 @@ export const GET = async (request) => {
     const { searchParams } = new URL(request.url);
     const q = (searchParams.get('q') ?? '=#=');
     const gender = searchParams.get('gender'); // Get gender filter
+    const translatorsRaw = searchParams.get('translators');
+    const KEY_TO_TRANSLATOR_NAME = {
+      waley: "Waley",
+      washburn: "Washburn",
+      seidensticker: "Seidensticker",
+      tyler: "Tyler",
+      cranston: "Cranston",
+    };
+
+    const translatorNames = (translatorsRaw ?? "")
+      .split(",")
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean)
+      .map(k => KEY_TO_TRANSLATOR_NAME[k])
+      .filter(Boolean);
 
     // if (!q) {
     //     return new Response(JSON.stringify({ message: 'Search keyword is required' }), { status: 400 });
@@ -181,7 +226,7 @@ export const GET = async (request) => {
     //     } else {
     //         return new Response(JSON.stringify({ message: 'Search keyword Not found' }), { status: 404 });
     //     }
-        const data = await generalSearch(q, gender);
+        const data = await generalSearch(q, gender, translatorNames);
         return new Response(JSON.stringify(data || { searchResults: [] }), { status: 200 });
     } catch (error) {
         return new Response(JSON.stringify({ error: "Error in API", message: error.toString() }), { status: 500 });
