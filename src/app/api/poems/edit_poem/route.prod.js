@@ -59,9 +59,9 @@ export async function DELETE(request) {
                           "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", 
                           "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", 
                           "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description", "otherTranslations", 
-                          "otherRecipient1", "otherRecipient2", "otherRecipient3","otherRecipients", "other_recipient_evidence",
-                          "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3", "unintendedRecipients", "unintended_recipient_evidence",
-                          "groupParticipant1", "groupParticipant2", "groupParticipant3", "groupParticipants", "group_participant_evidence"];
+                          "otherRecipient1", "otherRecipient2", "otherRecipient3","otherRecipients", "other_recipient_1_evidence", "other_recipient_2_evidence", "other_recipient_3_evidence",
+                          "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3", "unintendedRecipients", "unintended_recipient_1_evidence", "unintended_recipient_2_evidence", "unintended_recipient_3_evidence",
+                          "groupParticipant1", "groupParticipant2", "groupParticipant3", "groupParticipants", "group_participant_1_evidence", "group_participant_2_evidence", "group_participant_3_evidence"];
 
     if (!allowedFields.includes(field)) {
       return new Response(JSON.stringify({ error: "Invalid field param" }), { status: 400 });
@@ -108,12 +108,30 @@ export async function DELETE(request) {
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} other recipient relationships` }), { status: 200 });
     }
 
-    else if (field === "other_recipient_evidence") {
+    else if (field === "other_recipient_1_evidence" ||
+            field === "other_recipient_2_evidence" ||
+            field === "other_recipient_3_evidence"
+    ) {
+      const slot = field === "other_recipient_1_evidence" ? 1 
+                : field === "other_recipient_2_evidence" ? 2
+                : 3;
+      
+      const { searchParams } = new URL(request.url);
+      const recipientName = searchParams.get("recipientName");
+
+      if (!recipientName || !recipientName.trim()) {
+        return new Response(
+          JSON.stringify({ error: "Missing recipientNameparam for slot evidence deletion" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
       await session.run(`
-        MATCH (:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum:$pnum})
+        MATCH (c:Character {name: $name})-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum:$pnum})
         REMOVE r.evidence
-      `, { pnum });
-      return new Response(JSON.stringify({ message: "Cleared OTHER_RECIPIENT evidence" }), { status: 200 });
+        RETURN count(r) AS cleared
+      `, { pnum, name: recipientName.trim() });
+      return new Response(JSON.stringify({ message: `Cleared evidence for OTHER_RECIPIENT slot ${slot}` }), { status: 200 });
     }
 
 // Handle unintended recipient deletion specially (remove UNINTENDED_RECIPIENT_OF relationship)
@@ -131,12 +149,30 @@ else if (field === "unintendedRecipient1" || field === "unintendedRecipient2" ||
 }
 
 
-else if (field === "unintended_recipient_evidence") {
-  await session.run(`
-    MATCH (:Character)-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum:$pnum})
-    REMOVE r.evidence
-  `, { pnum });
-  return new Response(JSON.stringify({ message: "Cleared UNINTENDED_RECIPIENT evidence" }), { status: 200 });
+else if (field === "unintended_recipient_1_evidence" ||
+  field === "unintended_recipient_2_evidence" ||
+  field === "unintended_recipient_3_evidence"
+) {
+const slot = field === "unintended_recipient_1_evidence" ? 1 
+      : field === "unintended_recipient_2_evidence" ? 2
+      : 3;
+
+const { searchParams } = new URL(request.url);
+const recipientName = searchParams.get("recipientName");
+
+if (!recipientName || !recipientName.trim()) {
+return new Response(
+JSON.stringify({ error: "Missing recipientNameparam for slot evidence deletion" }),
+{ status: 400, headers: { "Content-Type": "application/json" } }
+);
+}
+
+await session.run(`
+MATCH (c:Character {name: $name})-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum:$pnum})
+REMOVE r.evidence
+RETURN count(r) AS cleared
+`, { pnum, name: recipientName.trim() });
+return new Response(JSON.stringify({ message: `Cleared evidence for UNINTENDED_RECIPIENT slot ${slot}` }), { status: 200 });
 }
 
 // Handle group participant deletion specially (remove GROUP PARTICIPANT_OF relationship)
@@ -153,13 +189,30 @@ else if (field === "groupParticipant1" || field === "groupParticipant2" || field
   return new Response(JSON.stringify({ message: `Deleted ${deletedCount} group participant relationships` }), { status: 200 });
 }
 
+else if (field === "group_participant_1_evidence" ||
+  field === "group_participant_2_evidence" ||
+  field === "group_participant_3_evidence"
+) {
+const slot = field === "group_participant_1_evidence" ? 1 
+      : field === "group_participant_2_evidence" ? 2
+      : 3;
 
-else if (field === "group_participant_evidence") {
-  await session.run(`
-    MATCH (:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum:$pnum})
-    REMOVE r.evidence
-  `, { pnum });
-  return new Response(JSON.stringify({ message: "Cleared GROUP_PARTICIPANT evidence" }), { status: 200 });
+const { searchParams } = new URL(request.url);
+const recipientName = searchParams.get("recipientName");
+
+if (!recipientName || !recipientName.trim()) {
+return new Response(
+JSON.stringify({ error: "Missing recipientNameparam for slot evidence deletion" }),
+{ status: 400, headers: { "Content-Type": "application/json" } }
+);
+}
+
+await session.run(`
+MATCH (c:Character {name: $name})-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum:$pnum})
+REMOVE r.evidence
+RETURN count(r) AS cleared
+`, { pnum, name: recipientName.trim() });
+return new Response(JSON.stringify({ message: `Cleared evidence for GROUP_PARTICIPANT slot ${slot}` }), { status: 200 });
 }
 
     // Handle age deletion specially (remove AT_GENJI_AGE_OF relationship)
@@ -386,32 +439,6 @@ else if (field === "group_participant_evidence") {
       const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} other translation relationships` }), { status: 200 });
     } 
-    // Handle speaker deletion specially (remove SPEAKER_OF relationship)
-    else if (field === "speaker") {
-      const query = `
-        MATCH (c:Character)-[r:SPEAKER_OF]->(g:Genji_Poem {pnum: $pnum})
-        DELETE r
-        RETURN count(r) as deletedCount
-      `;
-      
-      const result = await session.run(query, { pnum });
-      
-      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
-      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} speaker relationships` }), { status: 200 });
-    } 
-    // Handle addressee deletion specially (remove all ADDRESSEE_OF relationships)
-    else if (field === "addressee" || field === "addressee2" || field === "addressee3") {
-      const query = `
-        MATCH (c:Character)-[r:ADDRESSEE_OF]->(g:Genji_Poem {pnum: $pnum})
-        DELETE r
-        RETURN count(r) as deletedCount
-      `;
-      
-      const result = await session.run(query, { pnum });
-      
-      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
-      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} addressee relationships` }), { status: 200 });
-    } 
 
     else if (field === "otherRecipients") {
       const query = `
@@ -522,7 +549,6 @@ async function updatePoemProperties(pnum, data) {
       .filter(Boolean);
   }
   
-  // --- Helper 2: The Core Logic for Upserting Relationships ---
   async function upsertCharacterRelsWithEvidence(tx, pnum, relType, items) {
     const rows = normalizeNameEvidenceArray(items);
 
@@ -542,6 +568,19 @@ async function updatePoemProperties(pnum, data) {
       );
 
     }
+  }
+
+  function zipNamesEvidence(names, evidences) {
+    if (!Array.isArray(names)) return [];
+    const evArr = Array.isArray(evidences) ? evidences : [];
+    return names
+      .map((name, i) => {
+        const nm = (name ?? "").toString().trim();
+        if (!nm) return null;
+        const ev = (evArr[i] ?? "").toString().trim();
+        return { name: nm, evidence: ev || null };
+      })
+      .filter(Boolean);
   }
 
   try {
@@ -664,33 +703,60 @@ async function updatePoemProperties(pnum, data) {
       // 1️⃣d Handle other recipients
       if (data.otherRecipients !== undefined) {
         let items = data.otherRecipients;
-        const legacyEvidence = (data.other_recipient_evidence ?? "").toString().trim() || null;
-        if (legacyEvidence && Array.isArray(items) && items.length > 0 && typeof items[0] === "string") {
-          items = items.map((name) => ({ name, evidence: legacyEvidence }));
-        }
 
+        if (Array.isArray(data.otherRecipients) && Array.isArray(data.other_recipient_evidence)) {
+          items = zipNamesEvidence(data.otherRecipients, data.other_recipient_evidence);
+        } else {
+          const legacyEvidence = (data.other_recipient_evidence ?? "").toString().trim() || null;
+          if (
+            legacyEvidence &&
+            Array.isArray(items) &&
+            items.length > 0 &&
+            typeof items[0] === "string"
+          ) {
+            items = items.map((name) => ({ name, evidence: legacyEvidence }));
+          }
+        }
         await upsertCharacterRelsWithEvidence(tx, pnum, "OTHER_RECIPIENT_OF", items);
       }
 
       // 1️⃣e Handle unintended recipients
       if (data.unintendedRecipients !== undefined) {
         let items = data.unintendedRecipients;
-        const legacyEvidence = (data.unintended_recipient_evidence ?? "").toString().trim() || null;
-        if (legacyEvidence && Array.isArray(items) && items.length > 0 && typeof items[0] === "string") {
-          items = items.map((name) => ({ name, evidence: legacyEvidence }));
-        }
 
+        if (Array.isArray(data.unintendedRecipients) && Array.isArray(data.unintended_recipient_evidence)) {
+          items = zipNamesEvidence(data.unintendedRecipients, data.unintended_recipient_evidence);
+        } else {
+          const legacyEvidence = (data.unintended_recipient_evidence ?? "").toString().trim() || null;
+          if (
+            legacyEvidence &&
+            Array.isArray(items) &&
+            items.length > 0 &&
+            typeof items[0] === "string"
+          ) {
+            items = items.map((name) => ({ name, evidence: legacyEvidence }));
+          }
+        }
         await upsertCharacterRelsWithEvidence(tx, pnum, "UNINTENDED_RECIPIENT_OF", items);
       }
 
       // 1️⃣f Handle group participant relationship
       if (data.groupParticipants !== undefined) {
         let items = data.groupParticipants;
-        const legacyEvidence = (data.group_participant_evidence ?? "").toString().trim() || null;
-        if (legacyEvidence && Array.isArray(items) && items.length > 0 && typeof items[0] === "string") {
-          items = items.map((name) => ({ name, evidence: legacyEvidence }));
-        }
 
+        if (Array.isArray(data.groupParticipants) && Array.isArray(data.group_participant_evidence)) {
+          items = zipNamesEvidence(data.groupParticipants, data.group_participant_evidence);
+        } else {
+          const legacyEvidence = (data.group_participant_evidence ?? "").toString().trim() || null;
+          if (
+            legacyEvidence &&
+            Array.isArray(items) &&
+            items.length > 0 &&
+            typeof items[0] === "string"
+          ) {
+            items = items.map((name) => ({ name, evidence: legacyEvidence }))
+          }
+        }
         await upsertCharacterRelsWithEvidence(tx, pnum, "GROUP_PARTICIPANT_OF", items);
       }
 
