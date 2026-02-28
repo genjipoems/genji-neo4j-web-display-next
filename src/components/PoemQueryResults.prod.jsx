@@ -74,6 +74,30 @@ const EvidenceDropdown = ({ content, evidence }) => {
     );
 };
 
+function normalizeRecipientData(arr) {
+    // expected: [{ name, evidence }, ...]
+    if (!Array.isArray(arr)) return [];
+    return arr
+        .map((x) => {
+            if (x && typeof x === "object" && !Array.isArray(x)) {
+                const name = (x.name ?? "").toString().trim();
+                const evidence = (x.evidence ?? "").toString().trim() || "";
+                return name ? { name, evidence } : null;
+            }
+            return null;
+        })
+        .filter(Boolean);
+}
+
+function evidenceForName(name, dataArr) {
+    if (!name) return "";
+    const nm = name.toString().trim();
+    if (!nm) return "";
+
+    const normalized = normalizeRecipientData(dataArr);
+    return normalized.find((x) => x.name === nm)?.evidence || "";
+}
+
 const PoemDisplay = ({ poemData }) => {
 
     const [poemState, setPoemState] = useState({
@@ -153,6 +177,37 @@ const PoemDisplay = ({ poemData }) => {
     
     const chapter_name = chapterNames[chapter];
 
+    const RecipientSlots = ({ title, names, data }) => {
+        const slots = [0, 1, 2];
+
+        const hasAny = Array.isArray(names) && names.some((n) => (n ?? "").toString().trim());
+        if(!hasAny) return null;
+
+        return (
+            <div className={styles.detailItem}>
+                <h3>{title}</h3>
+
+                {slots.map((i) => {
+                    const rawName = (names?.[i] ?? "").toString().trim();
+                    if (!rawName) return null;
+
+                    const ev = evidenceForName(rawName, data);
+
+                    return (
+                        <div key={`${title}-slot-${i}`} className={styles.recipientItem}>
+                            <div className={styles.withEvidence}>
+                                <EvidenceDropdown
+                                    content={rawName}
+                                    evidence={ev}
+                                    />
+                            </div>
+                            </div>
+                    )
+                })}
+            </div>
+        )
+    }
+
     const [expandedPanels, setExpandedPanels] = useState({
         summary: false,
         context: false,
@@ -160,8 +215,8 @@ const PoemDisplay = ({ poemData }) => {
         details: false,
         userNotes: false,
         discussion: false
-      });
-      
+    });
+    
     const togglePanel = (panelName) => {
         setExpandedPanels(prev => ({
             ...prev,
@@ -175,7 +230,7 @@ const PoemDisplay = ({ poemData }) => {
         const firstName = nameParts[0];
         const lastName = nameParts.slice(1).join(' ');
         return `${lastName}, ${firstName}`;
-      };
+    };
 
     // check cache
     // refreshTrigger is used to trigger a refresh of the poem data
@@ -762,85 +817,28 @@ const PoemDisplay = ({ poemData }) => {
                                 <div className={`${styles.panelContent} ${expandedPanels.details ? styles.expanded : styles.collapsed}`}>
 
                                 {/* Other Recipients */}
-                                {Array.isArray(poemState.otherRecipients) && poemState.otherRecipients.length > 0 && (
-                                <div className={styles.detailItem}>
-                                    <h3>OTHER RECIPIENTS</h3>
-
-                                    {(() => {
-                                    // display string: "Yugao, Genji"
-                                    const recipientsText = poemState.otherRecipients
-                                        .map((r) => (typeof r === "string" ? r.trim() : ""))
-                                        .filter(Boolean)
-                                        .join(", ");
-
-                                    // single evidence value (assumes same on each edge)
-                                    // pick the first non-empty evidence you find among recipient edges
-                                    const sharedEvidence =
-                                        (poemState.otherRecipientData ?? []).find((item) => item?.evidence?.trim())?.evidence ??
-                                        "";
-
-                                    return (
-                                        <div className={styles.recipientItem}>
-                                        <div className={styles.withEvidence}>
-                                            <EvidenceDropdown content={recipientsText} evidence={sharedEvidence} />
-                                        </div>
-                                        </div>
-                                    );
-                                    })()}
-                                </div>
-                                )}
+                                <RecipientSlots
+                                    title="OTHER RECIPIENTS"
+                                    slotLabelBase="OTHER RECIPIENT"
+                                    names={poemState.otherRecipients}
+                                    data={poemState.otherRecipientData}
+                                />
 
                                 {/* Unintended Recipients */}
-                                {Array.isArray(poemState.unintendedRecipients) && poemState.unintendedRecipients.length > 0 && (
-                                <div className={styles.detailItem}>
-                                    <h3>UNINTENDED RECIPIENTS</h3>
-
-                                    {(() => {
-                                    const recipientsText = poemState.unintendedRecipients
-                                        .map((r) => (typeof r === "string" ? r.trim() : ""))
-                                        .filter(Boolean)
-                                        .join(", ");
-
-                                    const sharedEvidence =
-                                        (poemState.unintendedRecipientData ?? []).find((item) => item?.evidence?.trim())?.evidence ??
-                                        "";
-
-                                    return (
-                                        <div className={styles.recipientItem}>
-                                        <div className={styles.withEvidence}>
-                                            <EvidenceDropdown content={recipientsText} evidence={sharedEvidence} />
-                                        </div>
-                                        </div>
-                                    );
-                                    })()}
-                                </div>
-                                )}
+                                <RecipientSlots
+                                    title="UNINTENDED RECIPIENTS"
+                                    slotLabelBase="UNINTENDED RECIPIENT"
+                                    names={poemState.unintendedRecipients}
+                                    data={poemState.unintendedRecipients}
+                                />
 
                                 {/* Group Participants */}
-                                {Array.isArray(poemState.groupParticipants) && poemState.groupParticipants.length > 0 && (
-                                <div className={styles.detailItem}>
-                                    <h3>GROUP PARTICIPANTS</h3>
-
-                                    {(() => {
-                                    const recipientsText = poemState.groupParticipants
-                                        .map((r) => (typeof r === "string" ? r.trim() : ""))
-                                        .filter(Boolean)
-                                        .join(", ");
-
-                                    const sharedEvidence =
-                                        (poemState.groupParticipantData ?? []).find((item) => item?.evidence?.trim())?.evidence ??
-                                        "";
-
-                                    return (
-                                        <div className={styles.recipientItem}>
-                                        <div className={styles.withEvidence}>
-                                            <EvidenceDropdown content={recipientsText} evidence={sharedEvidence} />
-                                        </div>
-                                        </div>
-                                    );
-                                    })()}
-                                </div>
-                                )}
+                                <RecipientSlots
+                                    title="GROUP PARTICIPANTS"
+                                    slotLabelBase="GROUP PARTICIPANT"
+                                    names={poemState.groupParticipants}
+                                    data={poemState.groupParticipantData}
+                                    />
                                     
                                 {poemState.paperMediumType && (
                                     <div className={styles.detailItem}>
@@ -1270,8 +1268,8 @@ const PoemDisplay = ({ poemData }) => {
                     
                     {/* Other Translations */}
                     {poemState.otherTranslations && Array.isArray(poemState.otherTranslations) && 
-                     poemState.otherTranslations.length > 0 && 
-                     poemState.otherTranslations.map((otherTrans, index) => (
+                    poemState.otherTranslations.length > 0 && 
+                    poemState.otherTranslations.map((otherTrans, index) => (
                         <div key={`other-trans-${index}`} className={styles.translationCard} style={{ '--translator-color': '#9c907d' }}>
                             <div className={styles.translationContent}>
                                 {typeof otherTrans.translation === 'string' && 

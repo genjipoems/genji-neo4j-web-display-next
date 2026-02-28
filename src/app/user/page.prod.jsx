@@ -1,5 +1,6 @@
 'use client'
 import UserInfo from '../../components/userpage/UserInfo.prod';
+import UserNotes from '../../components/userpage/UserNotes.prod';
 import FavList from "../../components//userpage/UserFavPoemList.prod";
 import UserView from "../../components/userpage/UserView.prod";
 import Notification from '../../components/userpage/UserNotificationLog.prod';
@@ -97,6 +98,16 @@ const Page = () => {
                 Review Notification
               </button>
             }   
+
+            {session?.user?.role === "admin" && 
+              <button 
+                className={`${styles.navButton} ${activeTab === 'user notes' ? styles.active : ''}`}
+                onClick={() => setActiveTab('user notes')}
+              >
+                <span className={styles.icon}>🗒️</span>
+                User Notes
+              </button>
+            }   
           </nav>
         </div>
 
@@ -107,6 +118,7 @@ const Page = () => {
             {activeTab === 'users' && <UserView />}
             {activeTab === 'notification' && <Notification />}
             {activeTab === 'Review Notification' && <ReviewNotification />}
+            { activeTab === 'user notes' && <UserNotes />}
           </div>
         </main>
       </div>
