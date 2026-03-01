@@ -829,7 +829,7 @@ const PoemDisplay = ({ poemData }) => {
                                     title="UNINTENDED RECIPIENTS"
                                     slotLabelBase="UNINTENDED RECIPIENT"
                                     names={poemState.unintendedRecipients}
-                                    data={poemState.unintendedRecipients}
+                                    data={poemState.unintendedRecipientData}
                                 />
 
                                 {/* Group Participants */}
