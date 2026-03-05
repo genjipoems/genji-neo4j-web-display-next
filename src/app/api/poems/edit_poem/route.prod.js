@@ -761,21 +761,20 @@ async function updatePoemProperties(pnum, data) {
       }
 
       // 2️⃣ Handle season relationship
+      // If season is provided
       if (data.season !== undefined) {
-        // First, remove any existing season relationship
-        await tx.run(`
-          MATCH (g:Genji_Poem {pnum: $pnum})-[r:IN_SEASON_OF]->(s:Season)
-          DELETE r
-        `, { pnum: pnum.toString() });
-
-        // Then, if a valid season is provided, create new relationship
+        // If season is provided and is valid
         if (data.season && validSeasons.includes(data.season)) {
           // Create relationship with evidence property if provided
-          const evidence = data.season_evidence || null;
+          const evidence = data.seasonEvidence ?? null;
           
+          // Delete old relationship if it exists, ensures poem can only have 1 season
+          // Create new relationship with same evidence if it exists 
           await tx.run(`
             MATCH (g:Genji_Poem {pnum: $pnum})
             MATCH (s:Season {name: $seasonName})
+            OPTIONAL MATCH (g)-[old:IN_SEASON_OF]->(:Season) 
+            DELETE old
             CREATE (g)-[r:IN_SEASON_OF]->(s)
             SET r.evidence = $evidence
           `, { 
@@ -783,19 +782,20 @@ async function updatePoemProperties(pnum, data) {
             seasonName: data.season,
             evidence: evidence
           });
+          // If there's an invalid season
         } else if (data.season && !validSeasons.includes(data.season)) {
           console.warn(`Invalid season provided: ${data.season}. Valid options: ${validSeasons.join(', ')}`);
         }
       }
 
       // 2️⃣b Handle season_evidence separately (update evidence property on existing relationship)
-      if (data.season_evidence !== undefined && data.season === undefined) {
+      if (data.season === undefined && data.season_evidence !== undefined) {
         await tx.run(`
           MATCH (g:Genji_Poem {pnum: $pnum})-[r:IN_SEASON_OF]->(s:Season)
           SET r.evidence = $evidence
         `, { 
           pnum: pnum.toString(),
-          evidence: data.season_evidence || null
+          evidence: data.season_evidence ?? null
         });
       }
 
