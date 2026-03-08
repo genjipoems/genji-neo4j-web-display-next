@@ -33,7 +33,7 @@ const { getSession } = require('../../neo4j_driver/route.prod.js');
 //   }
 
 // api for keyword poem search
-async function generalSearch(q, gender, translatorNames = []) {
+async function generalSearch(q, gender, translatorNames = [], includeRomanization = false) {
     try {
         const session = await getSession();
         //const searchTerms = await tokenizeJapanese(q);
@@ -47,24 +47,34 @@ async function generalSearch(q, gender, translatorNames = []) {
             q.toLowerCase() !== '=#='
                 ? `
             WHERE
-            // If translators selected -> ONLY search those translators' translations
             (
-                size($translatorNames) > 0 AND EXISTS {
-                (p)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(tr:People)
-                WHERE tr.name IN $translatorNames
-                    AND toLower(t.translation) CONTAINS toLower($q)
-                }
+                size($translatorNames) > 0 AND (
+                    EXISTS {
+                        (p)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(tr:People)
+                        WHERE tr.name IN $translatorNames
+                        AND toLower(t.translation) CONTAINS toLower($q)
+                    }
+                    OR toLower(p.Japanese) CONTAINS toLower($q)
+                    OR (
+                        $includeRomanization = true
+                        AND toLower(p.Romaji) CONTAINS toLower($q)
+                    )
+                )
             )
             OR
-            // If none selected -> default search behavior
             (
+                // If none selected -> search all translations,
+                // plus Japanese, and optionally Romaji if includeRomanization is true
                 size($translatorNames) = 0 AND (
-                toLower(p.Japanese) CONTAINS toLower($q)
-                OR toLower(p.Romaji) CONTAINS toLower($q)
-                OR EXISTS {
-                    (p)<-[:TRANSLATION_OF]-(t:Translation)
-                    WHERE toLower(t.translation) CONTAINS toLower($q)
-                }
+                    EXISTS {
+                        (p)<-[:TRANSLATION_OF]-(t:Translation)
+                        WHERE toLower(t.translation) CONTAINS toLower($q)
+                    }
+                    OR toLower(p.Japanese) CONTAINS toLower($q)
+                    OR (
+                        $includeRomanization = true
+                        AND toLower(p.Romaji) CONTAINS toLower($q)
+                    )
                 )
             )
                 `
@@ -135,6 +145,7 @@ async function generalSearch(q, gender, translatorNames = []) {
                 q,
                 translatorNames,
                 genders,
+                includeRomanization,
             })
             );
         } catch (queryError) {
@@ -200,6 +211,7 @@ export const GET = async (request) => {
     const q = (searchParams.get('q') ?? '=#=');
     const gender = searchParams.get('gender'); // Get gender filter
     const translatorsRaw = searchParams.get('translators');
+    const includeRomanization = searchParams.get('includeRomanization') === 'true';
     const KEY_TO_TRANSLATOR_NAME = {
       waley: "Waley",
       washburn: "Washburn",
@@ -226,7 +238,7 @@ export const GET = async (request) => {
     //     } else {
     //         return new Response(JSON.stringify({ message: 'Search keyword Not found' }), { status: 404 });
     //     }
-        const data = await generalSearch(q, gender, translatorNames);
+        const data = await generalSearch(q, gender, translatorNames, includeRomanization);
         return new Response(JSON.stringify(data || { searchResults: [] }), { status: 200 });
     } catch (error) {
         return new Response(JSON.stringify({ error: "Error in API", message: error.toString() }), { status: 500 });
