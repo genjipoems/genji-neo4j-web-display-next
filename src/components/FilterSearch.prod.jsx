@@ -148,6 +148,12 @@ const PoemSearch = () => {
       label: "Chapter",
       options: {},
     },
+    settings: {
+      label: "Settings",
+      options: {
+        include_romanization: { checked: false, label: "Include Romanization in Search" },
+      },
+    },
     translator_filter: {
       label: "Translator Filter",
       options: {
@@ -401,6 +407,12 @@ const PoemSearch = () => {
           if (selectedTranslators.length > 0) {
             params.append("translators", selectedTranslators.join(","));
           }
+
+          const includeRomanization =
+            !!filters.settings?.options?.include_romanization?.checked;
+
+          params.append("includeRomanization", includeRomanization ? "true" : "false");
+
           const response = await fetch(`/api/poems/poem_search?${params.toString()}`);
         // const response = await fetch(`/api/poems/poem_search?q=${encodeURIComponent(queryToUse)}`);
           // ? await fetch("/poems/default_poems.json")
@@ -496,6 +508,7 @@ const PoemSearch = () => {
       favSet,
       filters.speaker_gender.options,
       filters.translator_filter.options,
+      filters.settings.options,
     ]
   );
 
@@ -551,7 +564,7 @@ const PoemSearch = () => {
     const activeFilters = Object.entries(filters).reduce(
       (acc, [category, { options }]) => {
         // translator_filter is handled server-side (keyword search), not client-side filtering
-        if (category === "translator_filter") return acc;
+        if (category === "translator_filter"|| category === "settings") return acc;
 
         const activeOptions = Object.entries(options)
           .filter(([_, { checked }]) => checked)
@@ -1131,7 +1144,46 @@ const PoemSearch = () => {
             className={styles.keywordSearchInput}
           />
         </div>
-        
+        {/* Settings Filter */}
+        <div className={styles.filterSection}>
+          <div
+            className={styles.filterSectionHeader}
+            onClick={() => toggleSection('settings')}
+          >
+            <input
+              type="text"
+              placeholder="SETTINGS"
+              readOnly
+              className={styles.searchInput}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <span
+              className={`${styles.arrow} ${
+                openSections.has('settings') ? styles.arrowDown : ""
+              }`}
+            >
+              ▸
+            </span>
+          </div>
+
+          <div
+            className={`${styles.filterContent} ${
+              openSections.has('settings') ? styles.expanded : ""
+            }`}
+          >
+            <div className={styles.filterCheckboxContainer}>
+              <Checkbox
+                checked={!!filters.settings.options.include_romanization?.checked}
+                onChange={() => handleFilterChange('settings', 'include_romanization')}
+                className={`${styles.filterCheckbox} ${styles.alignLeft}`}
+                style={{ marginLeft: "0px" }}
+              >
+                {filters.settings.options.include_romanization?.label}
+              </Checkbox>
+            </div>
+          </div>
+        </div>
+
         <div className={styles.filterScroll}>
           {/* Translator Filter */}
           <div className={styles.filterSection}>
