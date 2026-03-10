@@ -263,6 +263,7 @@ return new Response(JSON.stringify({ message: `Cleared evidence for GROUP_PARTIC
         return new Response(JSON.stringify({ message: "No season relationship found to delete evidence from" }), { status: 200 });
       }
     } 
+
     // Handle poetic techniques deletion specially (remove all EMPLOYS_POETIC_TECHNIQUE relationships)
     else if (field === "pt") {
       const query = `
@@ -493,7 +494,7 @@ return new Response(JSON.stringify({ message: `Cleared evidence for GROUP_PARTIC
         return new Response(JSON.stringify({ message: `Field '${field}' deleted successfully` }), { status: 200 });
       } else {
         return new Response(JSON.stringify({ error: "Poem not found" }), { status: 404 });
-      }
+      } 
     }
   } catch (error) {
     console.error("DELETE error:", error);
@@ -595,7 +596,7 @@ async function updatePoemProperties(pnum, data) {
       const props = {};
 
       if (data.deliveryStyle !== undefined) props.delivery_style = data.deliveryStyle || null;
-      if (data.spoken_or_written_evidence !== undefined) props.evidence_for_spoken_or_written = data.spoken_or_written_evidence || null;
+      if (data.spokenOrWrittenEvidence !== undefined) props.evidence_for_spoken_or_written = data.spokenOrWrittenEvidence || null;
       // Remove age from direct property updates since it's now handled as a relationship
       if (data.JPRM !== undefined && Array.isArray(data.JPRM)) {
         props.Japanese = data.JPRM[0] || null;
@@ -789,13 +790,13 @@ async function updatePoemProperties(pnum, data) {
       }
 
       // 2️⃣b Handle season_evidence separately (update evidence property on existing relationship)
-      if (data.season === undefined && data.season_evidence !== undefined) {
+      if (data.season === undefined && data.seasonEvidence !== undefined) {
         await tx.run(`
           MATCH (g:Genji_Poem {pnum: $pnum})-[r:IN_SEASON_OF]->(s:Season)
           SET r.evidence = $evidence
         `, { 
           pnum: pnum.toString(),
-          evidence: data.season_evidence ?? null
+          evidence: data.seasonEvidence ?? null
         });
       }
 
