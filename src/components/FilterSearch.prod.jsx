@@ -1181,8 +1181,31 @@ const PoemSearch = () => {
                 {filters.settings.options.include_romanization?.label}
               </Checkbox>
             </div>
+
+            <hr className={styles.divider} />
+
+            <div className={styles.otherFilterTitles}>Graph Display</div>
+            <div className={styles.filterOptions}>
+              <Checkbox
+                checked={!showByAge}
+                onChange={() => setShowByAge(false)}
+                className={`${styles.filterCheckbox} ${styles.alignLeft}`}
+                style={{ marginLeft: "0px" }}
+              >
+                Graph by Chapter
+              </Checkbox>
+
+              <Checkbox
+                checked={showByAge}
+                onChange={() => setShowByAge(true)}
+                className={`${styles.filterCheckbox} ${styles.alignLeft}`}
+                style={{ marginLeft: "0px" }}
+              >
+                Graph by Genji&apos;s Age
+              </Checkbox>
+            </div>
           </div>
-        </div>
+         </div> 
 
         <div className={styles.filterScroll}>
           {/* Translator Filter */}
@@ -2020,7 +2043,7 @@ const PoemSearch = () => {
                   <span>POEMS</span>
                   <span>FOUND</span>
                 </div>
-                <div className={styles.buttonContainer}>
+                {/* <div className={styles.buttonContainer}>
                   <button
                     className={`${styles.toggleButton} ${
                       showByAge ? styles.inactive : styles.active
@@ -2037,7 +2060,7 @@ const PoemSearch = () => {
                   >
                     graph by <strong>Genji&apos;s age</strong>
                   </button>
-                </div>
+                </div> */}
                 {Object.values(filters).some(({ options }) =>
                   Object.values(options).some(({ checked }) => checked)
                 ) && (
