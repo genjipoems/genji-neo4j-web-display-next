@@ -211,6 +211,14 @@ const PoemSearch = () => {
         },
       },
 
+      human_reference: {
+        label: "Human Reference Filter",
+        options: {
+          'All translators agree': { checked: false },
+          'At least one translator differs': { checked: false },
+        },
+      },
+
       other_tags: {
         label: "Other Tags",
         options: {
@@ -465,6 +473,10 @@ const PoemSearch = () => {
                 typeof result.poem_type === "string"
                   ? result.poem_type.trim()
                   : Object.values(result.poem_type || {}).join("").trim(),
+              person_reference:
+                typeof result.person_reference === "string"
+                  ? result.person_reference.trim().toLowerCase()
+                  : Object.values(result.person_reference || {}).join("").trim().toLowerCase(),
               annotations_complete: ((result.annotations_complete ?? "").toString().trim().toLowerCase() === "true"),
               omitted_by_waley: !!result.omitted_by_waley,
               omitted_by_seidensticker: !!result.omitted_by_seidensticker,
@@ -633,6 +645,15 @@ const PoemSearch = () => {
             case "poem_type":
               const Singular = activeOptions.map(k => PLURAL_TO_SING[k] ?? k);
               return Singular.includes(result.poem_type);
+            case "human_reference": {
+              const optionToValue = {
+                'All translators agree': 'agree',
+                'At least one translator differs': 'disagree',
+              };
+
+              const selectedValues = activeOptions.map(option => optionToValue[option]);
+              return selectedValues.includes((result.person_reference || "").toLowerCase());
+            }
             case "updates": {
               if (!result.last_updated) return false;
               const updatedAt = new Date(result.last_updated);
@@ -1531,6 +1552,47 @@ const PoemSearch = () => {
                       {age}
                     </Checkbox>
                   ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Human Reference Filter */}
+          <div className={styles.filterSection}>
+            <div
+              className={styles.filterSectionHeader}
+              onClick={() => toggleSection('human_reference')}
+            >
+              <input
+                type="text"
+                placeholder="HUMAN REFERENCE FILTER"
+                readOnly
+                className={styles.searchInput}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span
+                className={`${styles.arrow} ${
+                  openSections.has('human_reference') ? styles.arrowDown : ""
+                }`}
+              >
+                ▸
+              </span>
+            </div>
+            <div
+              className={`${styles.filterContent} ${
+                openSections.has('human_reference') ? styles.expanded : ""
+              }`}
+            >
+              <div className={styles.filterOptions}>
+                {Object.keys(filters.human_reference.options).map((k) => (
+                  <Checkbox
+                    key={k}
+                    checked={filters.human_reference.options[k]?.checked}
+                    onChange={() => handleFilterChange("human_reference", k)}
+                    className={`${styles.filterCheckbox} ${styles.alignLeft}`}
+                  >
+                    {k}
+                  </Checkbox>
+                ))}
               </div>
             </div>
           </div>

@@ -87,6 +87,7 @@ async function generalSearch(q, gender, translatorNames = [], includeRomanizatio
             OPTIONAL MATCH (p)-[:IN_SEASON_OF]->(season:Season)
             OPTIONAL MATCH (p)-[:USES_POETIC_TECHNIQUE_OF]->(pt:Poetic_Technique)
             OPTIONAL MATCH (p)-[:AT_GENJI_AGE_OF]->(ga:Genji_Age)
+            OPTIONAL MATCH (p)-[:HAS_PERSON_REFERENCE]->(pr:Person_Reference)
             OPTIONAL MATCH (p)-[:TAGGED_AS]->(tag:Tag)
                 WHERE tag.Type IN ["Proffered Poem", "Reply Poem", "Group Poem", "Soliloquy"]
             WITH p, 
@@ -97,7 +98,8 @@ async function generalSearch(q, gender, translatorNames = [], includeRomanizatio
                 season,
                 pt,
                 ga,
-                collect(DISTINCT tag.Type) AS poem_types
+                collect(DISTINCT tag.Type) AS poem_types,
+                collect(DISTINCT pr.value) AS person_reference_values
             WHERE ($genders IS NULL OR toLower(speaker.gender) IN $genders)
             RETURN DISTINCT
                 COALESCE(p.pnum, "") AS pnum,
@@ -118,6 +120,10 @@ async function generalSearch(q, gender, translatorNames = [], includeRomanizatio
                     WHEN size(poem_types) > 0 THEN poem_types[0]
                     ELSE ""
                 END AS poem_type,
+                CASE
+                    WHEN size(person_reference_values) > 0 THEN person_reference_values[0]
+                    ELSE ""
+                END AS person_reference,
                 COALESCE([x IN translations WHERE x.translator_name = "Waley"][0].text, "") AS Waley_translation,
                 COALESCE([x IN translations WHERE x.translator_name = "Seidensticker"][0].text, "") AS Seidensticker_translation,
                 COALESCE([x IN translations WHERE x.translator_name = "Tyler"][0].text, "") AS Tyler_translation,
@@ -177,6 +183,7 @@ async function generalSearch(q, gender, translatorNames = [], includeRomanizatio
                     season:           record.get('season') || "",
                     peotic_tech:      record.get('poetic_tech') || "",
                     poem_type:        (record.get('poem_type') || "").toString(),
+                    person_reference: (record.get('person_reference') || "").toString(),
                     waley_translation:         record.get('Waley_translation') || "",
                     seidensticker_translation: record.get('Seidensticker_translation') || "",
                     tyler_translation:         record.get('Tyler_translation') || "",
