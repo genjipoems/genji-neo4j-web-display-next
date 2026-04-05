@@ -921,8 +921,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
             notes: "notes",
             paperMediumType: "paper_or_medium_type",
             deliveryStyle: "delivery_style",
-            seasonEvidence: "seasonEvidence",
-            spokenOrWrittenEvidence: "spokenOrWrittenEvidence",
+            seasonEvidence: "season_evidence",
+            spokenOrWrittenEvidence: "evidence_for_spoken_or_written",
             pt: "pt", // poetic techniques map directly
             tag: "tag", // poem types/tags map directly
             otherTags: "otherTags", // other tags have separate handling

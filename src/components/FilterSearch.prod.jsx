@@ -129,6 +129,7 @@ const PoemSearch = () => {
   const [searchGenjiAge, setSearchGenjiAge] = useState('');
   const [searchOther, setSearchOther] = useState('');
   const [searchUpdate, setSearchUpdate] = useState("");
+  const [searchTranslator, setSearchTranslator] = useState("");
 
   const ageOptions = {};
   for (let age = 1; age <= 75; age++) {
@@ -146,6 +147,22 @@ const PoemSearch = () => {
     chapterNum: {
       label: "Chapter",
       options: {},
+    },
+    settings: {
+      label: "Settings",
+      options: {
+        include_romanization: { checked: false, label: "Include Romanization in Search" },
+      },
+    },
+    translator_filter: {
+      label: "Translator Filter",
+      options: {
+        waley: { checked: false, label: "Waley" },
+        washburn: { checked: false, label: "Washburn" },
+        seidensticker: { checked: false, label: "Seidensticker" },
+        tyler: { checked: false, label: "Tyler" },
+        cranston: { checked: false, label: "Cranston" },
+      },
     },
     speaker_name: {
       label: "Poem From >>",
@@ -191,6 +208,14 @@ const PoemSearch = () => {
           'Reply Poems' : {checked: false},
           'Group Poems' : {checked: false},
           'Soliloquies' : {checked: false},
+        },
+      },
+
+      human_reference: {
+        label: "Human Reference Filter",
+        options: {
+          'All translators agree': { checked: false },
+          'At least one translator differs': { checked: false },
         },
       },
 
@@ -380,7 +405,24 @@ const PoemSearch = () => {
         // const response = await fetch(
         //   `/api/poems/poem_search?q=${encodeURIComponent(queryToUse)}`
         // );
-        const response = await fetch(`/api/poems/poem_search?q=${encodeURIComponent(queryToUse)}`);
+
+          // Translator filter (keys: waley, tyler, etc.)
+          const selectedTranslators = Object.entries(filters.translator_filter.options)
+            .filter(([_, v]) => v.checked)
+            .map(([k]) => k);
+
+          // If none selected => default = all translators (don’t send param)
+          if (selectedTranslators.length > 0) {
+            params.append("translators", selectedTranslators.join(","));
+          }
+
+          const includeRomanization =
+            !!filters.settings?.options?.include_romanization?.checked;
+
+          params.append("includeRomanization", includeRomanization ? "true" : "false");
+
+          const response = await fetch(`/api/poems/poem_search?${params.toString()}`);
+        // const response = await fetch(`/api/poems/poem_search?q=${encodeURIComponent(queryToUse)}`);
           // ? await fetch("/poems/default_poems.json")
           // : await fetch(`/api/poems/poem_search?q=${encodeURIComponent(queryToUse)}`);
 
@@ -431,6 +473,10 @@ const PoemSearch = () => {
                 typeof result.poem_type === "string"
                   ? result.poem_type.trim()
                   : Object.values(result.poem_type || {}).join("").trim(),
+              person_reference:
+                typeof result.person_reference === "string"
+                  ? result.person_reference.trim().toLowerCase()
+                  : Object.values(result.person_reference || {}).join("").trim().toLowerCase(),
               annotations_complete: ((result.annotations_complete ?? "").toString().trim().toLowerCase() === "true"),
               omitted_by_waley: !!result.omitted_by_waley,
               omitted_by_seidensticker: !!result.omitted_by_seidensticker,
@@ -468,7 +514,14 @@ const PoemSearch = () => {
         setIsLoading(false);
       }
     }, 300),
-    [setResults, setShowResults, favSet]
+    [
+      setResults,
+      setShowResults,
+      favSet,
+      filters.speaker_gender.options,
+      filters.translator_filter.options,
+      filters.settings.options,
+    ]
   );
 
   useEffect(() => {
@@ -522,9 +575,13 @@ const PoemSearch = () => {
   const filteredResults = useMemo(() => {
     const activeFilters = Object.entries(filters).reduce(
       (acc, [category, { options }]) => {
+        // translator_filter is handled server-side (keyword search), not client-side filtering
+        if (category === "translator_filter"|| category === "settings") return acc;
+
         const activeOptions = Object.entries(options)
           .filter(([_, { checked }]) => checked)
           .map(([key]) => key);
+
         if (activeOptions.length) acc[category] = activeOptions;
         return acc;
       },
@@ -588,6 +645,15 @@ const PoemSearch = () => {
             case "poem_type":
               const Singular = activeOptions.map(k => PLURAL_TO_SING[k] ?? k);
               return Singular.includes(result.poem_type);
+            case "human_reference": {
+              const optionToValue = {
+                'All translators agree': 'agree',
+                'At least one translator differs': 'disagree',
+              };
+
+              const selectedValues = activeOptions.map(option => optionToValue[option]);
+              return selectedValues.includes((result.person_reference || "").toLowerCase());
+            }
             case "updates": {
               if (!result.last_updated) return false;
               const updatedAt = new Date(result.last_updated);
@@ -674,6 +740,7 @@ const PoemSearch = () => {
     setQuery("");
     
     // Clear all search inputs
+    setSearchTranslator("");
     setSearchSpeaker("");
     setSearchAddressee("");
     setSearchChapter("");
@@ -961,6 +1028,12 @@ const PoemSearch = () => {
       return newSet;
     });
   };
+
+  useEffect(() => {
+    if (searchTranslator.trim() !== '') {
+      setOpenSections(prev => new Set([...prev, 'translator_filter']));
+    }
+  }, [searchTranslator]);
   
   // Auto-open sections when searching
   useEffect(() => {
@@ -1026,6 +1099,10 @@ const PoemSearch = () => {
     const filteredAddresseeOptions = Object.entries(
       filters.addressee_name.options
     ).filter(([name, { gender }]) => selectedAddresseeGenders.includes(gender));
+
+    const handleTranslatorSearch = (e) => {
+      setSearchTranslator(e.target.value.toLowerCase());
+    };
   
     // Function to handle search input change for speaker names
     const handleSpeakerSearch = (e) => {
@@ -1088,8 +1165,118 @@ const PoemSearch = () => {
             className={styles.keywordSearchInput}
           />
         </div>
-        
+        {/* Settings Filter */}
+        <div className={styles.filterSection}>
+          <div
+            className={styles.filterSectionHeader}
+            onClick={() => toggleSection('settings')}
+          >
+            <input
+              type="text"
+              placeholder="SETTINGS"
+              readOnly
+              className={styles.searchInput}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <span
+              className={`${styles.arrow} ${
+                openSections.has('settings') ? styles.arrowDown : ""
+              }`}
+            >
+              ▸
+            </span>
+          </div>
+
+          <div
+            className={`${styles.filterContent} ${
+              openSections.has('settings') ? styles.expanded : ""
+            }`}
+          >
+            <div className={styles.filterCheckboxContainer}>
+              <Checkbox
+                checked={!!filters.settings.options.include_romanization?.checked}
+                onChange={() => handleFilterChange('settings', 'include_romanization')}
+                className={`${styles.filterCheckbox} ${styles.alignLeft}`}
+                style={{ marginLeft: "0px" }}
+              >
+                {filters.settings.options.include_romanization?.label}
+              </Checkbox>
+            </div>
+
+            <hr className={styles.divider} />
+
+            <div className={styles.otherFilterTitles}>Graph Display</div>
+            <div className={styles.filterOptions}>
+              <Checkbox
+                checked={!showByAge}
+                onChange={() => setShowByAge(false)}
+                className={`${styles.filterCheckbox} ${styles.alignLeft}`}
+                style={{ marginLeft: "0px" }}
+              >
+                Graph by Chapter
+              </Checkbox>
+
+              <Checkbox
+                checked={showByAge}
+                onChange={() => setShowByAge(true)}
+                className={`${styles.filterCheckbox} ${styles.alignLeft}`}
+                style={{ marginLeft: "0px" }}
+              >
+                Graph by Genji&apos;s Age
+              </Checkbox>
+            </div>
+          </div>
+         </div> 
+
         <div className={styles.filterScroll}>
+          {/* Translator Filter */}
+          <div className={styles.filterSection}>
+            <div
+              className={styles.filterSectionHeader}
+              onClick={() => toggleSection('translator_filter')}
+            >
+              <input
+                type="text"
+                placeholder="TRANSLATOR FILTER"
+                value={searchTranslator}
+                onChange={handleTranslatorSearch}
+                className={styles.searchInput}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span
+                className={`${styles.arrow} ${
+                  openSections.has('translator_filter') ? styles.arrowDown : ""
+                }`}
+              >
+                ▸
+              </span>
+            </div>
+
+            <div
+              className={`${styles.filterContent} ${
+                openSections.has('translator_filter') ? styles.expanded : ""
+              }`}
+            >
+              <div className={styles.filterCheckboxContainer}>
+                {Object.entries(filters.translator_filter.options)
+                  .filter(([key, opt]) => {
+                    const label = (opt.label || key).toLowerCase();
+                    return label.includes((searchTranslator || "").toLowerCase());
+                  })
+                  .map(([key, opt]) => (
+                    <Checkbox
+                      key={key}
+                      checked={!!opt.checked}
+                      onChange={() => handleFilterChange('translator_filter', key)}
+                      className={`${styles.filterCheckbox} ${styles.alignLeft}`}
+                      style={{ marginLeft: "0px" }}
+                    >
+                      {opt.label || key}
+                    </Checkbox>
+                  ))}
+              </div>
+            </div>
+          </div>
           {/* Chapter Search Filter */}
           <div className={styles.filterSection}>
             <div
@@ -1365,6 +1552,47 @@ const PoemSearch = () => {
                       {age}
                     </Checkbox>
                   ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Human Reference Filter */}
+          <div className={styles.filterSection}>
+            <div
+              className={styles.filterSectionHeader}
+              onClick={() => toggleSection('human_reference')}
+            >
+              <input
+                type="text"
+                placeholder="HUMAN REFERENCE FILTER"
+                readOnly
+                className={styles.searchInput}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span
+                className={`${styles.arrow} ${
+                  openSections.has('human_reference') ? styles.arrowDown : ""
+                }`}
+              >
+                ▸
+              </span>
+            </div>
+            <div
+              className={`${styles.filterContent} ${
+                openSections.has('human_reference') ? styles.expanded : ""
+              }`}
+            >
+              <div className={styles.filterOptions}>
+                {Object.keys(filters.human_reference.options).map((k) => (
+                  <Checkbox
+                    key={k}
+                    checked={filters.human_reference.options[k]?.checked}
+                    onChange={() => handleFilterChange("human_reference", k)}
+                    className={`${styles.filterCheckbox} ${styles.alignLeft}`}
+                  >
+                    {k}
+                  </Checkbox>
+                ))}
               </div>
             </div>
           </div>
@@ -1877,7 +2105,7 @@ const PoemSearch = () => {
                   <span>POEMS</span>
                   <span>FOUND</span>
                 </div>
-                <div className={styles.buttonContainer}>
+                {/* <div className={styles.buttonContainer}>
                   <button
                     className={`${styles.toggleButton} ${
                       showByAge ? styles.inactive : styles.active
@@ -1894,7 +2122,7 @@ const PoemSearch = () => {
                   >
                     graph by <strong>Genji&apos;s age</strong>
                   </button>
-                </div>
+                </div> */}
                 {Object.values(filters).some(({ options }) =>
                   Object.values(options).some(({ checked }) => checked)
                 ) && (

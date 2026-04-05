@@ -33,7 +33,7 @@ const { getSession } = require('../../neo4j_driver/route.prod.js');
 //   }
 
 // api for keyword poem search
-async function generalSearch(q) {
+async function generalSearch(q, gender, translatorNames = [], includeRomanization = false) {
     try {
         const session = await getSession();
         //const searchTerms = await tokenizeJapanese(q);
@@ -43,14 +43,43 @@ async function generalSearch(q) {
         // Neo4j cypher query to filter poems' Japanese, Romaji(, Translation) with search keyword q
         const query = `
             MATCH (p:Genji_Poem)
-            ${q.toLowerCase() !== '=#=' ? `
-            WHERE toLower(p.Japanese) CONTAINS toLower($q) 
-            OR toLower(p.Romaji) CONTAINS toLower($q)
-            OR EXISTS {
-                    (p)<-[:TRANSLATION_OF]-(t:Translation)
-                    WHERE toLower(t.translation) CONTAINS toLower($q)
-                }
-            ` : ''}
+            ${
+            q.toLowerCase() !== '=#='
+                ? `
+            WHERE
+            (
+                size($translatorNames) > 0 AND (
+                    EXISTS {
+                        (p)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(tr:People)
+                        WHERE tr.name IN $translatorNames
+                        AND toLower(t.translation) CONTAINS toLower($q)
+                    }
+                    OR toLower(p.Japanese) CONTAINS toLower($q)
+                    OR (
+                        $includeRomanization = true
+                        AND toLower(p.Romaji) CONTAINS toLower($q)
+                    )
+                )
+            )
+            OR
+            (
+                // If none selected -> search all translations,
+                // plus Japanese, and optionally Romaji if includeRomanization is true
+                size($translatorNames) = 0 AND (
+                    EXISTS {
+                        (p)<-[:TRANSLATION_OF]-(t:Translation)
+                        WHERE toLower(t.translation) CONTAINS toLower($q)
+                    }
+                    OR toLower(p.Japanese) CONTAINS toLower($q)
+                    OR (
+                        $includeRomanization = true
+                        AND toLower(p.Romaji) CONTAINS toLower($q)
+                    )
+                )
+            )
+                `
+                : ''
+            }
             WITH DISTINCT p
             OPTIONAL MATCH (p)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(translator:People)
             OPTIONAL MATCH (p)<-[:ADDRESSEE_OF]-(addressee:Character)
@@ -58,6 +87,7 @@ async function generalSearch(q) {
             OPTIONAL MATCH (p)-[:IN_SEASON_OF]->(season:Season)
             OPTIONAL MATCH (p)-[:USES_POETIC_TECHNIQUE_OF]->(pt:Poetic_Technique)
             OPTIONAL MATCH (p)-[:AT_GENJI_AGE_OF]->(ga:Genji_Age)
+            OPTIONAL MATCH (p)-[:HAS_PERSON_REFERENCE]->(pr:Person_Reference)
             OPTIONAL MATCH (p)-[:TAGGED_AS]->(tag:Tag)
                 WHERE tag.Type IN ["Proffered Poem", "Reply Poem", "Group Poem", "Soliloquy"]
             WITH p, 
@@ -68,7 +98,9 @@ async function generalSearch(q) {
                 season,
                 pt,
                 ga,
-                collect(DISTINCT tag.Type) AS poem_types
+                collect(DISTINCT tag.Type) AS poem_types,
+                collect(DISTINCT pr.value) AS person_reference_values
+            WHERE ($genders IS NULL OR toLower(speaker.gender) IN $genders)
             RETURN DISTINCT
                 COALESCE(p.pnum, "") AS pnum,
                 COALESCE(p.Japanese, "") AS Japanese,
@@ -88,6 +120,10 @@ async function generalSearch(q) {
                     WHEN size(poem_types) > 0 THEN poem_types[0]
                     ELSE ""
                 END AS poem_type,
+                CASE
+                    WHEN size(person_reference_values) > 0 THEN person_reference_values[0]
+                    ELSE ""
+                END AS person_reference,
                 COALESCE([x IN translations WHERE x.translator_name = "Waley"][0].text, "") AS Waley_translation,
                 COALESCE([x IN translations WHERE x.translator_name = "Seidensticker"][0].text, "") AS Seidensticker_translation,
                 COALESCE([x IN translations WHERE x.translator_name = "Tyler"][0].text, "") AS Tyler_translation,
@@ -106,7 +142,18 @@ async function generalSearch(q) {
 
         let res;
         try {
-            res = await session.readTransaction(tx => tx.run(query, { q }));
+            const genders = gender
+            ? gender.split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
+            : null;
+
+            res = await session.readTransaction(tx =>
+            tx.run(query, {
+                q,
+                translatorNames,
+                genders,
+                includeRomanization,
+            })
+            );
         } catch (queryError) {
             console.error('Cypher query execution failed:', queryError);
             throw queryError;
@@ -136,6 +183,7 @@ async function generalSearch(q) {
                     season:           record.get('season') || "",
                     peotic_tech:      record.get('poetic_tech') || "",
                     poem_type:        (record.get('poem_type') || "").toString(),
+                    person_reference: (record.get('person_reference') || "").toString(),
                     waley_translation:         record.get('Waley_translation') || "",
                     seidensticker_translation: record.get('Seidensticker_translation') || "",
                     tyler_translation:         record.get('Tyler_translation') || "",
@@ -169,6 +217,22 @@ export const GET = async (request) => {
     const { searchParams } = new URL(request.url);
     const q = (searchParams.get('q') ?? '=#=');
     const gender = searchParams.get('gender'); // Get gender filter
+    const translatorsRaw = searchParams.get('translators');
+    const includeRomanization = searchParams.get('includeRomanization') === 'true';
+    const KEY_TO_TRANSLATOR_NAME = {
+      waley: "Waley",
+      washburn: "Washburn",
+      seidensticker: "Seidensticker",
+      tyler: "Tyler",
+      cranston: "Cranston",
+    };
+
+    const translatorNames = (translatorsRaw ?? "")
+      .split(",")
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean)
+      .map(k => KEY_TO_TRANSLATOR_NAME[k])
+      .filter(Boolean);
 
     // if (!q) {
     //     return new Response(JSON.stringify({ message: 'Search keyword is required' }), { status: 400 });
@@ -181,7 +245,7 @@ export const GET = async (request) => {
     //     } else {
     //         return new Response(JSON.stringify({ message: 'Search keyword Not found' }), { status: 404 });
     //     }
-        const data = await generalSearch(q, gender);
+        const data = await generalSearch(q, gender, translatorNames, includeRomanization);
         return new Response(JSON.stringify(data || { searchResults: [] }), { status: 200 });
     } catch (error) {
         return new Response(JSON.stringify({ error: "Error in API", message: error.toString() }), { status: 500 });
