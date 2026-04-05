@@ -928,8 +928,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
             otherTags: "otherTags", // other tags have separate handling
             placeOfComp: "placeOfComp", // place of composition maps directly
             placeOfReceipt: "placeOfReceipt", // place of receipt maps directly
-            placeOfCompEvidence: "placeOfCompEvidence",
-            placeOfReceiptEvidence: "placeOfReceiptEvidence",
+            placeOfCompEvidence: "placeOfComp_evidence",
+            placeOfReceiptEvidence: "placeOfReceipt_evidence",
             messenger: "messenger", // messenger maps directly
             proxy: "proxy", // proxy maps directly
             replyPoems: "replyPoems", // reply poems map directly

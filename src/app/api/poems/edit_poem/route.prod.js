@@ -357,7 +357,10 @@ return new Response(JSON.stringify({ message: `Cleared evidence for GROUP_PARTIC
       const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} place of receipt relationships` }), { status: 200 });
     } 
-    // Handle place evidence deletion specially (remove evidence property from place relationships)
+
+    
+
+    // Handle place of composition evidence deletion (remove evidence property from place relationships)
     else if (field === "placeOfComp_evidence") {
       const query = `
         MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_COMPOSITION]->(p:Place)
@@ -373,6 +376,8 @@ return new Response(JSON.stringify({ message: `Cleared evidence for GROUP_PARTIC
         return new Response(JSON.stringify({ message: "No place of composition relationship found to delete evidence from" }), { status: 200 });
       }
     } 
+
+    // Handle place of receipt evidence deletion (remove evidence property from place relationships)
     else if (field === "placeOfReceipt_evidence") {
       const query = `
         MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_RECEIPT]->(p:Place)
@@ -940,110 +945,67 @@ async function updatePoemProperties(pnum, data) {
 
       // 2️⃣f Handle place of composition relationships
       if (data.placeOfComp !== undefined) {
-        // First, remove any existing place of composition relationship
+
+        const evidence = data.placeOfCompEvidence ?? null;
+        // Delete old relationship if it exists, ensures poem can only have 1 place of composition
+        // Create new relationship with same evidence if it exists 
+        await tx.run(`
+          MATCH (g:Genji_Poem {pnum: $pnum})
+          MATCH (p: Place {name: $placeName})
+          OPTIONAL MATCH (g)-[old:PLACE_OF_COMPOSITION]->(:Place)
+          DELETE old
+          CREATE (g)-[r:PLACE_OF_COMPOSITION]->(p)
+          SET r.evidence = $evidence
+        `, { 
+          pnum: pnum.toString(),
+          placeName: data.placeOfComp,
+          evidence: evidence
+        });
+        }
+
+      // 2️⃣g Handle placeOfComp_evidence separately (update evidence property on existing relationship)
+      if (data.placeOfComp === undefined && data.placeOfCompEvidence !== undefined) {
         await tx.run(`
           MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_COMPOSITION]->(p:Place)
-          DELETE r
-        `, { pnum: pnum.toString() });
-
-        // Then, if a place is provided, create new relationship
-        if (data.placeOfComp && data.placeOfComp.trim()) {
-          const placeName = data.placeOfComp.trim();
-          const evidence = data.placeOfComp_evidence || null;
-          
-          // First check if Place node exists, create if it doesn't
-          const checkQuery = `
-            MATCH (p:Place {name: $placeName})
-            RETURN p.name as name
-          `;
-          
-          const checkResult = await tx.run(checkQuery, { placeName });
-          
-          if (checkResult.records.length === 0) {
-            // Create the Place node if it doesn't exist
-            await tx.run(`
-              CREATE (p:Place {name: $placeName})
-            `, { placeName });
-          }
-          
-          // Create the relationship
-          await tx.run(`
-            MATCH (g:Genji_Poem {pnum: $pnum})
-            MATCH (p:Place {name: $placeName})
-            CREATE (g)-[r:PLACE_OF_COMPOSITION]->(p)
-            SET r.evidence = $evidence
-          `, { 
-            pnum: pnum.toString(), 
-            placeName: placeName,
-            evidence: evidence
-          });
-        }
+          SET r.evidence = $evidence
+        `, { 
+          pnum: pnum.toString(),
+          evidence: data.placeOfCompEvidence ?? null
+        });
       }
 
-      // 2️⃣g Handle place of receipt relationships
+      // 2️⃣h Handle place of receipt relationships
       if (data.placeOfReceipt !== undefined) {
-        // First, remove any existing place of receipt relationship
-        await tx.run(`
-          MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_RECEIPT]->(p:Place)
-          DELETE r
-        `, { pnum: pnum.toString() });
 
-        // Then, if a place is provided, create new relationship
-        if (data.placeOfReceipt && data.placeOfReceipt.trim()) {
-          const placeName = data.placeOfReceipt.trim();
-          const evidence = data.placeOfReceipt_evidence || null;
-          
-          // First check if Place node exists, create if it doesn't
-          const checkQuery = `
-            MATCH (p:Place {name: $placeName})
-            RETURN p.name as name
-          `;
-          
-          const checkResult = await tx.run(checkQuery, { placeName });
-          
-          if (checkResult.records.length === 0) {
-            // Create the Place node if it doesn't exist
-            await tx.run(`
-              CREATE (p:Place {name: $placeName})
-            `, { placeName });
-          }
-          
-          // Create the relationship
-          await tx.run(`
-            MATCH (g:Genji_Poem {pnum: $pnum})
-            MATCH (p:Place {name: $placeName})
-            CREATE (g)-[r:PLACE_OF_RECEIPT]->(p)
-            SET r.evidence = $evidence
-          `, { 
-            pnum: pnum.toString(), 
-            placeName: placeName,
-            evidence: evidence
-          });
+        const evidence = data.placeOfReceiptEvidence ?? null;
+        // Delete old relationship if it exists, ensures poem can only have 1 place of composition
+        // Create new relationship with same evidence if it exists 
+        await tx.run(`
+          MATCH (g:Genji_Poem {pnum: $pnum})
+          MATCH (p: Place {name: $placeName})
+          OPTIONAL MATCH (g)-[old:PLACE_OF_RECEIPT]->(:Place)
+          DELETE old
+          CREATE (g)-[r:PLACE_OF_RECEIPT]->(p)
+          SET r.evidence = $evidence
+        `, { 
+          pnum: pnum.toString(),
+          placeName: data.placeOfReceipt,
+          evidence: evidence
+        });
         }
-      }
 
-      // 2️⃣h Handle place evidence separately (update evidence property on existing relationships)
-      if (data.placeOfComp_evidence !== undefined && data.placeOfComp === undefined) {
-        await tx.run(`
-          MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_COMPOSITION]->(p:Place)
-          SET r.evidence = $evidence
-        `, { 
-          pnum: pnum.toString(),
-          evidence: data.placeOfComp_evidence || null
-        });
-      }
-
-      if (data.placeOfReceipt_evidence !== undefined && data.placeOfReceipt === undefined) {
+      // 2️⃣i Handle placeOfReceipt_evidence separately (update evidence property on existing relationship)
+      if (data.placeOfReceipt === undefined && data.placeOfReceiptEvidence !== undefined) {
         await tx.run(`
           MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_RECEIPT]->(p:Place)
           SET r.evidence = $evidence
         `, { 
           pnum: pnum.toString(),
-          evidence: data.placeOfReceipt_evidence || null
+          evidence: data.placeOfReceiptEvidence ?? null
         });
       }
 
-      // 2️⃣i Handle messenger relationships
+      // 2️⃣j Handle messenger relationships
       if (data.messenger !== undefined) {
         // First, remove any existing messenger relationship
         await tx.run(`
@@ -1082,7 +1044,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣j Handle proxy relationships
+      // 2️⃣k Handle proxy relationships
       if (data.proxy !== undefined) {
         // First, remove any existing proxy relationship
         await tx.run(`
@@ -1121,7 +1083,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣k Handle poetic words relationships
+      // 2️⃣l Handle poetic words relationships
       if (data.pw !== undefined) {
         // First, remove all existing poetic word relationships
         await tx.run(`
@@ -1195,7 +1157,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣l Handle seasonal words/kigo relationships
+      // 2️⃣m Handle seasonal words/kigo relationships
       if (data.kigo !== undefined) {
         // First, remove all existing seasonal word relationships
         await tx.run(`
@@ -1264,7 +1226,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣m Handle reply poems relationships
+      // 2️⃣n Handle reply poems relationships
       if (data.replyPoems !== undefined) {
         // First, remove all existing reply relationships where other poems reply TO this poem
         await tx.run(`
@@ -1310,7 +1272,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣n Handle other translations relationships
+      // 2️⃣o Handle other translations relationships
       if (data.otherTranslations !== undefined) {
         // First, remove all existing other translation relationships
         await tx.run(`
