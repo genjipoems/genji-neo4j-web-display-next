@@ -59,9 +59,12 @@ export async function DELETE(request) {
                           "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", 
                           "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", 
                           "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description", "otherTranslations", 
-                          "otherRecipient1", "otherRecipient2", "otherRecipient3","otherRecipients", "other_recipient_1_evidence", "other_recipient_2_evidence", "other_recipient_3_evidence",
-                          "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3", "unintendedRecipients", "unintended_recipient_1_evidence", "unintended_recipient_2_evidence", "unintended_recipient_3_evidence",
-                          "groupParticipant1", "groupParticipant2", "groupParticipant3", "groupParticipants", "group_participant_1_evidence", "group_participant_2_evidence", "group_participant_3_evidence"];
+                          "otherRecipient1", "otherRecipient2", "otherRecipient3","otherRecipients", 
+                          "other_recipient_1_evidence", "other_recipient_2_evidence", "other_recipient_3_evidence",
+                          "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3", "unintendedRecipients", 
+                          "unintended_recipient_1_evidence", "unintended_recipient_2_evidence", "unintended_recipient_3_evidence",
+                          "groupParticipant1", "groupParticipant2", "groupParticipant3", "groupParticipant4", "groupParticipant5", "groupParticipants", 
+                          "group_participant_1_evidence", "group_participant_2_evidence", "group_participant_3_evidence", "group_participant_4_evidence", "group_participant_5_evidence"];
 
     if (!allowedFields.includes(field)) {
       return new Response(JSON.stringify({ error: "Invalid field param" }), { status: 400 });
@@ -176,7 +179,7 @@ return new Response(JSON.stringify({ message: `Cleared evidence for UNINTENDED_R
 }
 
 // Handle group participant deletion specially (remove GROUP PARTICIPANT_OF relationship)
-else if (field === "groupParticipant1" || field === "groupParticipant2" || field === "groupParticipant3") {
+else if (field === "groupParticipant1" || field === "groupParticipant2" || field === "groupParticipant3" || field === "groupParticipant4" || field === "groupParticipant5") {
   const query = `
     MATCH (c:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum: $pnum})
     DELETE r
@@ -191,10 +194,14 @@ else if (field === "groupParticipant1" || field === "groupParticipant2" || field
 
 else if (field === "group_participant_1_evidence" ||
   field === "group_participant_2_evidence" ||
-  field === "group_participant_3_evidence"
+  field === "group_participant_3_evidence" ||
+  field === "group_participant_4_evidence" ||
+  field === "group_participant_5_evidence"
 ) {
 const slot = field === "group_participant_1_evidence" ? 1 
       : field === "group_participant_2_evidence" ? 2
+      : field === "group_participant_3_evidence" ? 3
+      : field === "group_participant_4_evidence" ? 4
       : 3;
 
 const { searchParams } = new URL(request.url);
@@ -536,19 +543,20 @@ async function updatePoemProperties(pnum, data) {
 
   const validSeasons = ["Spring", "Summer", "Autumn", "Winter"];
 
-  // Normalize input into [{ name, evidence }] format
+  // Normalize input into [{ name, evidence, slot }] format
   function normalizeNameEvidenceArray(input) {
     if (!Array.isArray(input)) return [];
     return input
       .map((x) => {
         if (typeof x === "string") {
           const name = x.trim();
-          return name ? { name, evidence: null } : null;
+          return name ? { name, evidence: null, slot: null } : null;
         }
         if (x && typeof x === "object") {
           const name = (x.name ?? "").toString().trim();
           const evidence = (x.evidence ?? "").toString().trim() || null;
-          return name ? { name, evidence } : null;
+          const slot = x.slot ?? null;
+          return name ? { name, evidence, slot } : null;
         }
         return null;
       })
@@ -565,12 +573,16 @@ async function updatePoemProperties(pnum, data) {
     );
 
     // Create new relationships with specific evidence per person
-    for (const { name, evidence } of rows) {
+    for (const { name, evidence, slot } of rows) {
       // Ensure Character exists
       await tx.run(`MERGE (c:Character {name: $name})`, { name });
       // Create relationship with evidence property
-      await tx.run(`MATCH (g:Genji_Poem {pnum: $pnum}) MATCH (c:Character {name: $name}) CREATE (c)-[r:${relType}]->(g) SET r.evidence = $evidence`,
-        { pnum: pnum.toString(), name, evidence }
+      await tx.run(`MATCH (g:Genji_Poem {pnum: $pnum}) 
+                    MATCH (c:Character {name: $name}) 
+                    CREATE (c)-[r:${relType}]->(g) 
+                    SET r.evidence = $evidence,
+                        r.slot = $slot`,
+        { pnum: pnum.toString(), name, evidence, slot }
       );
 
     }
@@ -584,7 +596,7 @@ async function updatePoemProperties(pnum, data) {
         const nm = (name ?? "").toString().trim();
         if (!nm) return null;
         const ev = (evArr[i] ?? "").toString().trim();
-        return { name: nm, evidence: ev || null };
+        return { name: nm, evidence: ev || null, slot: i + 1 };
       })
       .filter(Boolean);
   }
