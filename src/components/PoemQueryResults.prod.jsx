@@ -98,6 +98,34 @@ function evidenceForName(name, dataArr) {
     return normalized.find((x) => x.name === nm)?.evidence || "";
 }
 
+function dataBySlot(slotNames, backendData) {
+    const dataMap = new Map();
+
+    if (Array.isArray(backendData)) {
+        for (const item of backendData) {
+            if (item && typeof item === "object" && !Array.isArray(item)) {
+                const name = (item.name ?? "").toString().trim()
+                if (name) dataMap.set(name, item);
+                continue
+            }
+
+            if (Array.isArray(item)) {
+                const name = (item[0] ?? "").toString().trim()
+                if (name) {
+                    dataMap.set(name, 
+                        { name: item[0] ?? "",
+                        evidence: item[1] ?? "",
+                    });
+                }
+            }
+        }
+    }
+    return (slotNames || []).map((n) => {
+        const key = (n ?? "").toString().trim();
+        return key ? (dataMap.get(key) ?? "") : "";
+    });
+}
+
 const PoemDisplay = ({ poemData }) => {
 
     const [poemState, setPoemState] = useState({
@@ -178,7 +206,7 @@ const PoemDisplay = ({ poemData }) => {
     const chapter_name = chapterNames[chapter];
 
     const RecipientSlots = ({ title, names, data }) => {
-        const slots = [0, 1, 2];
+        const slots = names.map((_, i) => i);
 
         const hasAny = Array.isArray(names) && names.some((n) => (n ?? "").toString().trim());
         if(!hasAny) return null;
@@ -275,8 +303,30 @@ const PoemDisplay = ({ poemData }) => {
                 const tags = responseData[4];
                 const pls = responseData[6];
                 const otherRecipients = responseData[35] || [];
+                const otherRecipientNames = [
+                    otherRecipients[0] || "",
+                    otherRecipients[1] || "",
+                    otherRecipients[2] || ""
+                ];
+                const otherRecipientData = dataBySlot(otherRecipientNames, responseData[38] || "");
+
                 const unintendedRecipients = responseData[36] || [];
+                const unintendedRecipientNames = [
+                    unintendedRecipients[0] || "",
+                    unintendedRecipients[1] || "",
+                    unintendedRecipients[2] || ""
+                ];
+                const unintendedRecipientData = dataBySlot(unintendedRecipientNames, responseData[39] || "");
+
                 const groupParticipants = responseData[37] || [];
+                const groupParticipantNames = [
+                    groupParticipants[0] || "",
+                    groupParticipants[1] || "",
+                    groupParticipants[2] || "",
+                    groupParticipants[3] || "",
+                    groupParticipants[4] || ""
+                ];
+                const groupParticipantData = dataBySlot(groupParticipantNames, responseData[40] || "")
                 
                 // form speaker set
                 let speaker = [...new Set(exchange.map(e => e.start.properties.name))];
@@ -404,9 +454,10 @@ const PoemDisplay = ({ poemData }) => {
                     otherRecipients: [...otherRecipients],
                     unintendedRecipients: [...unintendedRecipients],
                     groupParticipants: [...groupParticipants],
-                    otherRecipientData: Array.isArray(responseData[38]) ? responseData[38] : [],
-                    unintendedRecipientData: Array.isArray(responseData[39]) ? responseData[39] : [],
-                    groupParticipantData: Array.isArray(responseData[40]) ? responseData[40] : [],
+
+                    otherRecipientData: otherRecipientData,
+                    unintendedRecipientData: unintendedRecipientData,
+                    groupParticipantData: groupParticipantData,
                     
                     userNotes: exchange[0]?.segments[0]?.end?.properties?.userNotes
                 };

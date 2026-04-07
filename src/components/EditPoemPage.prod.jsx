@@ -49,7 +49,9 @@ function cleanProps(input) {
         "unintended_recipient_3_evidence",
         "group_participant_1_evidence",
         "group_participant_2_evidence",
-        "group_participant_3_evidence"
+        "group_participant_3_evidence",
+        "group_participant_4_evidence",
+        "group_participant_5_evidence"
     ]);
 
 
@@ -148,6 +150,34 @@ function evidenceBySlot(slotNames, backendData) {
     });
 }
 
+function dataBySlot(slotNames, backendData) {
+    const dataMap = new Map();
+
+    if (Array.isArray(backendData)) {
+        for (const item of backendData) {
+            if (item && typeof item === "object" && !Array.isArray(item)) {
+                const name = (item.name ?? "").toString().trim()
+                if (name) dataMap.set(name, item);
+                continue
+            }
+
+            if (Array.isArray(item)) {
+                const name = (item[0] ?? "").toString().trim()
+                if (name) {
+                    dataMap.set(name, 
+                        { name: item[0] ?? "",
+                        evidence: item[1] ?? "",
+                    });
+                }
+            }
+        }
+    }
+    return (slotNames || []).map((n) => {
+        const key = (n ?? "").toString().trim();
+        return key ? (dataMap.get(key) ?? "") : "";
+    });
+}
+
 function validateEvidenceTargets({
     otherRecipients,
     unintendedRecipients,
@@ -206,12 +236,12 @@ const fieldOrder = [
     "speaker", "addressee", "addressee2", "addressee3", 
     "otherRecipient1", "otherRecipient2", "otherRecipient3",
     "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3",
-    "groupParticipant1", "groupParticipant2", "groupParticipant3",
+    "groupParticipant1", "groupParticipant2", "groupParticipant3", "groupParticipant4", "groupParticipant5",
     "poemId", "age", "JPRM_Japanese", "JPRM_Romaji",
     "Waley", "Seidensticker", "Tyler", "Washburn", "Cranston",
     "otherRecipient1Evidence", "otherRecipient2Evidence", "otherRecipient3Evidence", 
     "unintendedRecipient1Evidence", "unintendedRecipient2Evidence", "unintendedRecipient3Evidence",
-    "groupParticipant1Evidence", "groupParticipant2Evidence", "groupParticipant3Evidence",
+    "groupParticipant1Evidence", "groupParticipant2Evidence", "groupParticipant3Evidence", "groupParticipant4Evidence", "groupParticipant5Evidence",
     "otherTranslations", "narrativeContext", "paraphrase", "notes", "paperMediumType", "deliveryStyle",
     "season", "seasonEvidence", "spoken", "written", "complete", "spokenOrWrittenEvidence", 
     "pt", "tag", "otherTags", "placeOfComp", "placeOfCompEvidence",
@@ -344,22 +374,24 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     const [orEv1, orEv2, orEv3] = evidenceBySlot(otherRecipientNames, otherRecipientData);
 
                     const unintendedRecipients = responseData[36] || [];
-                    const unintendedRecipientData = responseData[39] || [];
                     const unintendedRecipientNames = [
                         unintendedRecipients[0] || "",
                         unintendedRecipients[1] || "",
                         unintendedRecipients[2] || ""
                     ];
+                    const unintendedRecipientData = dataBySlot(unintendedRecipientNames, responseData[39] || []);
                     const [urEv1, urEv2, urEv3] = evidenceBySlot(unintendedRecipientNames, unintendedRecipientData);
 
                     const groupParticipants = responseData[37] || [];
-                    const groupParticipantData = responseData[40] || [];
                     const groupParticipantNames = [
                         groupParticipants[0] || "",
                         groupParticipants[1] || "",
-                        groupParticipants[2] || ""
+                        groupParticipants[2] || "",
+                        groupParticipants[3] || "",
+                        groupParticipants[4] || ""
                     ];
-                    const [gpEv1, gpEv2, gpEv3] = evidenceBySlot(groupParticipantNames, groupParticipantData);
+                    const groupParticipantData = dataBySlot(groupParticipantNames, responseData[40] || []);
+                    const [gpEv1, gpEv2, gpEv3, gpEv4, gpEv5] = evidenceBySlot(groupParticipantNames, groupParticipantData);
 
                     
                     let speaker = [...new Set(exchange.map(e => e.start.properties.name))];
@@ -492,9 +524,13 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     groupParticipant1: groupParticipants[0] || "",
                     groupParticipant2: groupParticipants[1] || "",
                     groupParticipant3: groupParticipants[2] || "",
+                    groupParticipant4: groupParticipants[3] || "",
+                    groupParticipant5: groupParticipants[4] || "",
                     groupParticipant1Evidence: gpEv1,
                     groupParticipant2Evidence: gpEv2,
                     groupParticipant3Evidence: gpEv3,
+                    groupParticipant4Evidence: gpEv4,
+                    groupParticipant5Evidence: gpEv5,
                     otherTranslations: responseData[34] || []
                     };
 
@@ -616,12 +652,16 @@ export default function EditPoemPage({ chapter, poemNum }) {
             (data.groupParticipant1 || "").trim(),
             (data.groupParticipant2 || "").trim(),
             (data.groupParticipant3 || "").trim(),
+            (data.groupParticipant4 || "").trim(),
+            (data.groupParticipant5 || "").trim()
         ];
         
         result.group_participant_evidence = [
             (data.groupParticipant1Evidence || "").trim() || null,
             (data.groupParticipant2Evidence || "").trim() || null,
             (data.groupParticipant3Evidence || "").trim() || null,
+            (data.groupParticipant4Evidence || "").trim() || null,
+            (data.groupParticipant5Evidence || "").trim() || null,
         ];
 
         result.otherRecipients = result.otherRecipients.map(x => x || "").filter(() => true);  
@@ -709,6 +749,16 @@ export default function EditPoemPage({ chapter, poemNum }) {
             } else if (key === "groupParticipant3Evidence") {
                 result.group_participant_evidence = result.group_participant_evidence || [];
                 result.group_participant_evidence[2] = (val && val.trim()) ? val.trim() : null;
+                continue;
+
+            } else if (key === "groupParticipant4Evidence") {
+                result.group_participant_evidence = result.group_participant_evidence || [];
+                result.group_participant_evidence[3] = (val && val.trim()) ? val.trim() : null;
+                continue;
+
+            } else if (key === "groupParticipant5Evidence") {
+                result.group_participant_evidence = result.group_participant_evidence || [];
+                result.group_participant_evidence[4] = (val && val.trim()) ? val.trim() : null;
                 continue;
             
             } else if (key === "pt") {
@@ -828,6 +878,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
             (editData?.groupParticipant1 || "").trim(),
             (editData?.groupParticipant2 || "").trim(),
             (editData?.groupParticipant3 || "").trim(),
+            (editData?.groupParticipant4 || "").trim(),
+            (editData?.groupParticipant5 || "").trim()
         ];
         
         const evidenceBySlotObj = {
@@ -845,6 +897,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 (editData?.groupParticipant1Evidence || "").trim(),
                 (editData?.groupParticipant2Evidence || "").trim(),
                 (editData?.groupParticipant3Evidence || "").trim(),
+                (editData?.groupParticipant4Evidence || "").trim(),
+                (editData?.groupParticipant5Evidence || "").trim()
             ],
         };
         
@@ -950,9 +1004,13 @@ export default function EditPoemPage({ chapter, poemNum }) {
             groupParticipant1: "groupParticipant1",
             groupParticipant2: "groupParticipant2",
             groupParticipant3: "groupParticipant3",
+            groupParticipant4: "groupParticipant4",
+            groupParticipant5: "groupParticipant5",
             groupParticipant1Evidence: "group_participant_1_evidence",
             groupParticipant2Evidence: "group_participant_2_evidence",
             groupParticipant3Evidence: "group_participant_3_evidence",
+            groupParticipant4Evidence: "group_participant_4_evidence",
+            groupParticipant5Evidence: "group_participant_5_evidence",
             otherTranslations: "otherTranslations", // other translations map directly
         };
         const fieldToDelete = fieldMap[key] || key;
@@ -967,6 +1025,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
             "groupParticipant1Evidence",
             "groupParticipant2Evidence",
             "groupParticipant3Evidence",
+            "groupParticipant4Evidence",
+            "groupParticipant5Evidence",
         ]);
 
         const evidenceSlotToNameKey = {
@@ -978,7 +1038,9 @@ export default function EditPoemPage({ chapter, poemNum }) {
             unintendedRecipient3Evidence: "unintendedRecipient3",
             groupParticipant1Evidence: "groupParticipant1",
             groupParticipant2Evidence: "groupParticipant2",
-            groupParticipant3Evidence: "groupParticipant3"
+            groupParticipant3Evidence: "groupParticipant3",
+            groupParticipant4Evidence: "groupParticipant4",
+            groupParticipant5Evidence: "groupParticipant5",
         };
 
         let recipientName = null;
@@ -1023,7 +1085,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 updated[key] = JSON.stringify([]);
             } else if (key === "otherTranslations") {
                 updated[key] = JSON.stringify([]);
-            } else if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3") {
+            } else if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3" || key === "groupParticipant4" || key === "groupParticipant5") {
                 updated[key] = "";
             } else if (key === "complete") {
                 // For complete field, set to empty string (same as speaker/addressee)
@@ -1037,7 +1099,9 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 key === "unintendedRecipient3Evidence" ||
                 key === "groupParticipant1Evidence" ||
                 key === "groupParticipant2Evidence" ||
-                key === "groupParticipant3Evidence"
+                key === "groupParticipant3Evidence" ||
+                key === "groupParticipant4Evidence" ||
+                key === "groupParticipant5Evidence"
             ) {
                 updated[key] = "";
             } else {
@@ -1083,9 +1147,13 @@ export default function EditPoemPage({ chapter, poemNum }) {
         if (key === 'groupParticipant1') return 'Group Participant 1';
         if (key === 'groupParticipant2') return 'Group Participant 2';
         if (key === 'groupParticipant3') return 'Group Participant 3';
+        if (key === 'groupParticipant4') return 'Group Participant 4';
+        if (key === 'groupParticipant5') return 'Group Participant 5';
         if (key === 'groupParticipant1Evidence') return 'Group Participant 1 Evidence';
         if (key === 'groupParticipant2Evidence') return 'Group Participant 2 Evidence';
         if (key === 'groupParticipant3Evidence') return 'Group Participant 3 Evidence';
+        if (key === 'groupParticipant4Evidence') return 'Group Participant 4 Evidence';
+        if (key === 'groupParticipant5Evidence') return 'Group Participant 5 Evidence'
         if (key === 'otherTranslations') return 'Other Translations';
         
         return key
@@ -1118,6 +1186,8 @@ export default function EditPoemPage({ chapter, poemNum }) {
             "groupParticipant1",
             "groupParticipant2",
             "groupParticipant3",
+            "groupParticipant4",
+            "groupParticipant5",
             "poemId",
             "season",
             "age",
@@ -1222,12 +1292,12 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 <input
                     type="text"
                     className="compact-field-input"
-                    list={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3" 
+                    list={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3" || key === "groupParticipant4" || key === "groupParticipant5"
                         ? `${key}-characters-compact` : undefined}
                     value={inputValue}
                     readOnly={isReadOnly}
                     style={isReadOnly ? { backgroundColor: "#f5f5f5" } : {}}
-                    placeholder={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3" ? "Type or select character name" : undefined}
+                    placeholder={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3" || key === "groupParticipant4" || key === "groupParticipant5" ? "Type or select character name" : undefined}
                     onChange={(e) => {
                         if (isReadOnly) return;
 
@@ -1256,7 +1326,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     }}
                 />
                 {/* Add datalist for character fields */}
-                {(key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3" ) && (
+                {(key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3" || key === "groupParticipant4" || key === "groupParticipant5") && (
                     <datalist id={`${key}-characters-compact`}>
                         {availableCharacters.map((character) => (
                             <option key={character} value={character} />

@@ -14,11 +14,14 @@ async function getData (chapter, number){
 				OPTIONAL MATCH addressee_rel=(g)<-[:ADDRESSEE_OF]-(a:Character) \
 				OPTIONAL MATCH trans=(g)-[:TRANSLATION_OF]-(:Translation)-[:TRANSLATOR_OF]-(:People) \
 				CALL {WITH g OPTIONAL MATCH (otherChar:Character)-[otherRel:OTHER_RECIPIENT_OF]->(g) \
-					RETURN collect(DISTINCT { name: otherChar.name, evidence: CASE WHEN otherRel.evidence IS NULL OR trim(toString(otherRel.evidence)) = "" THEN null ELSE otherRel.evidence END }) AS other_recipients} \
+					WITH otherChar, otherRel ORDER BY otherRel.slot \
+					RETURN collect(DISTINCT { name: otherChar.name, evidence: CASE WHEN otherRel.evidence IS NULL OR trim(toString(otherRel.evidence)) = "" THEN null ELSE otherRel.evidence END, slot: otherRel.slot }) AS other_recipients} \
 				CALL {WITH g OPTIONAL MATCH (unintendedChar:Character)-[unintendedRel:UNINTENDED_RECIPIENT_OF]->(g) \
-					RETURN collect(DISTINCT { name: unintendedChar.name, evidence: CASE WHEN unintendedRel.evidence IS NULL OR trim(toString(unintendedRel.evidence)) = "" THEN null ELSE unintendedRel.evidence END }) AS unintended_recipients} \
+					WITH unintendedChar, unintendedRel ORDER BY unintendedRel.slot \
+					RETURN collect(DISTINCT { name: unintendedChar.name, evidence: CASE WHEN unintendedRel.evidence IS NULL OR trim(toString(unintendedRel.evidence)) = "" THEN null ELSE unintendedRel.evidence END, slot: unintendedRel.slot }) AS unintended_recipients} \
 				CALL {WITH g OPTIONAL MATCH (groupChar:Character)-[groupRel:GROUP_PARTICIPANT_OF]->(g) \
-					RETURN collect(DISTINCT { name: groupChar.name, evidence: CASE WHEN groupRel.evidence IS NULL OR trim(toString(groupRel.evidence)) = "" THEN null ELSE groupRel.evidence END }) AS group_participants} \
+					WITH groupChar, groupRel ORDER BY groupRel.slot \
+					RETURN collect(DISTINCT { name: groupChar.name, evidence: CASE WHEN groupRel.evidence IS NULL OR trim(toString(groupRel.evidence)) = "" THEN null ELSE groupRel.evidence END, slot: groupRel.slot }) AS group_participants} \
 				RETURN poem, speaker_rel, addressee_rel, trans, other_recipients, unintended_recipients, group_participants, \
 					g.narrative_context as narrative_context, \
 					g.paraphrase as paraphrase, \
@@ -136,20 +139,6 @@ exchange.forEach(ex => {
 exchange = Array.from(exchangeByKey.values());
 
 		// derive names from segments
-		const otherRecipientNames = new Set();
-		const unintendedRecipientNames = new Set();
-		const groupParticipantNames = new Set();
-
-		exchange.forEach(ex => {
-		ex.segments.forEach(seg => {
-			const name = seg.start?.properties?.name;
-			if (!name) return;
-
-			if (seg.role === 'otherRecipient') otherRecipientNames.add(name);
-			if (seg.role === 'unintendedRecipient') unintendedRecipientNames.add(name);
-			if (seg.role === 'groupParticipant') groupParticipantNames.add(name);
-		});
-		});
 
 		let narrative_context = result['res'].records[0]?.get('narrative_context') || null;
 		let	paraphrase = result['res'].records[0]?.get('paraphrase') || null;
@@ -161,15 +150,14 @@ exchange = Array.from(exchangeByKey.values());
 		let spoken_or_written_evidence = result['res'].records[0]?.get('spoken_or_written_evidence') || null;
 		let complete = result['res'].records[0]?.get('complete') || null; // poem is complete annotated mark
 		let last_updated = result['res'].records[0]?.get('last_updated') || null; // last updated time
-		let otherRecipientList = Array.from(otherRecipientNames);
-		let unintendedRecipientList = Array.from(unintendedRecipientNames);
-		let groupParticipantList = Array.from(groupParticipantNames);
 
 		const filterValid = (arr) => (arr || []).filter(item => item && item.name);
 		let otherRecipientData = filterValid(result['res'].records[0]?.get('other_recipients'));
 		let unintendedRecipientData = filterValid(result['res'].records[0]?.get('unintended_recipients'));
 		let groupParticipantData = filterValid(result['res'].records[0]?.get('group_participants'));
-
+		let otherRecipientList = otherRecipientData.map(x => x.name);
+		let unintendedRecipientList = unintendedRecipientData.map(x => x.name);
+		let groupParticipantList = groupParticipantData.map(x => x.name);
 
 		//for transtemp
 		let transTemp = result['res'].records.map(e => {
