@@ -59,6 +59,12 @@ export default function UserHomePage({ userid }) {
     const [blogsTotalPages, setBlogsTotalPages] = useState(1);
     const [blogsLoading, setBlogsLoading] = useState(true);
 
+    // Blogs state
+    const [userNotes, setUserNotes] = useState([]);
+    const [notesPage, setNotesPage] = useState(1);
+    const [notesTotalPages, setNotesTotalPages] = useState(1);
+    const [notesLoading, setNotesLoading] = useState(true);
+
     const fetchUserData = async () => {
         try {
             // Get basic user info
@@ -248,6 +254,34 @@ export default function UserHomePage({ userid }) {
         fetchUserFavorites(newPage);
     };
 
+    // Fetch user's comments with pagination
+    const fetchUserNotes = async (page = 1) => {
+        if (!session) return;
+        
+        try {
+            const response = await fetch(`/api/user/getNotes?page=${page}&limit=5`);
+            if (response.ok) {
+                const data = await response.json();
+                setUserNotes(data.notes || []);
+                setNotesPage(data.currentPage || 1);
+                setNotesTotalPages(data.totalPages || 1);
+            }
+        } catch (error) {
+            console.error('Failed to fetch user notes:', error);
+        } finally {
+            setNotesLoading(false);
+        }
+    };
+
+    // Handle notes pagination
+    const handleNotesPageChange = (newPage) => {
+        if (newPage < 1 || newPage > notesTotalPages || newPage === notesPage || notesLoading) {
+            return;
+        }
+        setNotesPage(newPage);
+        fetchUserNotes(newPage);
+    };
+
     // Init data fetching
     useEffect(() => {
         if (user) {
@@ -257,6 +291,7 @@ export default function UserHomePage({ userid }) {
                 fetchUserFavorites();
                 fetchUserTranslations();
                 fetchUserBlogs();
+                fetchUserNotes();
             }
             setLoading(false);
         }
@@ -332,7 +367,7 @@ export default function UserHomePage({ userid }) {
             <div className={styles.loginPrompt}>
                 <LogIn size={24} className={styles.loginIcon} />
                 <h3>Sign in to view this content</h3>
-                <p>Please sign in to see {user.name}&apos; comments, contributions, and favorite poems.</p>
+                <p>Please sign in to see {user.name}&apos; comments, contributions, favorite poems, and notes.</p>
                 <div className={styles.loginActions}>
                     <Link href="/api/auth/signin" className={styles.signInButton}>
                         Sign In
@@ -382,6 +417,13 @@ export default function UserHomePage({ userid }) {
                 >
                     FAVORITE POEMS
                     <span className={styles.tabCount}> ({userFavorites.length})</span>
+                </button>
+                <button 
+                    className={`${styles.tabButton} ${activeTab === 'notes' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('notes')}
+                >
+                    NOTES
+                    <span className={styles.tabCount}> ({userNotes.length})</span>
                 </button>
             </div>
         );
@@ -769,8 +811,6 @@ export default function UserHomePage({ userid }) {
                                 </div>
                             )}
 
-
-
                             {/* Favorites Tab */}
                             {activeTab === 'favorites' && (
                                 <div className={styles.tabPanel}>
@@ -819,6 +859,55 @@ export default function UserHomePage({ userid }) {
                                     )}
                                 </div>
                             )}
+
+                            {/* Notes Tab */}
+                            {activeTab === 'notes' && (
+                                <div className={styles.tabPanel}>
+                                    <h2 className={styles.tabContentTitle}>RECENT NOTES</h2>
+                                    
+                                    {notesLoading ? (
+                                        <div className={styles.loadingState}>Loading notes...</div>
+                                    ) : userNotes.length === 0 ? (
+                                        <div className={styles.emptyState}>No notes yet</div>
+                                    ) : (
+                                        <>
+                                            <div className={styles.notesList}>
+                                                {userNotes.map(note => (
+                                                    <div key={note._id} className={styles.noteCard}>
+                                                        <div className={styles.noteHeader}>
+                                                            <FormatContent content={note.content} className={styles.noteText}/>
+                                                            <span className={styles.noteDate}>
+                                                                {formatDate(note.createdAt)}
+                                                            </span>
+                                                        </div>
+                                                        <div className={styles.noteMeta}>
+                                                            <span className={styles.noteLocation}>
+                                                                In {note.pageType}{' '}
+                                                                <Link 
+                                                                    href={`/${note.pageType === 'poem' ? 'poems' : 'characters' }/${note.pageType === 'poem' ? note.identifier.replace('-', '/') : note.identifier}`}
+                                                                    className={styles.noteLink}
+                                                                >
+                                                                    {note.identifier}
+                                                                </Link>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            
+                                            {notesTotalPages > 1 && (
+                                                <Pagination
+                                                    currentPage={notesPage}
+                                                    totalPages={notesTotalPages}
+                                                    onPageChange={handleNotesPageChange}
+                                                    disabled={notesLoading}
+                                                />
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
                         </div>
                     </>
                 ) : (
