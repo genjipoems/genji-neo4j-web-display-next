@@ -4,6 +4,7 @@ import styles from '../styles/pages/poemDisplay.module.css';
 import FavButton from '../components/FavButton.prod';
 import ContributorView from '../components/ContributorView.prod';
 import DiscussionArea from '../components/DiscussionArea.prod';
+import NotesArea from './NotesArea.prod.jsx';
 import FormatContent from './FormatText.prod'
 import TransSubmit from '../components/TranslationSubmit.prod';
 import TransDisplay from '../components/TranslationDisplay.prod'
@@ -142,7 +143,6 @@ const PoemDisplay = ({ poemData }) => {
         source: [],
         relWithEvidence: [],
         tag: [],
-        notes: "",
         isLoading: true,
         poemId: "",
         proxy: "",
@@ -177,9 +177,7 @@ const PoemDisplay = ({ poemData }) => {
         groupParticipants: [],
         otherRecipientData: [],
         unintendedRecipientData: [],
-        groupParticipantData: [],
-
-        userNotes: ""
+        groupParticipantData: []
     });
 
     const chapter = poemData.chapterNum;
@@ -241,7 +239,7 @@ const PoemDisplay = ({ poemData }) => {
         context: false,
         commentary: false,
         details: false,
-        userNotes: false,
+        notes: false,
         discussion: false
     });
     
@@ -556,7 +554,6 @@ const PoemDisplay = ({ poemData }) => {
     const hasContext = !!poemState.narrativeContext;
     const hasSummary = !!poemState.paraphrase;
     const hasCommentary = !!poemState.notes;
-    const hasUserNotes = !!poemState.userNotes;
     const hasDetails = Boolean(
     poemState.paperMediumType ||
     poemState.deliveryStyle ||
@@ -1170,19 +1167,6 @@ const PoemDisplay = ({ poemData }) => {
                                 </div>
                             </div>
 
-                            {/* User Notes Panel */}
-                            <div className={styles.analysisPanel}>
-                                <div className={`${styles.panelHeader} ${!hasUserNotes ? styles.panelHeaderEmpty : ''}`} onClick={() => togglePanel('user notes')}>
-                                    <h2>USER NOTES</h2>
-                                    <div className={`${styles.toggleArrow} ${expandedPanels.userNotes ? styles.arrowExpanded : styles.arrowCollapsed}`}>
-                                        ▼
-                                    </div>
-                                </div>
-                                <div className={`${styles.panelContent} ${expandedPanels.userNotes ? styles.expanded : styles.collapsed}`}>
-                                    {poemState.userNotes && <FormatContent content={poemState.userNotes} />}
-                                </div>
-                            </div>
-
                             {/* Discussion Panel */}
                             <div className={styles.analysisPanel}>
                                 <div className={styles.panelHeader} onClick={() => togglePanel('discussion')}>
@@ -1193,6 +1177,22 @@ const PoemDisplay = ({ poemData }) => {
                                 </div>
                                 <div className={`${styles.panelContent} ${expandedPanels.discussion ? styles.expanded : styles.collapsed}`}>
                                 <DiscussionArea 
+                                    pageType="poem"
+                                    identifier={`${chapter}-${number}`}
+                                />
+                                </div>
+                            </div>
+
+                            {/* User Notes Panel */}
+                            <div className={styles.analysisPanel}>
+                                <div className={styles.panelHeader} onClick={() => togglePanel('notes')}>
+                                    <h2>USER NOTES</h2>
+                                    <div className={`${styles.toggleArrow} ${expandedPanels.notes ? styles.arrowExpanded : styles.arrowCollapsed}`}>
+                                        ▼
+                                    </div>
+                                </div>
+                                <div className={`${styles.panelContent} ${expandedPanels.notes ? styles.expanded : styles.collapsed}`}>
+                                <NotesArea 
                                     pageType="poem"
                                     identifier={`${chapter}-${number}`}
                                 />
