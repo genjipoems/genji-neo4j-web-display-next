@@ -1,5 +1,61 @@
 import { getSession } from '../../neo4j_driver/route.prod.js';
 import { checkServerSideAdmin } from '../../../../lib/auth-utils';
+import { auth } from '../../../../auth.prod';
+import client from '../../../../lib/db.prod';
+
+
+async function addAutomaticPoemContributor({ pnum, sessionUser }) {
+  console.log('helper received pnum:', pnum);
+  console.log('helper received sessionUser:', sessionUser);
+
+  if (!pnum || !sessionUser?.email) {
+    console.warn('Skipping automatic contributor update: missing pnum or session user email');
+    return;
+  }
+
+  const identifier = `${parseInt(pnum.substring(0, 2), 10)}-${parseInt(pnum.substring(4, 6), 10)}`;
+
+  const db = client.db('user');
+
+  const dbUser = await db.collection('info').findOne({ email: sessionUser.email });
+
+  if (!dbUser?._id) {
+    console.warn('Skipping automatic contributor update: no matching user found in user.info for email:', sessionUser.email);
+    return;
+  }
+
+  const contributorId = dbUser._id.toString();
+
+  const result = await db.collection('contribution').updateOne(
+    {
+      pageType: 'poem',
+      identifier
+    },
+    {
+      $setOnInsert: {
+        pageType: 'poem',
+        identifier,
+        createdAt: new Date()
+      },
+      $set: {
+        updatedAt: new Date()
+      },
+      $addToSet: {
+        contributors: contributorId
+      }
+    },
+    { upsert: true }
+  );
+
+  console.log('automatic contribution update:', {
+    identifier,
+    contributorEmail: sessionUser.email,
+    contributorId,
+    matchedCount: result.matchedCount,
+    modifiedCount: result.modifiedCount,
+    upsertedId: result.upsertedId || null
+  });
+}
 
 // Update (PUT) existing poem
 export async function PUT(request) {
@@ -9,7 +65,7 @@ export async function PUT(request) {
 
     if (!isAdmin) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized. Admin access required to edit poems.' }), 
+        JSON.stringify({ error: 'Unauthorized. Admin access required to edit poems.' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -23,9 +79,22 @@ export async function PUT(request) {
 
     const data = await request.json();
 
+    // 1. Save poem changes in Neo4j
     await updatePoemProperties(pnum, data);
 
-    return new Response(JSON.stringify({ message: "Poem updated successfully" }), { status: 200 });
+    // 2. Automatically add current editor to Mongo contribution doc
+    // 2. Automatically add current editor to Mongo contribution doc
+    const session = await auth();
+
+    await addAutomaticPoemContributor({
+      pnum,
+      sessionUser: session?.user
+    });
+
+    return new Response(
+      JSON.stringify({ message: "Poem updated successfully" }),
+      { status: 200 }
+    );
   } catch (error) {
     console.error("PUT error:", error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
