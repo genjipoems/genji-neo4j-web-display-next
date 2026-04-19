@@ -47,7 +47,7 @@ export async function GET(req) {
                 },
                 {
                     $sort: {  
-                        createdAt: -1   
+                        updatedAt: -1   
                     }
                 }
             ])

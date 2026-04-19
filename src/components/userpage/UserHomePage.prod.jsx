@@ -394,7 +394,7 @@ export default function UserHomePage({ userid }) {
                     className={`${styles.tabButton} ${activeTab === 'contributions' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('contributions')}
                 >
-                    CONTRIBUTIONS
+                    POEM PAGES EDITED
                     <span className={styles.tabCount}> ({userContributions.length})</span>
                 </button>
                 <button 
@@ -664,32 +664,32 @@ export default function UserHomePage({ userid }) {
 
                             {/* Contributions Tab */}
                             {activeTab === 'contributions' && (
-                                <div className={styles.tabPanel}>
-                                    <h2 className={styles.tabContentTitle}>CONTRIBUTIONS</h2>
-                                    
-                                    {contributionsLoading ? (
-                                        <div className={styles.loadingState}>Loading contributions...</div>
-                                    ) : userContributions.length === 0 ? (
-                                        <div className={styles.emptyState}>No contributions yet</div>
-                                    ) : (
-                                        <>
-                                            <div className={styles.contributionsList}>
-                                                {userContributions.map(contribution => (
-                                                    <div key={contribution._id} className={styles.contributionCard}>
-                                                        <div className={styles.contributionContent}>
-                                                            <h3 className={styles.contributionTitle}>
-                                                                {contribution.pageType.charAt(0).toUpperCase() + contribution.pageType.slice(1)}
-                                                            </h3>
-                                                            <Link 
-                                                                href={`/${contribution.pageType === 'poem' ? 'poems' : 'characters' }/${contribution.pageType === 'poem' ? contribution.identifier.replace('-', '/') : contribution.identifier}`}
-                                                                className={styles.contributionLink}
-                                                            >
-                                                                {contribution.identifier}
-                                                            </Link>
-                                                        </div>
+                            <div className={styles.tabPanel}>
+                                <h2 className={styles.tabContentTitle}>POEM PAGES EDITED</h2>
+                                
+                                {contributionsLoading ? (
+                                    <div className={styles.loadingState}>Loading poem pages edited...</div>
+                                ) : userContributions.length === 0 ? (
+                                    <div className={styles.emptyState}>No poem pages edited yet</div>
+                                ) : (
+                                    <>
+                                        <div className={styles.contributionsList}>
+                                            {userContributions.map(contribution => (
+                                                <div key={contribution._id} className={styles.contributionCard}>
+                                                    <div className={styles.contributionContent}>
+                                                        <h3 className={styles.contributionTitle}>
+                                                            Poem Page Edited
+                                                        </h3>
+                                                        <Link 
+                                                            href={`/${contribution.pageType === 'poem' ? 'poems' : 'characters'}/${contribution.pageType === 'poem' ? contribution.identifier.replace('-', '/') : contribution.identifier}`}
+                                                            className={styles.contributionLink}
+                                                        >
+                                                            {contribution.identifier}
+                                                        </Link>
                                                     </div>
-                                                ))}
-                                            </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                             
                                             {contributionsTotalPages > 1 && (
                                                 <Pagination
