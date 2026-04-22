@@ -212,10 +212,12 @@ const PoemSearch = () => {
       },
 
       human_reference: {
-        label: "Human Reference Filter",
+        label: "Person Reference Filter",
         options: {
           'All translators agree': { checked: false },
           'At least one translator differs': { checked: false },
+          'Contain a person referent': { checked: false },
+          'Contain a pronoun': { checked: false },
         },
       },
 
@@ -477,6 +479,8 @@ const PoemSearch = () => {
                 typeof result.person_reference === "string"
                   ? result.person_reference.trim().toLowerCase()
                   : Object.values(result.person_reference || {}).join("").trim().toLowerCase(),
+              contain_a_pronoun: !!result.contain_a_pronoun,
+              contain_a_person_referent: !!result.contain_a_person_referent,
               annotations_complete: ((result.annotations_complete ?? "").toString().trim().toLowerCase() === "true"),
               omitted_by_waley: !!result.omitted_by_waley,
               omitted_by_seidensticker: !!result.omitted_by_seidensticker,
@@ -646,13 +650,21 @@ const PoemSearch = () => {
               const Singular = activeOptions.map(k => PLURAL_TO_SING[k] ?? k);
               return Singular.includes(result.poem_type);
             case "human_reference": {
-              const optionToValue = {
-                'All translators agree': 'agree',
-                'At least one translator differs': 'disagree',
-              };
-
-              const selectedValues = activeOptions.map(option => optionToValue[option]);
-              return selectedValues.includes((result.person_reference || "").toLowerCase());
+              return activeOptions.every((option) => {
+                if (option === 'All translators agree') {
+                  return (result.person_reference || "").toLowerCase() === "agree";
+                }
+                if (option === 'At least one translator differs') {
+                  return (result.person_reference || "").toLowerCase() === "disagree";
+                }
+                if (option === 'Contain a person referent') {
+                  return !!result.contain_a_person_referent;
+                }
+                if (option === 'Contain a pronoun') {
+                  return !!result.contain_a_pronoun;
+                }
+                return true;
+              });
             }
             case "updates": {
               if (!result.last_updated) return false;
@@ -1564,7 +1576,7 @@ const PoemSearch = () => {
             >
               <input
                 type="text"
-                placeholder="HUMAN REFERENCE FILTER"
+                placeholder="PERSON REFERENCE FILTER"
                 readOnly
                 className={styles.searchInput}
                 onClick={(e) => e.stopPropagation()}

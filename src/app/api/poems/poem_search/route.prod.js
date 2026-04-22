@@ -124,6 +124,12 @@ async function generalSearch(q, gender, translatorNames = [], includeRomanizatio
                     WHEN size(person_reference_values) > 0 THEN person_reference_values[0]
                     ELSE ""
                 END AS person_reference,
+                EXISTS {
+                    (p)<-[:TRANSLATION_OF]-(tp:Translation)-[:TAGGED_AS]->(:Tag {Type: "Contain_a_Pronoun", Value: "true"})
+                } AS contain_a_pronoun,
+                EXISTS {
+                    (p)<-[:TRANSLATION_OF]-(tn:Translation)-[:TAGGED_AS]->(:Tag {Type: "Contain_a_Person_Noun", Value: "true"})
+                } AS contain_a_person_referent,
                 COALESCE([x IN translations WHERE x.translator_name = "Waley"][0].text, "") AS Waley_translation,
                 COALESCE([x IN translations WHERE x.translator_name = "Seidensticker"][0].text, "") AS Seidensticker_translation,
                 COALESCE([x IN translations WHERE x.translator_name = "Tyler"][0].text, "") AS Tyler_translation,
@@ -184,6 +190,8 @@ async function generalSearch(q, gender, translatorNames = [], includeRomanizatio
                     peotic_tech:      record.get('poetic_tech') || "",
                     poem_type:        (record.get('poem_type') || "").toString(),
                     person_reference: (record.get('person_reference') || "").toString(),
+                    contain_a_pronoun: !!record.get('contain_a_pronoun'),
+                    contain_a_person_referent: !!record.get('contain_a_person_referent'),
                     waley_translation:         record.get('Waley_translation') || "",
                     seidensticker_translation: record.get('Seidensticker_translation') || "",
                     tyler_translation:         record.get('Tyler_translation') || "",
