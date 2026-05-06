@@ -291,7 +291,10 @@ export default function UserHomePage({ userid }) {
                 fetchUserFavorites();
                 fetchUserTranslations();
                 fetchUserBlogs();
-                fetchUserNotes();
+
+                if (isCurrentUser) {
+                    fetchUserNotes();
+                }
             }
             setLoading(false);
         }
@@ -418,13 +421,16 @@ export default function UserHomePage({ userid }) {
                     FAVORITE POEMS
                     <span className={styles.tabCount}> ({userFavorites.length})</span>
                 </button>
-                <button 
+                { isCurrentUser && (
+                    <button 
                     className={`${styles.tabButton} ${activeTab === 'notes' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('notes')}
                 >
                     NOTES
                     <span className={styles.tabCount}> ({userNotes.length})</span>
                 </button>
+                    )
+                }
             </div>
         );
     };
@@ -861,7 +867,7 @@ export default function UserHomePage({ userid }) {
                             )}
 
                             {/* Notes Tab */}
-                            {activeTab === 'notes' && (
+                            {activeTab === 'notes' && isCurrentUser && (
                                 <div className={styles.tabPanel}>
                                     <h2 className={styles.tabContentTitle}>RECENT NOTES</h2>
                                     
