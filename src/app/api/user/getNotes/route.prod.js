@@ -58,7 +58,7 @@ export async function GET(req) {
             return NextResponse.json({ notes: [] }, { status: 200 });
         }
 
-        const totalNotes = await db.collection('notes').countDocuments({ user: userId, isHidden: false });
+        const totalNotes = await db.collection('notes').countDocuments({ user: userId });
 
         return NextResponse.json({ notes, totalNotes, currentPage: page, totalPages: Math.ceil(totalNotes / limit) || 1 }, { status: 200 });
 
