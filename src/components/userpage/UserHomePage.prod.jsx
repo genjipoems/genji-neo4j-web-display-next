@@ -34,36 +34,42 @@ export default function UserHomePage({ userid }) {
     const [commentsPage, setCommentsPage] = useState(1);
     const [commentsTotalPages, setCommentsTotalPages] = useState(1);
     const [commentsLoading, setCommentsLoading] = useState(true);
+    const [commentsTotalComments, setCommentsTotalComments] = useState(0);
 
     // Contributions state
     const [userContributions, setUserContributions] = useState([]);
     const [contributionsPage, setContributionsPage] = useState(1);
     const [contributionsTotalPages, setContributionsTotalPages] = useState(1);
     const [contributionsLoading, setContributionsLoading] = useState(true);
+    const [contributionsTotalContributions, setContributionsTotalContributions] = useState(0);
 
     // Favorites state
     const [userFavorites, setUserFavorites] = useState([]);
     const [favoritesPage, setFavoritesPage] = useState(1);
     const [favoritesTotalPages, setFavoritesTotalPages] = useState(1);
     const [favoritesLoading, setFavoritesLoading] = useState(true);
+    const [favoritesTotalFavs, setFavoritesTotalFavs] = useState(0);
 
     // Translations state
     const [userTranslations, setUserTranslations] = useState([]);
     const [translationsPage, setTranslationsPage] = useState(1);
     const [translationsTotalPages, setTranslationsTotalPages] = useState(1);
     const [translationsLoading, setTranslationsLoading] = useState(true);
+    const [translationsTotalTranslations, setTranslationsTotalTranslations] = useState(0);
 
      // Blogs state
     const [userBlogs, setUserBlogs] = useState([]);
     const [blogsPage, setBlogsPage] = useState(1);
     const [blogsTotalPages, setBlogsTotalPages] = useState(1);
     const [blogsLoading, setBlogsLoading] = useState(true);
+    const [blogsTotalBlogs, setBlogsTotalBlogs] = useState(0);
 
-    // Blogs state
+    // Notes state
     const [userNotes, setUserNotes] = useState([]);
     const [notesPage, setNotesPage] = useState(1);
     const [notesTotalPages, setNotesTotalPages] = useState(1);
     const [notesLoading, setNotesLoading] = useState(true);
+    const [notesTotalNotes, setNotesTotalNotes] = useState(0);
 
     const fetchUserData = async () => {
         try {
@@ -112,6 +118,7 @@ export default function UserHomePage({ userid }) {
                 setUserComments(data.comments || []);
                 setCommentsPage(data.currentPage || 1);
                 setCommentsTotalPages(data.totalPages || 1);
+                setCommentsTotalComments(data.totalComments || 0);
             }
         } catch (error) {
             console.error('Failed to fetch user comments:', error);
@@ -140,6 +147,7 @@ export default function UserHomePage({ userid }) {
                 setUserContributions(data.contributions || []);
                 setContributionsPage(data.currentPage || 1);
                 setContributionsTotalPages(data.totalPages || 1);
+                setContributionsTotalContributions(data.totalContributions || 0);
             }
         } catch (error) {
             console.error('Failed to fetch user contributions:', error);
@@ -168,6 +176,7 @@ export default function UserHomePage({ userid }) {
         setUserTranslations(data.translations || []);
         setTranslationsPage(data.currentPage || 1);
         setTranslationsTotalPages(data.totalPages || 1);
+        setTranslationsTotalTranslations(data.totalTranslations || 0);
         }
     } catch (error) {
         console.error('Failed to fetch user translations:', error);
@@ -203,6 +212,7 @@ export default function UserHomePage({ userid }) {
             setUserBlogs(data.blogs || []);
             setBlogsPage(data.currentPage || 1);
             setBlogsTotalPages(data.totalPages || 1);
+            setBlogsTotalBlogs(data.totalBlogs || 0);
             }
         } catch (error) {
             console.error('Failed to fetch user blogs:', error);
@@ -237,6 +247,7 @@ export default function UserHomePage({ userid }) {
                 setUserFavorites(data.favs || []);
                 setFavoritesPage(data.currentPage || 1);
                 setFavoritesTotalPages(data.totalPages || 1);
+                setFavoritesTotalFavs(data.totalFavs || 0);
             }
         } catch (error) {
             console.error('Failed to fetch user favorites:', error);
@@ -265,6 +276,7 @@ export default function UserHomePage({ userid }) {
                 setUserNotes(data.notes || []);
                 setNotesPage(data.currentPage || 1);
                 setNotesTotalPages(data.totalPages || 1);
+                setNotesTotalNotes(data.totalNotes || 0);
             }
         } catch (error) {
             console.error('Failed to fetch user notes:', error);
@@ -391,35 +403,35 @@ export default function UserHomePage({ userid }) {
                     onClick={() => setActiveTab('comments')}
                 >
                     COMMENTS
-                    <span className={styles.tabCount}> ({userComments.length})</span>
+                    <span className={styles.tabCount}> ({commentsTotalComments})</span>
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'contributions' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('contributions')}
                 >
                     POEM PAGES EDITED
-                    <span className={styles.tabCount}> ({userContributions.length})</span>
+                    <span className={styles.tabCount}> ({contributionsTotalContributions})</span>
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'translations' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('translations')}
                 >
                     TRANSLATIONS
-                    <span className={styles.tabCount}> ({userTranslations.length})</span>
+                    <span className={styles.tabCount}> ({translationsTotalTranslations})</span>
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'blogs' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('blogs')}
                 >
                     BLOGS
-                    <span className={styles.tabCount}> ({userBlogs.length})</span>
+                    <span className={styles.tabCount}> ({blogsTotalBlogs})</span>
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'favorites' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('favorites')}
                 >
                     FAVORITE POEMS
-                    <span className={styles.tabCount}> ({userFavorites.length})</span>
+                    <span className={styles.tabCount}> ({favoritesTotalFavs})</span>
                 </button>
                 { isCurrentUser && (
                     <button 
@@ -427,7 +439,7 @@ export default function UserHomePage({ userid }) {
                     onClick={() => setActiveTab('notes')}
                 >
                     NOTES
-                    <span className={styles.tabCount}> ({userNotes.length})</span>
+                    <span className={styles.tabCount}> ({notesTotalNotes})</span>
                 </button>
                     )
                 }
