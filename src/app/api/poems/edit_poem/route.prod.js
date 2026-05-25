@@ -1,14 +1,71 @@
 import { getSession } from '../../neo4j_driver/route.prod.js';
 import { checkServerSideAdmin } from '../../../../lib/auth-utils';
+import { auth } from '../../../../auth.prod';
+import client from '../../../../lib/db.prod';
+
+
+async function addAutomaticPoemContributor({ pnum, sessionUser }) {
+  console.log('helper received pnum:', pnum);
+  console.log('helper received sessionUser:', sessionUser);
+
+  if (!pnum || !sessionUser?.email) {
+    console.warn('Skipping automatic contributor update: missing pnum or session user email');
+    return;
+  }
+
+  const identifier = `${parseInt(pnum.substring(0, 2), 10)}-${parseInt(pnum.substring(4, 6), 10)}`;
+
+  const db = client.db('user');
+
+  const dbUser = await db.collection('info').findOne({ email: sessionUser.email });
+
+  if (!dbUser?._id) {
+    console.warn('Skipping automatic contributor update: no matching user found in user.info for email:', sessionUser.email);
+    return;
+  }
+
+  const contributorId = dbUser._id.toString();
+
+  const result = await db.collection('contribution').updateOne(
+    {
+      pageType: 'poem',
+      identifier
+    },
+    {
+      $setOnInsert: {
+        pageType: 'poem',
+        identifier,
+        createdAt: new Date()
+      },
+      $set: {
+        updatedAt: new Date()
+      },
+      $addToSet: {
+        contributors: contributorId
+      }
+    },
+    { upsert: true }
+  );
+
+  console.log('automatic contribution update:', {
+    identifier,
+    contributorEmail: sessionUser.email,
+    contributorId,
+    matchedCount: result.matchedCount,
+    modifiedCount: result.modifiedCount,
+    upsertedId: result.upsertedId || null
+  });
+}
 
 // Update (PUT) existing poem
 export async function PUT(request) {
   try {
     // Check if user is admin before allowing poem edits
     const { isAdmin } = await checkServerSideAdmin();
+
     if (!isAdmin) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized. Admin access required to edit poems.' }), 
+        JSON.stringify({ error: 'Unauthorized. Admin access required to edit poems.' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -22,9 +79,22 @@ export async function PUT(request) {
 
     const data = await request.json();
 
+    // 1. Save poem changes in Neo4j
     await updatePoemProperties(pnum, data);
 
-    return new Response(JSON.stringify({ message: "Poem updated successfully" }), { status: 200 });
+    // 2. Automatically add current editor to Mongo contribution doc
+    // 2. Automatically add current editor to Mongo contribution doc
+    const session = await auth();
+
+    await addAutomaticPoemContributor({
+      pnum,
+      sessionUser: session?.user
+    });
+
+    return new Response(
+      JSON.stringify({ message: "Poem updated successfully" }),
+      { status: 200 }
+    );
   } catch (error) {
     console.error("PUT error:", error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
@@ -53,7 +123,18 @@ export async function DELETE(request) {
     }
 
     // **Sanitize field name** - expanded to include season, age and other allowed fields
-    const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "Complete", "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description", "otherTranslations", "otherRecipients", "unintendedRecipients", "groupParticipants"];
+    const allowedFields = ["speaker", "addressee", "addressee2", "addressee3", "Spoken", "Written", "Complete", 
+                          "season", "age", "paper_or_medium_type", "delivery_style", "season_evidence", 
+                          "narrative_context", "paraphrase", "notes", "pt", "tag", "otherTags", "placeOfComp", 
+                          "placeOfReceipt", "placeOfComp_evidence", "placeOfReceipt_evidence", "evidence_for_spoken_or_written", 
+                          "pw", "messenger", "proxy", "replyPoems", "kigo", "handwriting_description", "otherTranslations", 
+                          "otherRecipient1", "otherRecipient2", "otherRecipient3","otherRecipients", 
+                          "other_recipient_1_evidence", "other_recipient_2_evidence", "other_recipient_3_evidence",
+                          "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3", "unintendedRecipients", 
+                          "unintended_recipient_1_evidence", "unintended_recipient_2_evidence", "unintended_recipient_3_evidence",
+                          "groupParticipant1", "groupParticipant2", "groupParticipant3", "groupParticipant4", "groupParticipant5", "groupParticipants", 
+                          "group_participant_1_evidence", "group_participant_2_evidence", "group_participant_3_evidence", "group_participant_4_evidence", "group_participant_5_evidence"];
+
     if (!allowedFields.includes(field)) {
       return new Response(JSON.stringify({ error: "Invalid field param" }), { status: 400 });
     }
@@ -86,7 +167,7 @@ export async function DELETE(request) {
     }
 
     // Handle other recipient deletion specially (remove OTHER_RECIPIENT_OF relationship)
-    else if (field === "otherRecipient") {
+    else if (field === "otherRecipient1" || field === "otherRecipient2" || field === "otherRecipient3") {
       const query = `
         MATCH (c:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
         DELETE r
@@ -99,8 +180,34 @@ export async function DELETE(request) {
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} other recipient relationships` }), { status: 200 });
     }
 
+    else if (field === "other_recipient_1_evidence" ||
+            field === "other_recipient_2_evidence" ||
+            field === "other_recipient_3_evidence"
+    ) {
+      const slot = field === "other_recipient_1_evidence" ? 1 
+                : field === "other_recipient_2_evidence" ? 2
+                : 3;
+      
+      const { searchParams } = new URL(request.url);
+      const recipientName = searchParams.get("recipientName");
+
+      if (!recipientName || !recipientName.trim()) {
+        return new Response(
+          JSON.stringify({ error: "Missing recipientNameparam for slot evidence deletion" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      await session.run(`
+        MATCH (c:Character {name: $name})-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum:$pnum})
+        REMOVE r.evidence
+        RETURN count(r) AS cleared
+      `, { pnum, name: recipientName.trim() });
+      return new Response(JSON.stringify({ message: `Cleared evidence for OTHER_RECIPIENT slot ${slot}` }), { status: 200 });
+    }
+
 // Handle unintended recipient deletion specially (remove UNINTENDED_RECIPIENT_OF relationship)
-else if (field === "unintendedRecipients") {
+else if (field === "unintendedRecipient1" || field === "unintendedRecipient2" || field === "unintendedRecipient3") {
   const query = `
     MATCH (c:Character)-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
     DELETE r
@@ -113,8 +220,35 @@ else if (field === "unintendedRecipients") {
   return new Response(JSON.stringify({ message: `Deleted ${deletedCount} unintended recipient relationships` }), { status: 200 });
 }
 
+
+else if (field === "unintended_recipient_1_evidence" ||
+  field === "unintended_recipient_2_evidence" ||
+  field === "unintended_recipient_3_evidence"
+) {
+const slot = field === "unintended_recipient_1_evidence" ? 1 
+      : field === "unintended_recipient_2_evidence" ? 2
+      : 3;
+
+const { searchParams } = new URL(request.url);
+const recipientName = searchParams.get("recipientName");
+
+if (!recipientName || !recipientName.trim()) {
+return new Response(
+JSON.stringify({ error: "Missing recipientNameparam for slot evidence deletion" }),
+{ status: 400, headers: { "Content-Type": "application/json" } }
+);
+}
+
+await session.run(`
+MATCH (c:Character {name: $name})-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum:$pnum})
+REMOVE r.evidence
+RETURN count(r) AS cleared
+`, { pnum, name: recipientName.trim() });
+return new Response(JSON.stringify({ message: `Cleared evidence for UNINTENDED_RECIPIENT slot ${slot}` }), { status: 200 });
+}
+
 // Handle group participant deletion specially (remove GROUP PARTICIPANT_OF relationship)
-else if (field === "groupParticipants") {
+else if (field === "groupParticipant1" || field === "groupParticipant2" || field === "groupParticipant3" || field === "groupParticipant4" || field === "groupParticipant5") {
   const query = `
     MATCH (c:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum: $pnum})
     DELETE r
@@ -126,6 +260,37 @@ else if (field === "groupParticipants") {
   const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
   return new Response(JSON.stringify({ message: `Deleted ${deletedCount} group participant relationships` }), { status: 200 });
 }
+
+else if (field === "group_participant_1_evidence" ||
+  field === "group_participant_2_evidence" ||
+  field === "group_participant_3_evidence" ||
+  field === "group_participant_4_evidence" ||
+  field === "group_participant_5_evidence"
+) {
+const slot = field === "group_participant_1_evidence" ? 1 
+      : field === "group_participant_2_evidence" ? 2
+      : field === "group_participant_3_evidence" ? 3
+      : field === "group_participant_4_evidence" ? 4
+      : 3;
+
+const { searchParams } = new URL(request.url);
+const recipientName = searchParams.get("recipientName");
+
+if (!recipientName || !recipientName.trim()) {
+return new Response(
+JSON.stringify({ error: "Missing recipientNameparam for slot evidence deletion" }),
+{ status: 400, headers: { "Content-Type": "application/json" } }
+);
+}
+
+await session.run(`
+MATCH (c:Character {name: $name})-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum:$pnum})
+REMOVE r.evidence
+RETURN count(r) AS cleared
+`, { pnum, name: recipientName.trim() });
+return new Response(JSON.stringify({ message: `Cleared evidence for GROUP_PARTICIPANT slot ${slot}` }), { status: 200 });
+}
+
     // Handle age deletion specially (remove AT_GENJI_AGE_OF relationship)
     else if (field === "age") {
       const query = `
@@ -174,6 +339,7 @@ else if (field === "groupParticipants") {
         return new Response(JSON.stringify({ message: "No season relationship found to delete evidence from" }), { status: 200 });
       }
     } 
+
     // Handle poetic techniques deletion specially (remove all EMPLOYS_POETIC_TECHNIQUE relationships)
     else if (field === "pt") {
       const query = `
@@ -267,7 +433,10 @@ else if (field === "groupParticipants") {
       const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} place of receipt relationships` }), { status: 200 });
     } 
-    // Handle place evidence deletion specially (remove evidence property from place relationships)
+
+    
+
+    // Handle place of composition evidence deletion (remove evidence property from place relationships)
     else if (field === "placeOfComp_evidence") {
       const query = `
         MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_COMPOSITION]->(p:Place)
@@ -283,6 +452,8 @@ else if (field === "groupParticipants") {
         return new Response(JSON.stringify({ message: "No place of composition relationship found to delete evidence from" }), { status: 200 });
       }
     } 
+
+    // Handle place of receipt evidence deletion (remove evidence property from place relationships)
     else if (field === "placeOfReceipt_evidence") {
       const query = `
         MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_RECEIPT]->(p:Place)
@@ -350,34 +521,8 @@ else if (field === "groupParticipants") {
       const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
       return new Response(JSON.stringify({ message: `Deleted ${deletedCount} other translation relationships` }), { status: 200 });
     } 
-    // Handle speaker deletion specially (remove SPEAKER_OF relationship)
-    else if (field === "speaker") {
-      const query = `
-        MATCH (c:Character)-[r:SPEAKER_OF]->(g:Genji_Poem {pnum: $pnum})
-        DELETE r
-        RETURN count(r) as deletedCount
-      `;
-      
-      const result = await session.run(query, { pnum });
-      
-      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
-      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} speaker relationships` }), { status: 200 });
-    } 
-    // Handle addressee deletion specially (remove all ADDRESSEE_OF relationships)
-    else if (field === "addressee" || field === "addressee2" || field === "addressee3") {
-      const query = `
-        MATCH (c:Character)-[r:ADDRESSEE_OF]->(g:Genji_Poem {pnum: $pnum})
-        DELETE r
-        RETURN count(r) as deletedCount
-      `;
-      
-      const result = await session.run(query, { pnum });
-      
-      const deletedCount = result.records[0]?.get("deletedCount")?.toNumber() || 0;
-      return new Response(JSON.stringify({ message: `Deleted ${deletedCount} addressee relationships` }), { status: 200 });
-    } 
 
-    else if (field === "otherRecipient") {
+    else if (field === "otherRecipients") {
       const query = `
         MATCH (c:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
         DELETE r
@@ -430,7 +575,7 @@ else if (field === "groupParticipants") {
         return new Response(JSON.stringify({ message: `Field '${field}' deleted successfully` }), { status: 200 });
       } else {
         return new Response(JSON.stringify({ error: "Poem not found" }), { status: 404 });
-      }
+      } 
     }
   } catch (error) {
     console.error("DELETE error:", error);
@@ -467,6 +612,64 @@ async function updatePoemProperties(pnum, data) {
 
   const validSeasons = ["Spring", "Summer", "Autumn", "Winter"];
 
+  // Normalize input into [{ name, evidence, slot }] format
+  function normalizeNameEvidenceArray(input) {
+    if (!Array.isArray(input)) return [];
+    return input
+      .map((x) => {
+        if (typeof x === "string") {
+          const name = x.trim();
+          return name ? { name, evidence: null, slot: null } : null;
+        }
+        if (x && typeof x === "object") {
+          const name = (x.name ?? "").toString().trim();
+          const evidence = (x.evidence ?? "").toString().trim() || null;
+          const slot = x.slot ?? null;
+          return name ? { name, evidence, slot } : null;
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+  
+  async function upsertCharacterRelsWithEvidence(tx, pnum, relType, items) {
+    const rows = normalizeNameEvidenceArray(items);
+
+    // Delete  existing relationships of this type for this poem
+    await tx.run(
+      `MATCH (c:Character)-[r:${relType}]->(g:Genji_Poem {pnum: $pnum}) DELETE r`,
+      { pnum: pnum.toString() }
+    );
+
+    // Create new relationships with specific evidence per person
+    for (const { name, evidence, slot } of rows) {
+      // Ensure Character exists
+      await tx.run(`MERGE (c:Character {name: $name})`, { name });
+      // Create relationship with evidence property
+      await tx.run(`MATCH (g:Genji_Poem {pnum: $pnum}) 
+                    MATCH (c:Character {name: $name}) 
+                    CREATE (c)-[r:${relType}]->(g) 
+                    SET r.evidence = $evidence,
+                        r.slot = $slot`,
+        { pnum: pnum.toString(), name, evidence, slot }
+      );
+
+    }
+  }
+
+  function zipNamesEvidence(names, evidences) {
+    if (!Array.isArray(names)) return [];
+    const evArr = Array.isArray(evidences) ? evidences : [];
+    return names
+      .map((name, i) => {
+        const nm = (name ?? "").toString().trim();
+        if (!nm) return null;
+        const ev = (evArr[i] ?? "").toString().trim();
+        return { name: nm, evidence: ev || null, slot: i + 1 };
+      })
+      .filter(Boolean);
+  }
+
   try {
     await session.writeTransaction(async (tx) => {
       // 1️⃣ Update main Genji_Poem properties
@@ -479,7 +682,7 @@ async function updatePoemProperties(pnum, data) {
       const props = {};
 
       if (data.deliveryStyle !== undefined) props.delivery_style = data.deliveryStyle || null;
-      if (data.spoken_or_written_evidence !== undefined) props.evidence_for_spoken_or_written = data.spoken_or_written_evidence || null;
+      if (data.spokenOrWrittenEvidence !== undefined) props.evidence_for_spoken_or_written = data.spokenOrWrittenEvidence || null;
       // Remove age from direct property updates since it's now handled as a relationship
       if (data.JPRM !== undefined && Array.isArray(data.JPRM)) {
         props.Japanese = data.JPRM[0] || null;
@@ -499,7 +702,8 @@ async function updatePoemProperties(pnum, data) {
       if (data.groupPoems !== undefined) props.group_poems = data.groupPoems || null;
       if (data.furtherReadings !== undefined) props.further_readings = data.furtherReadings || null;
 
-      await tx.run(query, { pnum: pnum.toString(), props });
+      // await tx.run(query, { pnum: pnum.toString(), props });
+      const mainResult = await tx.run(query, { pnum: pnum.toString(), props });
 
       // 1️⃣b Handle speaker relationship
       if (data.speaker !== undefined) {
@@ -583,165 +787,81 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 1️⃣d Handle other recipient relationship
-      if (data.other_recipients !== undefined) {
-        // First, remove any existing other recipient relationship
-        await tx.run(`
-          MATCH (c:Character)-[r:OTHER_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
-          DELETE r
-        `, { pnum: pnum.toString() });
+      // 1️⃣d Handle other recipients
+      if (data.otherRecipients !== undefined) {
+        let items = data.otherRecipients;
 
-         // Normalize to an array of names
-        let otherRecipientNames = [];
-        if (Array.isArray(data.other_recipients)) {
-          otherRecipientNames = data.other_recipients
-            .map((n) => (n || "").trim())
-            .filter(Boolean);
-        } else if (typeof data.other_recipients === "string") {
-          otherRecipientNames = data.other_recipients
-            .split(",")
-            .map((n) => n.trim())
-            .filter(Boolean);
-        }
-
-        for (const otherRecipientName of otherRecipientNames) {
-          const checkQuery = `
-            MATCH (c:Character {name: $otherRecipientName})
-            RETURN c.name as name
-          `;
-          
-          const checkResult = await tx.run(checkQuery, { otherRecipientName });
-          
-          if (checkResult.records.length === 0) {
-            // Create the Character node if it doesn't exist
-            await tx.run(`
-              CREATE (c:Character {name: $otherRecipientName})
-            `, { otherRecipientName });
+        if (Array.isArray(data.otherRecipients) && Array.isArray(data.other_recipient_evidence)) {
+          items = zipNamesEvidence(data.otherRecipients, data.other_recipient_evidence);
+        } else {
+          const legacyEvidence = (data.other_recipient_evidence ?? "").toString().trim() || null;
+          if (
+            legacyEvidence &&
+            Array.isArray(items) &&
+            items.length > 0 &&
+            typeof items[0] === "string"
+          ) {
+            items = items.map((name) => ({ name, evidence: legacyEvidence }));
           }
-          
-          // Create the relationship
-          await tx.run(`
-            MATCH (g:Genji_Poem {pnum: $pnum})
-            MATCH (c:Character {name: $otherRecipientName})
-            CREATE (c)-[r:OTHER_RECIPIENT_OF]->(g)
-          `, { 
-            pnum: pnum.toString(), 
-            otherRecipientName: otherRecipientName
-          });
         }
+        await upsertCharacterRelsWithEvidence(tx, pnum, "OTHER_RECIPIENT_OF", items);
       }
 
-       // 1️⃣e Handle unintended recipient relationship
-      if (data.unintended_recipients !== undefined) {
-        // First, remove any existing unintended recipient relationship
-        await tx.run(`
-          MATCH (c:Character)-[r:UNINTENDED_RECIPIENT_OF]->(g:Genji_Poem {pnum: $pnum})
-          DELETE r
-        `, { pnum: pnum.toString() });
+      // 1️⃣e Handle unintended recipients
+      if (data.unintendedRecipients !== undefined) {
+        let items = data.unintendedRecipients;
 
-         // Normalize to an array of names
-        let unintendedRecipientNames = [];
-        if (Array.isArray(data.unintended_recipients)) {
-          unintendedRecipientNames = data.unintended_recipients
-            .map((n) => (n || "").trim())
-            .filter(Boolean);
-        } else if (typeof data.unintended_recipients === "string") {
-          unintendedRecipientNames = data.unintended_recipients
-            .split(",")
-            .map((n) => n.trim())
-            .filter(Boolean);
-        }
-
-        for (const unintendedRecipientName of unintendedRecipientNames) {
-          const checkQuery = `
-            MATCH (c:Character {name: $unintendedRecipientName})
-            RETURN c.name as name
-          `;
-          
-          const checkResult = await tx.run(checkQuery, { unintendedRecipientName });
-          
-          if (checkResult.records.length === 0) {
-            // Create the Character node if it doesn't exist
-            await tx.run(`
-              CREATE (c:Character {name: $unintendedRecipientName})
-            `, { unintendedRecipientName });
+        if (Array.isArray(data.unintendedRecipients) && Array.isArray(data.unintended_recipient_evidence)) {
+          items = zipNamesEvidence(data.unintendedRecipients, data.unintended_recipient_evidence);
+        } else {
+          const legacyEvidence = (data.unintended_recipient_evidence ?? "").toString().trim() || null;
+          if (
+            legacyEvidence &&
+            Array.isArray(items) &&
+            items.length > 0 &&
+            typeof items[0] === "string"
+          ) {
+            items = items.map((name) => ({ name, evidence: legacyEvidence }));
           }
-          
-          // Create the relationship
-          await tx.run(`
-            MATCH (g:Genji_Poem {pnum: $pnum})
-            MATCH (c:Character {name: $unintendedRecipientName})
-            CREATE (c)-[r:UNINTENDED_RECIPIENT_OF]->(g)
-          `, { 
-            pnum: pnum.toString(), 
-            unintendedRecipientName: unintendedRecipientName
-          });
         }
+        await upsertCharacterRelsWithEvidence(tx, pnum, "UNINTENDED_RECIPIENT_OF", items);
       }
 
-         // 1️⃣f Handle group participant relationship
-      if (data.group_participants !== undefined) {
-        // First, remove any existing group participant relationship
-        await tx.run(`
-          MATCH (c:Character)-[r:GROUP_PARTICIPANT_OF]->(g:Genji_Poem {pnum: $pnum})
-          DELETE r
-        `, { pnum: pnum.toString() });
+      // 1️⃣f Handle group participant relationship
+      if (data.groupParticipants !== undefined) {
+        let items = data.groupParticipants;
 
-         // Normalize to an array of names
-        let groupParticipantNames = [];
-        if (Array.isArray(data.group_participants)) {
-          groupParticipantNames = data.group_participants
-            .map((n) => (n || "").trim())
-            .filter(Boolean);
-        } else if (typeof data.group_participants === "string") {
-          groupParticipantNames = data.group_participants
-            .split(",")
-            .map((n) => n.trim())
-            .filter(Boolean);
-        }
-
-        for (const groupParticipantName of groupParticipantNames) {
-          const checkQuery = `
-            MATCH (c:Character {name: $groupParticipantName})
-            RETURN c.name as name
-          `;
-          
-          const checkResult = await tx.run(checkQuery, { groupParticipantName });
-          
-          if (checkResult.records.length === 0) {
-            // Create the Character node if it doesn't exist
-            await tx.run(`
-              CREATE (c:Character {name: $groupParticipantName})
-            `, { groupParticipantName });
+        if (Array.isArray(data.groupParticipants) && Array.isArray(data.group_participant_evidence)) {
+          items = zipNamesEvidence(data.groupParticipants, data.group_participant_evidence);
+        } else {
+          const legacyEvidence = (data.group_participant_evidence ?? "").toString().trim() || null;
+          if (
+            legacyEvidence &&
+            Array.isArray(items) &&
+            items.length > 0 &&
+            typeof items[0] === "string"
+          ) {
+            items = items.map((name) => ({ name, evidence: legacyEvidence }))
           }
-          
-          // Create the relationship
-          await tx.run(`
-            MATCH (g:Genji_Poem {pnum: $pnum})
-            MATCH (c:Character {name: $groupParticipantName})
-            CREATE (c)-[r:GROUP_PARTICIPANT_OF]->(g)
-          `, { 
-            pnum: pnum.toString(), 
-            groupParticipantName: groupParticipantName
-          });
         }
+        await upsertCharacterRelsWithEvidence(tx, pnum, "GROUP_PARTICIPANT_OF", items);
       }
+
       // 2️⃣ Handle season relationship
+      // If season is provided
       if (data.season !== undefined) {
-        // First, remove any existing season relationship
-        await tx.run(`
-          MATCH (g:Genji_Poem {pnum: $pnum})-[r:IN_SEASON_OF]->(s:Season)
-          DELETE r
-        `, { pnum: pnum.toString() });
-
-        // Then, if a valid season is provided, create new relationship
+        // If season is provided and is valid
         if (data.season && validSeasons.includes(data.season)) {
           // Create relationship with evidence property if provided
-          const evidence = data.season_evidence || null;
+          const evidence = data.seasonEvidence ?? null;
           
+          // Delete old relationship if it exists, ensures poem can only have 1 season
+          // Create new relationship with same evidence if it exists 
           await tx.run(`
             MATCH (g:Genji_Poem {pnum: $pnum})
             MATCH (s:Season {name: $seasonName})
+            OPTIONAL MATCH (g)-[old:IN_SEASON_OF]->(:Season) 
+            DELETE old
             CREATE (g)-[r:IN_SEASON_OF]->(s)
             SET r.evidence = $evidence
           `, { 
@@ -749,19 +869,20 @@ async function updatePoemProperties(pnum, data) {
             seasonName: data.season,
             evidence: evidence
           });
+          // If there's an invalid season
         } else if (data.season && !validSeasons.includes(data.season)) {
           console.warn(`Invalid season provided: ${data.season}. Valid options: ${validSeasons.join(', ')}`);
         }
       }
 
       // 2️⃣b Handle season_evidence separately (update evidence property on existing relationship)
-      if (data.season_evidence !== undefined && data.season === undefined) {
+      if (data.season === undefined && data.seasonEvidence !== undefined) {
         await tx.run(`
           MATCH (g:Genji_Poem {pnum: $pnum})-[r:IN_SEASON_OF]->(s:Season)
           SET r.evidence = $evidence
         `, { 
           pnum: pnum.toString(),
-          evidence: data.season_evidence || null
+          evidence: data.seasonEvidence ?? null
         });
       }
 
@@ -905,110 +1026,67 @@ async function updatePoemProperties(pnum, data) {
 
       // 2️⃣f Handle place of composition relationships
       if (data.placeOfComp !== undefined) {
-        // First, remove any existing place of composition relationship
+
+        const evidence = data.placeOfCompEvidence ?? null;
+        // Delete old relationship if it exists, ensures poem can only have 1 place of composition
+        // Create new relationship with same evidence if it exists 
+        await tx.run(`
+          MATCH (g:Genji_Poem {pnum: $pnum})
+          MATCH (p: Place {name: $placeName})
+          OPTIONAL MATCH (g)-[old:PLACE_OF_COMPOSITION]->(:Place)
+          DELETE old
+          CREATE (g)-[r:PLACE_OF_COMPOSITION]->(p)
+          SET r.evidence = $evidence
+        `, { 
+          pnum: pnum.toString(),
+          placeName: data.placeOfComp,
+          evidence: evidence
+        });
+        }
+
+      // 2️⃣g Handle placeOfComp_evidence separately (update evidence property on existing relationship)
+      if (data.placeOfComp === undefined && data.placeOfCompEvidence !== undefined) {
         await tx.run(`
           MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_COMPOSITION]->(p:Place)
-          DELETE r
-        `, { pnum: pnum.toString() });
-
-        // Then, if a place is provided, create new relationship
-        if (data.placeOfComp && data.placeOfComp.trim()) {
-          const placeName = data.placeOfComp.trim();
-          const evidence = data.placeOfComp_evidence || null;
-          
-          // First check if Place node exists, create if it doesn't
-          const checkQuery = `
-            MATCH (p:Place {name: $placeName})
-            RETURN p.name as name
-          `;
-          
-          const checkResult = await tx.run(checkQuery, { placeName });
-          
-          if (checkResult.records.length === 0) {
-            // Create the Place node if it doesn't exist
-            await tx.run(`
-              CREATE (p:Place {name: $placeName})
-            `, { placeName });
-          }
-          
-          // Create the relationship
-          await tx.run(`
-            MATCH (g:Genji_Poem {pnum: $pnum})
-            MATCH (p:Place {name: $placeName})
-            CREATE (g)-[r:PLACE_OF_COMPOSITION]->(p)
-            SET r.evidence = $evidence
-          `, { 
-            pnum: pnum.toString(), 
-            placeName: placeName,
-            evidence: evidence
-          });
-        }
+          SET r.evidence = $evidence
+        `, { 
+          pnum: pnum.toString(),
+          evidence: data.placeOfCompEvidence ?? null
+        });
       }
 
-      // 2️⃣g Handle place of receipt relationships
+      // 2️⃣h Handle place of receipt relationships
       if (data.placeOfReceipt !== undefined) {
-        // First, remove any existing place of receipt relationship
-        await tx.run(`
-          MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_RECEIPT]->(p:Place)
-          DELETE r
-        `, { pnum: pnum.toString() });
 
-        // Then, if a place is provided, create new relationship
-        if (data.placeOfReceipt && data.placeOfReceipt.trim()) {
-          const placeName = data.placeOfReceipt.trim();
-          const evidence = data.placeOfReceipt_evidence || null;
-          
-          // First check if Place node exists, create if it doesn't
-          const checkQuery = `
-            MATCH (p:Place {name: $placeName})
-            RETURN p.name as name
-          `;
-          
-          const checkResult = await tx.run(checkQuery, { placeName });
-          
-          if (checkResult.records.length === 0) {
-            // Create the Place node if it doesn't exist
-            await tx.run(`
-              CREATE (p:Place {name: $placeName})
-            `, { placeName });
-          }
-          
-          // Create the relationship
-          await tx.run(`
-            MATCH (g:Genji_Poem {pnum: $pnum})
-            MATCH (p:Place {name: $placeName})
-            CREATE (g)-[r:PLACE_OF_RECEIPT]->(p)
-            SET r.evidence = $evidence
-          `, { 
-            pnum: pnum.toString(), 
-            placeName: placeName,
-            evidence: evidence
-          });
+        const evidence = data.placeOfReceiptEvidence ?? null;
+        // Delete old relationship if it exists, ensures poem can only have 1 place of composition
+        // Create new relationship with same evidence if it exists 
+        await tx.run(`
+          MATCH (g:Genji_Poem {pnum: $pnum})
+          MATCH (p: Place {name: $placeName})
+          OPTIONAL MATCH (g)-[old:PLACE_OF_RECEIPT]->(:Place)
+          DELETE old
+          CREATE (g)-[r:PLACE_OF_RECEIPT]->(p)
+          SET r.evidence = $evidence
+        `, { 
+          pnum: pnum.toString(),
+          placeName: data.placeOfReceipt,
+          evidence: evidence
+        });
         }
-      }
 
-      // 2️⃣h Handle place evidence separately (update evidence property on existing relationships)
-      if (data.placeOfComp_evidence !== undefined && data.placeOfComp === undefined) {
-        await tx.run(`
-          MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_COMPOSITION]->(p:Place)
-          SET r.evidence = $evidence
-        `, { 
-          pnum: pnum.toString(),
-          evidence: data.placeOfComp_evidence || null
-        });
-      }
-
-      if (data.placeOfReceipt_evidence !== undefined && data.placeOfReceipt === undefined) {
+      // 2️⃣i Handle placeOfReceipt_evidence separately (update evidence property on existing relationship)
+      if (data.placeOfReceipt === undefined && data.placeOfReceiptEvidence !== undefined) {
         await tx.run(`
           MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_RECEIPT]->(p:Place)
           SET r.evidence = $evidence
         `, { 
           pnum: pnum.toString(),
-          evidence: data.placeOfReceipt_evidence || null
+          evidence: data.placeOfReceiptEvidence ?? null
         });
       }
 
-      // 2️⃣i Handle messenger relationships
+      // 2️⃣j Handle messenger relationships
       if (data.messenger !== undefined) {
         // First, remove any existing messenger relationship
         await tx.run(`
@@ -1047,7 +1125,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣j Handle proxy relationships
+      // 2️⃣k Handle proxy relationships
       if (data.proxy !== undefined) {
         // First, remove any existing proxy relationship
         await tx.run(`
@@ -1086,7 +1164,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣k Handle poetic words relationships
+      // 2️⃣l Handle poetic words relationships
       if (data.pw !== undefined) {
         // First, remove all existing poetic word relationships
         await tx.run(`
@@ -1160,7 +1238,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣l Handle seasonal words/kigo relationships
+      // 2️⃣m Handle seasonal words/kigo relationships
       if (data.kigo !== undefined) {
         // First, remove all existing seasonal word relationships
         await tx.run(`
@@ -1229,7 +1307,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣m Handle reply poems relationships
+      // 2️⃣n Handle reply poems relationships
       if (data.replyPoems !== undefined) {
         // First, remove all existing reply relationships where other poems reply TO this poem
         await tx.run(`
@@ -1275,7 +1353,7 @@ async function updatePoemProperties(pnum, data) {
         }
       }
 
-      // 2️⃣n Handle other translations relationships
+      // 2️⃣o Handle other translations relationships
       if (data.otherTranslations !== undefined) {
         // First, remove all existing other translation relationships
         await tx.run(`

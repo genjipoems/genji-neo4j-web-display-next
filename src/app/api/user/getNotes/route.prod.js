@@ -1,9 +1,8 @@
 import { auth } from "../../../../auth.prod";
 import client from "../../../../lib/db.prod";
 import { NextResponse } from "next/server";
-import { ObjectId } from 'mongodb';
 
-// get one user's all contributions
+// get one user's all notes
 export async function GET(req) {
     const session = await auth();
 
@@ -16,7 +15,7 @@ export async function GET(req) {
 
     try {
         const { searchParams } = new URL(req.url);
-        const userId = searchParams.get('userId');
+        const userId = session.user.id;
         const pageParam = searchParams.get('page');
         const limitParam = searchParams.get('limit');
 
@@ -38,16 +37,16 @@ export async function GET(req) {
     
         const db = await client.db('user');
 
-        const contributions = await db.collection('contribution')
+        const notes = await db.collection('notes')
             .aggregate([
                 { 
                     $match: {
-                        contributors: userId
+                        user: userId
                     }
                 },
                 {
                     $sort: {  
-                        updatedAt: -1   
+                        createdAt: -1   
                     }
                 }
             ])
@@ -55,20 +54,18 @@ export async function GET(req) {
             .limit(limit)
             .toArray();
 
-        // console.log('userId:', userId);
-
-        if (!contributions || contributions.length === 0) {
-            return NextResponse.json({ contributions: [] }, { status: 200 });
+        if (!notes || notes.length === 0) {
+            return NextResponse.json({ notes: [] }, { status: 200 });
         }
 
-        const totalContributions = await db.collection('contribution').countDocuments({ contributors: userId });
+        const totalNotes = await db.collection('notes').countDocuments({ user: userId });
 
-        return NextResponse.json({ contributions, totalContributions, currentPage: page, totalPages: Math.ceil(totalContributions / limit) || 1 }, { status: 200 });
+        return NextResponse.json({ notes, totalNotes, currentPage: page, totalPages: Math.ceil(totalNotes / limit) || 1 }, { status: 200 });
 
     } catch (error) {
-        console.error('Error finding contributions:', error);
+        console.error('Error finding notes:', error);
         return NextResponse.json(
-            { error: 'Failed to find user contributions' }, 
+            { error: 'Failed to find user notes' }, 
             { status: 500 }
         );
     }

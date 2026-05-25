@@ -4,6 +4,7 @@ import styles from '../styles/pages/poemDisplay.module.css';
 import FavButton from '../components/FavButton.prod';
 import ContributorView from '../components/ContributorView.prod';
 import DiscussionArea from '../components/DiscussionArea.prod';
+import NotesArea from './NotesArea.prod.jsx';
 import FormatContent from './FormatText.prod'
 import TransSubmit from '../components/TranslationSubmit.prod';
 import TransDisplay from '../components/TranslationDisplay.prod'
@@ -74,6 +75,58 @@ const EvidenceDropdown = ({ content, evidence }) => {
     );
 };
 
+function normalizeRecipientData(arr) {
+    // expected: [{ name, evidence }, ...]
+    if (!Array.isArray(arr)) return [];
+    return arr
+        .map((x) => {
+            if (x && typeof x === "object" && !Array.isArray(x)) {
+                const name = (x.name ?? "").toString().trim();
+                const evidence = (x.evidence ?? "").toString().trim() || "";
+                return name ? { name, evidence } : null;
+            }
+            return null;
+        })
+        .filter(Boolean);
+}
+
+function evidenceForName(name, dataArr) {
+    if (!name) return "";
+    const nm = name.toString().trim();
+    if (!nm) return "";
+
+    const normalized = normalizeRecipientData(dataArr);
+    return normalized.find((x) => x.name === nm)?.evidence || "";
+}
+
+function dataBySlot(slotNames, backendData) {
+    const dataMap = new Map();
+
+    if (Array.isArray(backendData)) {
+        for (const item of backendData) {
+            if (item && typeof item === "object" && !Array.isArray(item)) {
+                const name = (item.name ?? "").toString().trim()
+                if (name) dataMap.set(name, item);
+                continue
+            }
+
+            if (Array.isArray(item)) {
+                const name = (item[0] ?? "").toString().trim()
+                if (name) {
+                    dataMap.set(name, 
+                        { name: item[0] ?? "",
+                        evidence: item[1] ?? "",
+                    });
+                }
+            }
+        }
+    }
+    return (slotNames || []).map((n) => {
+        const key = (n ?? "").toString().trim();
+        return key ? (dataMap.get(key) ?? "") : "";
+    });
+}
+
 const PoemDisplay = ({ poemData }) => {
 
     const [poemState, setPoemState] = useState({
@@ -90,7 +143,6 @@ const PoemDisplay = ({ poemData }) => {
         source: [],
         relWithEvidence: [],
         tag: [],
-        notes: "",
         isLoading: true,
         poemId: "",
         proxy: "",
@@ -122,7 +174,10 @@ const PoemDisplay = ({ poemData }) => {
         otherTranslations: [],
         otherRecipients: [],
         unintendedRecipients: [],
-        groupParticipants: []
+        groupParticipants: [],
+        otherRecipientData: [],
+        unintendedRecipientData: [],
+        groupParticipantData: []
     });
 
     const chapter = poemData.chapterNum;
@@ -148,14 +203,46 @@ const PoemDisplay = ({ poemData }) => {
     
     const chapter_name = chapterNames[chapter];
 
+    const RecipientSlots = ({ title, names, data }) => {
+        const slots = names.map((_, i) => i);
+
+        const hasAny = Array.isArray(names) && names.some((n) => (n ?? "").toString().trim());
+        if(!hasAny) return null;
+
+        return (
+            <div className={styles.detailItem}>
+                <h3>{title}</h3>
+
+                {slots.map((i) => {
+                    const rawName = (names?.[i] ?? "").toString().trim();
+                    if (!rawName) return null;
+
+                    const ev = evidenceForName(rawName, data);
+
+                    return (
+                        <div key={`${title}-slot-${i}`} className={styles.recipientItem}>
+                            <div className={styles.withEvidence}>
+                                <EvidenceDropdown
+                                    content={rawName}
+                                    evidence={ev}
+                                    />
+                            </div>
+                            </div>
+                    )
+                })}
+            </div>
+        )
+    }
+
     const [expandedPanels, setExpandedPanels] = useState({
         summary: false,
         context: false,
         commentary: false,
         details: false,
+        notes: false,
         discussion: false
-      });
-      
+    });
+    
     const togglePanel = (panelName) => {
         setExpandedPanels(prev => ({
             ...prev,
@@ -169,7 +256,7 @@ const PoemDisplay = ({ poemData }) => {
         const firstName = nameParts[0];
         const lastName = nameParts.slice(1).join(' ');
         return `${lastName}, ${firstName}`;
-      };
+    };
 
     // check cache
     // refreshTrigger is used to trigger a refresh of the poem data
@@ -201,7 +288,6 @@ const PoemDisplay = ({ poemData }) => {
                     localStorage.removeItem(cacheTimeKey);
                 }
 
-                
                 const response = await fetch(`/api/poems?chapter=${chapter}&&number=${numStr}`);
                 if (response.status !== 200) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -215,8 +301,30 @@ const PoemDisplay = ({ poemData }) => {
                 const tags = responseData[4];
                 const pls = responseData[6];
                 const otherRecipients = responseData[35] || [];
+                const otherRecipientNames = [
+                    otherRecipients[0] || "",
+                    otherRecipients[1] || "",
+                    otherRecipients[2] || ""
+                ];
+                const otherRecipientData = dataBySlot(otherRecipientNames, responseData[38] || "");
+
                 const unintendedRecipients = responseData[36] || [];
+                const unintendedRecipientNames = [
+                    unintendedRecipients[0] || "",
+                    unintendedRecipients[1] || "",
+                    unintendedRecipients[2] || ""
+                ];
+                const unintendedRecipientData = dataBySlot(unintendedRecipientNames, responseData[39] || "");
+
                 const groupParticipants = responseData[37] || [];
+                const groupParticipantNames = [
+                    groupParticipants[0] || "",
+                    groupParticipants[1] || "",
+                    groupParticipants[2] || "",
+                    groupParticipants[3] || "",
+                    groupParticipants[4] || ""
+                ];
+                const groupParticipantData = dataBySlot(groupParticipantNames, responseData[40] || "")
                 
                 // form speaker set
                 let speaker = [...new Set(exchange.map(e => e.start.properties.name))];
@@ -293,13 +401,11 @@ const PoemDisplay = ({ poemData }) => {
                 }
             });
 
-                
                 // set peom id
                 let poemId = null;
                 if (pls && pls[0]) {
                     poemId = Object.values(pls[0])[0] || null;
                 }
-                
 
                 const newPoemState = {
                     speaker: speaker,
@@ -345,7 +451,13 @@ const PoemDisplay = ({ poemData }) => {
                     otherTranslations: responseData[34] || [],
                     otherRecipients: [...otherRecipients],
                     unintendedRecipients: [...unintendedRecipients],
-                    groupParticipants: [...groupParticipants]
+                    groupParticipants: [...groupParticipants],
+
+                    otherRecipientData: otherRecipientData,
+                    unintendedRecipientData: unintendedRecipientData,
+                    groupParticipantData: groupParticipantData,
+                    
+                    userNotes: exchange[0]?.segments[0]?.end?.properties?.userNotes
                 };
                 
                 setPoemState(prev => ({...prev, ...newPoemState}));
@@ -752,40 +864,30 @@ const PoemDisplay = ({ poemData }) => {
                                 </div>
                                 <div className={`${styles.panelContent} ${expandedPanels.details ? styles.expanded : styles.collapsed}`}>
 
-                                {Array.isArray(poemState.otherRecipients) && poemState.otherRecipients.length > 0 && (
-                                    <div className={styles.detailItem}>
-                                        <h3>OTHER RECIPIENTS</h3>
-                                        {poemState.otherRecipients.map((recipient, index) => (
-                                            <div key={index} className={styles.recipientItem}>
-                                                <FormatContent content={recipient} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                {/* Other Recipients */}
+                                <RecipientSlots
+                                    title="OTHER RECIPIENTS"
+                                    slotLabelBase="OTHER RECIPIENT"
+                                    names={poemState.otherRecipients}
+                                    data={poemState.otherRecipientData}
+                                />
 
-                                {Array.isArray(poemState.unintendedRecipients) && poemState.unintendedRecipients.length > 0 && (
-                                    <div className={styles.detailItem}>
-                                        <h3>UNINTENDED RECIPIENTS</h3>
-                                        {poemState.unintendedRecipients.map((recipient, index) => (
-                                            <div key={index} className={styles.recipientItem}>
-                                                <FormatContent content={recipient} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                {/* Unintended Recipients */}
+                                <RecipientSlots
+                                    title="UNINTENDED RECIPIENTS"
+                                    slotLabelBase="UNINTENDED RECIPIENT"
+                                    names={poemState.unintendedRecipients}
+                                    data={poemState.unintendedRecipientData}
+                                />
 
-                                {Array.isArray(poemState.groupParticipants) && poemState.groupParticipants.length > 0 && (
-                                    <div className={styles.detailItem}>
-                                        <h3>GROUP PARTICIPANTS</h3>
-                                        {poemState.groupParticipants.map((participant, index) => (
-                                            <div key={index} className={styles.recipientItem}>
-                                                <FormatContent content={participant} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                {/* Group Participants */}
+                                <RecipientSlots
+                                    title="GROUP PARTICIPANTS"
+                                    slotLabelBase="GROUP PARTICIPANT"
+                                    names={poemState.groupParticipants}
+                                    data={poemState.groupParticipantData}
+                                    />
                                     
-                                
                                 {poemState.paperMediumType && (
                                     <div className={styles.detailItem}>
                                         <h3>PAPER/MEDIUM</h3>
@@ -1065,8 +1167,6 @@ const PoemDisplay = ({ poemData }) => {
                                 </div>
                             </div>
 
-
-
                             {/* Discussion Panel */}
                             <div className={styles.analysisPanel}>
                                 <div className={styles.panelHeader} onClick={() => togglePanel('discussion')}>
@@ -1077,6 +1177,22 @@ const PoemDisplay = ({ poemData }) => {
                                 </div>
                                 <div className={`${styles.panelContent} ${expandedPanels.discussion ? styles.expanded : styles.collapsed}`}>
                                 <DiscussionArea 
+                                    pageType="poem"
+                                    identifier={`${chapter}-${number}`}
+                                />
+                                </div>
+                            </div>
+
+                            {/* User Notes Panel */}
+                            <div className={styles.analysisPanel}>
+                                <div className={styles.panelHeader} onClick={() => togglePanel('notes')}>
+                                    <h2>USER NOTES</h2>
+                                    <div className={`${styles.toggleArrow} ${expandedPanels.notes ? styles.arrowExpanded : styles.arrowCollapsed}`}>
+                                        ▼
+                                    </div>
+                                </div>
+                                <div className={`${styles.panelContent} ${expandedPanels.notes ? styles.expanded : styles.collapsed}`}>
+                                <NotesArea 
                                     pageType="poem"
                                     identifier={`${chapter}-${number}`}
                                 />
@@ -1203,8 +1319,8 @@ const PoemDisplay = ({ poemData }) => {
                     
                     {/* Other Translations */}
                     {poemState.otherTranslations && Array.isArray(poemState.otherTranslations) && 
-                     poemState.otherTranslations.length > 0 && 
-                     poemState.otherTranslations.map((otherTrans, index) => (
+                    poemState.otherTranslations.length > 0 && 
+                    poemState.otherTranslations.map((otherTrans, index) => (
                         <div key={`other-trans-${index}`} className={styles.translationCard} style={{ '--translator-color': '#9c907d' }}>
                             <div className={styles.translationContent}>
                                 {typeof otherTrans.translation === 'string' && 

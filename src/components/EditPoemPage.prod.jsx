@@ -4,90 +4,118 @@ import "../styles/pages/editPoemPage.css";
 
 
 // Helper: check if value is primitive or array of primitives
-function isPrimitiveOrPrimitiveArray(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  ) {
-    return true;
-  }
-  if (Array.isArray(value)) {
-    return value.every(
-      (item) =>
-        item === null ||
-        item === undefined ||
-        typeof item === "string" ||
-        typeof item === "number" ||
-        typeof item === "boolean"
-    );
-  }
-  return false;
+    function isPrimitiveOrPrimitiveArray(value) {
+    if (
+        value === null ||
+        value === undefined ||
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean"
+    ) {
+        return true;
+    }
+    if (Array.isArray(value)) {
+        return value.every(
+            (item) =>
+            item === null ||
+            item === undefined ||
+            typeof item === "string" ||
+            typeof item === "number" ||
+            typeof item === "boolean"
+        );
+    }
+    return false;
 }
 
 // Helper: clean data by skipping empty, NO_VALUE, or complex objects
 function cleanProps(input) {
-  const output = {};
-  
+    const output = {};
+
   // Track tags and otherTags to merge them
-  let tags = [];
-  let otherTags = [];
-  
-  for (const [key, val] of Object.entries(input)) {
-    if (val === null || val === undefined) continue; // skip null/undefined
+    let tags = [];
+    let otherTags = [];
+
+    const notesFields = new Set([
+        "handwritingDescription",
+        "notes",
+        "narrativeContext",
+        "paraphrase",
+        "spoken_or_written_evidence",
+        "other_recipient_1_evidence",
+        "other_recipient_2_evidence",
+        "other_recipient_3_evidence",
+        "unintended_recipient_1_evidence",
+        "unintended_recipient_2_evidence",
+        "unintended_recipient_3_evidence",
+        "group_participant_1_evidence",
+        "group_participant_2_evidence",
+        "group_participant_3_evidence",
+        "group_participant_4_evidence",
+        "group_participant_5_evidence"
+    ]);
+
+
+    for (const [key, val] of Object.entries(input)) {if (val === undefined) continue;
+
+    // IMPORTANT: allow null for notes fields so backend can clear them
+    if (val === null) {
+        if (notesFields.has(key)) {
+        output[key] = null;
+        }
+    continue;
+    } 
+    
     if (typeof val === "string" && val.trim() === "") continue; // skip empty strings
     if (val === "NO_VALUE") continue; // skip placeholders
 
     // Special handling for tags - collect both tag and otherTags
     if (key === "tag" && Array.isArray(val)) {
-      tags = val;
-      continue;
+        tags = val;
+        continue;
     }
     
     if (key === "otherTags" && Array.isArray(val)) {
-      otherTags = val;
-      continue;
+        otherTags = val;
+        continue;
     }
 
     // Special handling for poetic techniques array
     if (key === "pt" && Array.isArray(val)) {
-      output[key] = val;
-      continue;
+        output[key] = val;
+        continue;
     }
 
     // Special handling for poetic words array
     if (key === "pw" && Array.isArray(val)) {
-      output[key] = val;
-      continue;
+        output[key] = val;
+        continue;
     }
 
     // Special handling for reply poems array
     if (key === "replyPoems" && Array.isArray(val)) {
-      output[key] = val;
-      continue;
+        output[key] = val;
+        continue;
     }
 
     // Special handling for seasonal words/kigo array
     if (key === "kigo" && Array.isArray(val)) {
-      output[key] = val;
-      continue;
+        output[key] = val;
+        continue;
     }
 
     // Special handling for other translations array
     if (key === "otherTranslations" && Array.isArray(val)) {
-      output[key] = val;
-      continue;
+        output[key] = val;
+        continue;
     }
 
     if (isPrimitiveOrPrimitiveArray(val)) {
-      output[key] = val;
+        output[key] = val;
     } else {
-      console.log(`Skipping invalid prop ${key}:`, val);
+        console.log(`Skipping invalid prop ${key}:`, val);
     }
-  }
-  
+}
+
   // Always merge tags and otherTags into a single tag field for backend
   // Even if one of them is empty, we need to send the complete merged list
   const mergedTags = [...tags, ...otherTags];
@@ -96,11 +124,100 @@ function cleanProps(input) {
   return output;
 }
 
+function evidenceBySlot(slotNames, backendData) {
+    const evidenceMap = new Map();
+
+    if (Array.isArray(backendData)) {
+        for (const item of backendData) {
+            if (item && typeof item === "object" && !Array.isArray(item)) {
+            const name = (item.name ?? "").toString().trim();
+            const ev = (item.evidence ?? "").toString();
+            if (name) evidenceMap.set(name, ev);
+            continue;
+            }
+    
+            if (Array.isArray(item)) {
+            const name = (item[0] ?? "").toString().trim();
+            const ev = (item[1] ?? "").toString();
+            if (name) evidenceMap.set(name, ev);
+            }
+        }
+    }
+
+    return (slotNames || []).map((n) => {
+        const key = (n ?? "").toString().trim();
+        return key ? (evidenceMap.get(key) ?? "") : "";
+    });
+}
+
+function dataBySlot(slotNames, backendData) {
+    const dataMap = new Map();
+
+    if (Array.isArray(backendData)) {
+        for (const item of backendData) {
+            if (item && typeof item === "object" && !Array.isArray(item)) {
+                const name = (item.name ?? "").toString().trim()
+                if (name) dataMap.set(name, item);
+                continue
+            }
+
+            if (Array.isArray(item)) {
+                const name = (item[0] ?? "").toString().trim()
+                if (name) {
+                    dataMap.set(name, 
+                        { name: item[0] ?? "",
+                        evidence: item[1] ?? "",
+                    });
+                }
+            }
+        }
+    }
+    return (slotNames || []).map((n) => {
+        const key = (n ?? "").toString().trim();
+        return key ? (dataMap.get(key) ?? "") : "";
+    });
+}
+
+function validateEvidenceTargets({
+    otherRecipients,
+    unintendedRecipients,
+    groupParticipants,
+    evidenceBySlot,
+    validCharacterNames,
+}) {
+    const validSet = new Set((validCharacterNames || []).map(s => (s ?? "").trim()).filter(Boolean));
+
+    const checks = [
+        { label: "Other recipient", names: otherRecipients, evidence: evidenceBySlot?.otherRecipients },
+        { label: "Unintended recipient", names: unintendedRecipients, evidence: evidenceBySlot?.unintendedRecipients },
+        { label: "Group participant", names: groupParticipants, evidence: evidenceBySlot?.groupParticipants },
+    ];
+
+    for (const { label, names, evidence } of checks) {
+        for (let i = 0; i < 3; i++) {
+            const ev = (evidence?.[i] ?? "").toString().trim();
+            if (!ev) continue;
+
+            const nm = (names?.[i] ?? "").toString().trim();
+
+            // if evidence exists but nothing selected
+            if (!nm) {
+                return `${label} ${i + 1} evidence is filled, but no character is selected.`;
+            }
+        }
+    }
+
+    return null; 
+}
+
 // Fetch poem data
 async function fetchPoemData(chapter, number) {
+    
     const res = await fetch(`/api/poems?chapter=${chapter}&&number=${number}`);
     if (!res.ok) throw new Error("Failed to fetch poem data");
     return res.json();
+
+    
 }
 
 // Update poem data
@@ -116,16 +233,21 @@ async function updatePoemData(pnum, updatedData) {
 
 // Order of fields to render - updated to match actual data structure
 const fieldOrder = [
-  "speaker", "addressee", "addressee2", "addressee3", "otherRecipients", "unintendedRecipients", "groupParticipants", "poemId", 
-  "age", "JPRM_Japanese", "JPRM_Romaji",
-  "Waley", "Seidensticker", "Tyler", "Washburn", "Cranston",
-  "otherTranslations",
-  "narrativeContext", "paraphrase", "notes", "paperMediumType", "deliveryStyle",
-  "season", "seasonEvidence", "spoken", "written", "complete", "spokenOrWrittenEvidence", 
-  "pt", "tag", "otherTags", "placeOfComp", "placeOfCompEvidence",
-  "placeOfReceipt", "placeOfReceiptEvidence",
-  "pw", "messenger", "replyPoems",
-  "proxy", "kigo", "handwritingDescription", 
+    "speaker", "addressee", "addressee2", "addressee3", 
+    "otherRecipient1", "otherRecipient2", "otherRecipient3",
+    "unintendedRecipient1", "unintendedRecipient2", "unintendedRecipient3",
+    "groupParticipant1", "groupParticipant2", "groupParticipant3", "groupParticipant4", "groupParticipant5",
+    "poemId", "age", "JPRM_Japanese", "JPRM_Romaji",
+    "Waley", "Seidensticker", "Tyler", "Washburn", "Cranston",
+    "otherRecipient1Evidence", "otherRecipient2Evidence", "otherRecipient3Evidence", 
+    "unintendedRecipient1Evidence", "unintendedRecipient2Evidence", "unintendedRecipient3Evidence",
+    "groupParticipant1Evidence", "groupParticipant2Evidence", "groupParticipant3Evidence", "groupParticipant4Evidence", "groupParticipant5Evidence",
+    "otherTranslations", "narrativeContext", "paraphrase", "notes", "paperMediumType", "deliveryStyle",
+    "season", "seasonEvidence", "spoken", "written", "complete", "spokenOrWrittenEvidence", 
+    "pt", "tag", "otherTags", "placeOfComp", "placeOfCompEvidence",
+    "placeOfReceipt", "placeOfReceiptEvidence",
+    "pw", "messenger", "replyPoems",
+    "proxy", "kigo", "handwritingDescription", 
 ];
 
 // "repCharacter", "source?", (This refers to Honka nodes in Neo4j)
@@ -229,7 +351,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 });
         }
     }, [showPopup, availableOtherTranslations.length]);
-
+    
     useEffect(() => {
         if (showPopup && !poemData) {
             setLoading(true);
@@ -241,10 +363,37 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     const relatedWithEvidence = responseData[3];
                     const tags = responseData[4];
                     const pls = responseData[6];
-                    const otherRecipients = responseData[35] || [];
-                    const unintendedRecipients = responseData[36] || [];
-                    const groupParticipants = responseData[37] || [];
 
+                    const otherRecipients = responseData[35] || [];
+                    const otherRecipientData = responseData[38] || [];
+                    const otherRecipientNames = [
+                        otherRecipients[0] || "",
+                        otherRecipients[1] || "",
+                        otherRecipients[2] || ""
+                    ];
+                    const [orEv1, orEv2, orEv3] = evidenceBySlot(otherRecipientNames, otherRecipientData);
+
+                    const unintendedRecipients = responseData[36] || [];
+                    const unintendedRecipientNames = [
+                        unintendedRecipients[0] || "",
+                        unintendedRecipients[1] || "",
+                        unintendedRecipients[2] || ""
+                    ];
+                    const unintendedRecipientData = dataBySlot(unintendedRecipientNames, responseData[39] || []);
+                    const [urEv1, urEv2, urEv3] = evidenceBySlot(unintendedRecipientNames, unintendedRecipientData);
+
+                    const groupParticipants = responseData[37] || [];
+                    const groupParticipantNames = [
+                        groupParticipants[0] || "",
+                        groupParticipants[1] || "",
+                        groupParticipants[2] || "",
+                        groupParticipants[3] || "",
+                        groupParticipants[4] || ""
+                    ];
+                    const groupParticipantData = dataBySlot(groupParticipantNames, responseData[40] || []);
+                    const [gpEv1, gpEv2, gpEv3, gpEv4, gpEv5] = evidenceBySlot(groupParticipantNames, groupParticipantData);
+
+                    
                     let speaker = [...new Set(exchange.map(e => e.start.properties.name))];
                     let addressee = [...new Set(exchange.map(e => e.end.properties.name))];
                     
@@ -360,9 +509,28 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     furtherReadings: responseData[29],
                     spokenOrWrittenEvidence: responseData[30],
                     complete: responseData[32],
-                    otherRecipients: [...otherRecipients],
-                    unintendedRecipients: [...unintendedRecipients],
-                    groupParticipants: [...groupParticipants],
+                    otherRecipient1: otherRecipients[0] || "",
+                    otherRecipient2: otherRecipients[1] || "",
+                    otherRecipient3: otherRecipients[2] || "",
+                    otherRecipient1Evidence: orEv1,
+                    otherRecipient2Evidence: orEv2,
+                    otherRecipient3Evidence: orEv3,
+                    unintendedRecipient1: unintendedRecipients[0] || "",
+                    unintendedRecipient2: unintendedRecipients[1] || "",
+                    unintendedRecipient3: unintendedRecipients[2] || "",
+                    unintendedRecipient1Evidence: urEv1,
+                    unintendedRecipient2Evidence: urEv2,
+                    unintendedRecipient3Evidence: urEv3,
+                    groupParticipant1: groupParticipants[0] || "",
+                    groupParticipant2: groupParticipants[1] || "",
+                    groupParticipant3: groupParticipants[2] || "",
+                    groupParticipant4: groupParticipants[3] || "",
+                    groupParticipant5: groupParticipants[4] || "",
+                    groupParticipant1Evidence: gpEv1,
+                    groupParticipant2Evidence: gpEv2,
+                    groupParticipant3Evidence: gpEv3,
+                    groupParticipant4Evidence: gpEv4,
+                    groupParticipant5Evidence: gpEv5,
                     otherTranslations: responseData[34] || []
                     };
 
@@ -448,7 +616,60 @@ export default function EditPoemPage({ chapter, poemNum }) {
     }, [showPopup, poemData, chapter, number]);
 
     function prepareForSave(data) {
-        const result = {};
+
+        const result = {
+            addressees: [],
+            otherRecipients: [],
+            unintendedRecipients: [],
+            groupParticipants: []            
+        };
+
+        result.otherRecipients = [
+            (data.otherRecipient1 || "").trim(),
+            (data.otherRecipient2 || "").trim(),
+            (data.otherRecipient3 || "").trim(),
+        ];
+
+        result.other_recipient_evidence = [
+            (data.otherRecipient1Evidence || "").trim() || null,
+            (data.otherRecipient2Evidence || "").trim() || null,
+            (data.otherRecipient3Evidence || "").trim() || null,
+        ];
+        
+        result.unintendedRecipients = [
+            (data.unintendedRecipient1 || "").trim(),
+            (data.unintendedRecipient2 || "").trim(),
+            (data.unintendedRecipient3 || "").trim(),
+        ];
+        
+        result.unintended_recipient_evidence = [
+            (data.unintendedRecipient1Evidence || "").trim() || null,
+            (data.unintendedRecipient2Evidence || "").trim() || null,
+            (data.unintendedRecipient3Evidence || "").trim() || null,
+        ];
+        
+        result.groupParticipants = [
+            (data.groupParticipant1 || "").trim(),
+            (data.groupParticipant2 || "").trim(),
+            (data.groupParticipant3 || "").trim(),
+            (data.groupParticipant4 || "").trim(),
+            (data.groupParticipant5 || "").trim()
+        ];
+        
+        result.group_participant_evidence = [
+            (data.groupParticipant1Evidence || "").trim() || null,
+            (data.groupParticipant2Evidence || "").trim() || null,
+            (data.groupParticipant3Evidence || "").trim() || null,
+            (data.groupParticipant4Evidence || "").trim() || null,
+            (data.groupParticipant5Evidence || "").trim() || null,
+        ];
+
+        result.otherRecipients = result.otherRecipients.map(x => x || "").filter(() => true);  
+
+        // Do NOT null out evidence just because array exists; only null if ALL slots empty:
+        if (result.otherRecipients.every(x => !x)) result.other_recipient_evidence = null;
+        if (result.unintendedRecipients.every(x => !x)) result.unintended_recipient_evidence = null;
+        if (result.groupParticipants.every(x => !x)) result.group_participant_evidence = null;
 
         // Recombine JPRM fields into array for backend
         if (data.JPRM_Japanese !== undefined || data.JPRM_Romaji !== undefined) {
@@ -479,35 +700,69 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 result[key] = val;
             } else if (key === "addressee" || key === "addressee2" || key === "addressee3") {
                 // Handle addressee fields - collect them into an array for backend
-                if (!result.addressees) {
-                    result.addressees = [];
-                }
-                if (val && val.trim()) {
+                if (val && val.trim()) 
                     result.addressees.push(val.trim());
-                }
+                
                 // Skip individual addressee fields from result, we'll use the combined addressees array
                 continue;
-                } else if (key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
-                    // val is a string like "Kiritsubo Emperor, Fujitsubo"; if edited, becomes an array
-                    let arr;
-                    if (Array.isArray(val)) {
-                        arr = val.map(v => v.trim()).filter(Boolean);
-                    } else if (typeof val === "string") {
-                        arr = val.split(",").map(v => v.trim()).filter(Boolean);
-                    } else {
-                        arr = [];
-                    }
 
-                    if (key === "otherRecipients") {
-                    result.other_recipients = arr;
-                    } else if (key === "unintendedRecipients") {
-                    result.unintended_recipients = arr;
-                    } else if (key === "groupParticipants") {
-                    result.group_participants = arr;
-                    }
-                    continue;
-                } else if (key === "pt") {
-                // Special handling for poetic techniques - ensure it's properly parsed
+            } else if (key === "otherRecipient1Evidence") {
+                result.other_recipient_evidence = result.other_recipient_evidence || [];
+                result.other_recipient_evidence[0] = (val && val.trim()) ? val.trim() : null;
+                continue;
+
+            } else if (key === "otherRecipient2Evidence") {
+                result.other_recipient_evidence = result.other_recipient_evidence || [];
+                result.other_recipient_evidence[1] = (val && val.trim()) ? val.trim() : null;
+                continue;
+
+            } else if (key === "otherRecipient3Evidence") {
+                result.other_recipient_evidence = result.other_recipient_evidence || [];
+                result.other_recipient_evidence[2] = (val && val.trim()) ? val.trim() : null;
+                continue;
+            
+            } else if (key === "unintendedRecipient1Evidence") {
+                result.unintended_recipient_evidence = result.unintended_recipient_evidence || [];
+                result.unintended_recipient_evidence[0] = (val && val.trim()) ? val.trim() : null;
+                continue;
+
+            } else if (key === "unintendedRecipient2Evidence") {
+                result.unintended_recipient_evidence = result.unintended_recipient_evidence || [];
+                result.unintended_recipient_evidence[1] = (val && val.trim()) ? val.trim() : null;
+                continue;
+
+            } else if (key === "unintendedRecipient3Evidence") {
+                result.unintended_recipient_evidence = result.unintended_recipient_evidence || [];
+                result.unintended_recipient_evidence[2] = (val && val.trim()) ? val.trim() : null;
+                continue;
+
+            } else if (key === "groupParticipant1Evidence") {
+                result.group_participant_evidence = result.group_participant_evidence || [];
+                result.group_participant_evidence[0] = (val && val.trim()) ? val.trim() : null;
+                continue;
+
+            } else if (key === "groupParticipant2Evidence") {
+                result.group_participant_evidence = result.group_participant_evidence || [];
+                result.group_participant_evidence[1] = (val && val.trim()) ? val.trim() : null;
+                continue;
+
+            } else if (key === "groupParticipant3Evidence") {
+                result.group_participant_evidence = result.group_participant_evidence || [];
+                result.group_participant_evidence[2] = (val && val.trim()) ? val.trim() : null;
+                continue;
+
+            } else if (key === "groupParticipant4Evidence") {
+                result.group_participant_evidence = result.group_participant_evidence || [];
+                result.group_participant_evidence[3] = (val && val.trim()) ? val.trim() : null;
+                continue;
+
+            } else if (key === "groupParticipant5Evidence") {
+                result.group_participant_evidence = result.group_participant_evidence || [];
+                result.group_participant_evidence[4] = (val && val.trim()) ? val.trim() : null;
+                continue;
+            
+            } else if (key === "pt") {
+            // Special handling for poetic techniques - ensure it's properly parsed
                 try {
                     if (!val || val.trim() === "") {
                         result[key] = [];
@@ -587,6 +842,18 @@ export default function EditPoemPage({ chapter, poemNum }) {
             }
         }
 
+        if (!result.groupParticipants || result.groupParticipants.length === 0) {
+            result.group_participant_evidence = null; // forces clear in DB
+        }
+        
+        if (!result.otherRecipients || result.otherRecipients.length === 0) {
+            result.other_recipient_evidence = null;
+        }
+        
+        if (!result.unintendedRecipients || result.unintendedRecipients.length === 0) {
+            result.unintended_recipient_evidence = null;
+        }
+
         return result;
     }
 
@@ -594,6 +861,63 @@ export default function EditPoemPage({ chapter, poemNum }) {
     async function handleSave() {
         setLoading(true);
         setError(null);
+
+        const otherRecipients = [
+            (editData?.otherRecipient1 || "").trim(),
+            (editData?.otherRecipient2 || "").trim(),
+            (editData?.otherRecipient3 || "").trim(),
+        ];
+        
+        const unintendedRecipients = [
+            (editData?.unintendedRecipient1 || "").trim(),
+            (editData?.unintendedRecipient2 || "").trim(),
+            (editData?.unintendedRecipient3 || "").trim(),
+        ];
+        
+        const groupParticipants = [
+            (editData?.groupParticipant1 || "").trim(),
+            (editData?.groupParticipant2 || "").trim(),
+            (editData?.groupParticipant3 || "").trim(),
+            (editData?.groupParticipant4 || "").trim(),
+            (editData?.groupParticipant5 || "").trim()
+        ];
+        
+        const evidenceBySlotObj = {
+            otherRecipients: [
+                (editData?.otherRecipient1Evidence || "").trim(),
+                (editData?.otherRecipient2Evidence || "").trim(),
+                (editData?.otherRecipient3Evidence || "").trim(),
+            ],
+            unintendedRecipients: [
+                (editData?.unintendedRecipient1Evidence || "").trim(),
+                (editData?.unintendedRecipient2Evidence || "").trim(),
+                (editData?.unintendedRecipient3Evidence || "").trim(),
+            ],
+            groupParticipants: [
+                (editData?.groupParticipant1Evidence || "").trim(),
+                (editData?.groupParticipant2Evidence || "").trim(),
+                (editData?.groupParticipant3Evidence || "").trim(),
+                (editData?.groupParticipant4Evidence || "").trim(),
+                (editData?.groupParticipant5Evidence || "").trim()
+            ],
+        };
+        
+          const validCharacterNames = availableCharacters; // your datalist source
+
+        const errMsg = validateEvidenceTargets({
+            otherRecipients,
+            unintendedRecipients,
+            groupParticipants,
+            evidenceBySlot: evidenceBySlotObj,
+            validCharacterNames
+        });
+        
+        if (errMsg) {
+            setError(errMsg);
+            setLoading(false);
+            return; 
+        }
+        
         try {
             const prepared = prepareForSave(editData);
 
@@ -651,31 +975,94 @@ export default function EditPoemPage({ chapter, poemNum }) {
             notes: "notes",
             paperMediumType: "paper_or_medium_type",
             deliveryStyle: "delivery_style",
-            seasonEvidence: "seasonEvidence",
-            spokenOrWrittenEvidence: "spokenOrWrittenEvidence",
+            seasonEvidence: "season_evidence",
+            spokenOrWrittenEvidence: "evidence_for_spoken_or_written",
             pt: "pt", // poetic techniques map directly
             tag: "tag", // poem types/tags map directly
             otherTags: "otherTags", // other tags have separate handling
             placeOfComp: "placeOfComp", // place of composition maps directly
             placeOfReceipt: "placeOfReceipt", // place of receipt maps directly
-            placeOfCompEvidence: "placeOfCompEvidence",
-            placeOfReceiptEvidence: "placeOfReceiptEvidence",
+            placeOfCompEvidence: "placeOfComp_evidence",
+            placeOfReceiptEvidence: "placeOfReceipt_evidence",
             messenger: "messenger", // messenger maps directly
             proxy: "proxy", // proxy maps directly
             replyPoems: "replyPoems", // reply poems map directly
             kigo: "kigo", // seasonal words/kigo map directly
             handwritingDescription: "handwriting_description", // handwriting description maps directly
-            otherRecipients: "other_recipients",
-            unintendedRecipients: "unintended_recipients",
-            groupParticipants: "group_participants",
+            otherRecipient1: "otherRecipient1",
+            otherRecipient2: "otherRecipient2",
+            otherRecipient3: "otherRecipient3",
+            otherRecipient1Evidence: "other_recipient_1_evidence",
+            otherRecipient2Evidence: "other_recipient_2_evidence",
+            otherRecipient3Evidence: "other_recipient_3_evidence",
+            unintendedRecipient1: "unintendedRecipient1",
+            unintendedRecipient2: "unintendedRecipient2",
+            unintendedRecipient3: "unintendedRecipient3",
+            unintendedRecipient1Evidence: "unintended_recipient_1_evidence",
+            unintendedRecipient2Evidence: "unintended_recipient_2_evidence",
+            unintendedRecipient3Evidence: "unintended_recipient_3_evidence",
+            groupParticipant1: "groupParticipant1",
+            groupParticipant2: "groupParticipant2",
+            groupParticipant3: "groupParticipant3",
+            groupParticipant4: "groupParticipant4",
+            groupParticipant5: "groupParticipant5",
+            groupParticipant1Evidence: "group_participant_1_evidence",
+            groupParticipant2Evidence: "group_participant_2_evidence",
+            groupParticipant3Evidence: "group_participant_3_evidence",
+            groupParticipant4Evidence: "group_participant_4_evidence",
+            groupParticipant5Evidence: "group_participant_5_evidence",
             otherTranslations: "otherTranslations", // other translations map directly
         };
         const fieldToDelete = fieldMap[key] || key;
 
+        const slotEvidenceKeys = new Set([
+            "otherRecipient1Evidence",
+            "otherRecipient2Evidence",
+            "otherRecipient3Evidence",
+            "unintendedRecipient1Evidence",
+            "unintendedRecipient2Evidence",
+            "unintendedRecipient3Evidence",
+            "groupParticipant1Evidence",
+            "groupParticipant2Evidence",
+            "groupParticipant3Evidence",
+            "groupParticipant4Evidence",
+            "groupParticipant5Evidence",
+        ]);
+
+        const evidenceSlotToNameKey = {
+            otherRecipient1Evidence: "otherRecipient1",
+            otherRecipient2Evidence: "otherRecipient2",
+            otherRecipient3Evidence: "otherRecipient3",
+            unintendedRecipient1Evidence: "unintendedRecipient1",
+            unintendedRecipient2Evidence: "unintendedRecipient2",
+            unintendedRecipient3Evidence: "unintendedRecipient3",
+            groupParticipant1Evidence: "groupParticipant1",
+            groupParticipant2Evidence: "groupParticipant2",
+            groupParticipant3Evidence: "groupParticipant3",
+            groupParticipant4Evidence: "groupParticipant4",
+            groupParticipant5Evidence: "groupParticipant5",
+        };
+
+        let recipientName = null;
+
+        if (evidenceSlotToNameKey[key]) {
+            recipientName = (editData?.[evidenceSlotToNameKey[key]] || "").trim();
+            if (!recipientName) {
+                alert("No character selected for this slot — cannot clear evidence.");
+                return;
+            }
+        }
+
         try {
-            const res = await fetch(`/api/poems/edit_poem?pnum=${encodeURIComponent(editData.poemId)}&field=${encodeURIComponent(fieldToDelete)}`, {
-            method: "DELETE",
-            });
+            const url = new URL("/api/poems/edit_poem", window.location.origin);
+            url.searchParams.set("pnum", editData.poemId);
+            url.searchParams.set("field", fieldToDelete);
+
+            if (slotEvidenceKeys.has(key)) {
+                url.searchParams.set("recipientName", recipientName.trim());
+            }
+
+            const res = await fetch(url.toString(), { method: "DELETE" });
 
             if (!res.ok) {
             const err = await res.json();
@@ -698,14 +1085,24 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 updated[key] = JSON.stringify([]);
             } else if (key === "otherTranslations") {
                 updated[key] = JSON.stringify([]);
-            } else if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
-                if ( key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants") {
-                    updated[key] = [];
-                } else {
-                    updated[key] = "";
-                }
+            } else if (key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3" || key === "groupParticipant4" || key === "groupParticipant5") {
+                updated[key] = "";
             } else if (key === "complete") {
                 // For complete field, set to empty string (same as speaker/addressee)
+                updated[key] = "";
+            } else if (
+                key === "otherRecipient1Evidence" ||
+                key === "otherRecipient2Evidence" ||
+                key === "otherRecipient3Evidence" ||
+                key === "unintendedRecipient1Evidence" ||
+                key === "unintendedRecipient2Evidence" ||
+                key === "unintendedRecipient3Evidence" ||
+                key === "groupParticipant1Evidence" ||
+                key === "groupParticipant2Evidence" ||
+                key === "groupParticipant3Evidence" ||
+                key === "groupParticipant4Evidence" ||
+                key === "groupParticipant5Evidence"
+            ) {
                 updated[key] = "";
             } else {
                 delete updated[key];
@@ -735,9 +1132,28 @@ export default function EditPoemPage({ chapter, poemNum }) {
         if (key === 'handwritingDescription') return 'Handwriting Description';
         if (key === 'addressee2') return 'Addressee 2';
         if (key === 'addressee3') return 'Addressee 3';
-        if (key === 'other_recipients') return 'Other Recipients';
-        if (key === 'unintended_recipients') return 'Unintended Recipients';
-        if (key === 'group_participants') return 'Group Participants';
+        if (key === 'otherRecipient1') return 'Other Recipient 1';
+        if (key === 'otherRecipient2') return 'Other Recipient 2';
+        if (key === 'otherRecipient3') return 'Other Recipient 3';
+        if (key === 'otherRecipient1Evidence') return 'Other Recipient 1 Evidence';
+        if (key === 'otherRecipient2Evidence') return 'Other Recipient 2 Evidence';
+        if (key === 'otherRecipient3Evidence') return 'Other Recipient 3 Evidence';
+        if (key === 'unintendedRecipient1') return 'Unintended Recipient 1';
+        if (key === 'unintendedRecipient2') return 'Unintended Recipient 2';
+        if (key === 'unintendedRecipient3') return 'Unintended Recipient 3';
+        if (key === 'unintendedRecipient1Evidence') return 'Unintended Recipient 1 Evidence';
+        if (key === 'unintendedRecipient2Evidence') return 'Unintended Recipient 2 Evidence';
+        if (key === 'unintendedRecipient3Evidence') return 'Unintended Recipient 3 Evidence';
+        if (key === 'groupParticipant1') return 'Group Participant 1';
+        if (key === 'groupParticipant2') return 'Group Participant 2';
+        if (key === 'groupParticipant3') return 'Group Participant 3';
+        if (key === 'groupParticipant4') return 'Group Participant 4';
+        if (key === 'groupParticipant5') return 'Group Participant 5';
+        if (key === 'groupParticipant1Evidence') return 'Group Participant 1 Evidence';
+        if (key === 'groupParticipant2Evidence') return 'Group Participant 2 Evidence';
+        if (key === 'groupParticipant3Evidence') return 'Group Participant 3 Evidence';
+        if (key === 'groupParticipant4Evidence') return 'Group Participant 4 Evidence';
+        if (key === 'groupParticipant5Evidence') return 'Group Participant 5 Evidence'
         if (key === 'otherTranslations') return 'Other Translations';
         
         return key
@@ -761,9 +1177,17 @@ export default function EditPoemPage({ chapter, poemNum }) {
             "addressee",
             "addressee2",
             "addressee3",
-            "otherRecipients",
-            "unintendedRecipients",
-            "groupParticipants",
+            "otherRecipient1",
+            "otherRecipient2",
+            "otherRecipient3",
+            "unintendedRecipient1",
+            "unintendedRecipient2",
+            "unintendedRecipient3",
+            "groupParticipant1",
+            "groupParticipant2",
+            "groupParticipant3",
+            "groupParticipant4",
+            "groupParticipant5",
             "poemId",
             "season",
             "age",
@@ -868,11 +1292,12 @@ export default function EditPoemPage({ chapter, poemNum }) {
                 <input
                     type="text"
                     className="compact-field-input"
-                    list={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants" ? `${key}-characters-compact` : undefined}
+                    list={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3" || key === "groupParticipant4" || key === "groupParticipant5"
+                        ? `${key}-characters-compact` : undefined}
                     value={inputValue}
                     readOnly={isReadOnly}
                     style={isReadOnly ? { backgroundColor: "#f5f5f5" } : {}}
-                    placeholder={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants" ? "Type or select character name" : undefined}
+                    placeholder={key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3" || key === "groupParticipant4" || key === "groupParticipant5" ? "Type or select character name" : undefined}
                     onChange={(e) => {
                         if (isReadOnly) return;
 
@@ -901,7 +1326,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                     }}
                 />
                 {/* Add datalist for character fields */}
-                {(key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipients" || key === "unintendedRecipients" || key === "groupParticipants" ) && (
+                {(key === "speaker" || key === "addressee" || key === "addressee2" || key === "addressee3" || key === "otherRecipient1" || key === "otherRecipient2" || key === "otherRecipient3"|| key === "unintendedRecipient1" || key === "unintendedRecipient2" || key === "unintendedRecipient3"|| key === "groupParticipant1" || key === "groupParticipant2" || key === "groupParticipant3" || key === "groupParticipant4" || key === "groupParticipant5") && (
                     <datalist id={`${key}-characters-compact`}>
                         {availableCharacters.map((character) => (
                             <option key={character} value={character} />

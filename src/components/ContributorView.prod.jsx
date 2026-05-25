@@ -16,20 +16,31 @@ const [error, setError] = useState(null);
 // fetch contributors when contributors change
 useEffect(() => {
   const fetchContributors = async () => {
-      try {
-        const response = await fetch(`/api/contributor/get?pageType=${pageType}&identifier=${identifier}`);
-        if (response.ok) {
-          const data = await response.json();
-          setContributors(data.contributor);
-        }
-      } catch (error) {
-        setError('Failed to load contributors');
-      } finally {
-        setIsLoading(false);
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/contributor/get?pageType=${pageType}&identifier=${identifier}`);
+      if (response.ok) {
+        const data = await response.json();
+        setContributors(data.contributor || []);
       }
-    };
+    } catch (error) {
+      setError('Failed to load contributors');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  fetchContributors();
+
+  const handleUpdatePoemData = () => {
     fetchContributors();
+  };
+
+  window.addEventListener('updatePoemData', handleUpdatePoemData);
+
+  return () => {
+    window.removeEventListener('updatePoemData', handleUpdatePoemData);
+  };
 }, [pageType, identifier]);
 
 // fetch contributor user basic info for display
@@ -48,6 +59,9 @@ useEffect(() => {
         if (response.ok) {
           const userData = await response.json();
           userMap[contributor.contributor] = userData;
+        } else {
+          const errorData = await response.json().catch(() => null);
+          console.log('contributor user fetch failed:', contributor.contributor, errorData);
         }
       } catch (error) {
         console.error(`Failed to fetch user info for ${contributor.contributor}`, error);
@@ -147,11 +161,11 @@ return (
                   {user?.image && (
                     <img
                       src={user.image}
-                      alt={user.name}
+                      alt={user?.displayName || user?.name || user?.email || 'Contributor'}
                       className={styles.avatar}
                     />
                   )}
-                  <span>{user?.name || user?.email || contributor.contributor}</span>
+                  <span>{user?.displayName || user?.name || user?.email || contributor.contributor}</span>
                 </Link>
                 
                 {session?.user?.role === 'admin' && (
@@ -192,7 +206,7 @@ return (
                     {user.image && (
                       <img
                         src={user.image}
-                        alt={user.name}
+                        alt={user?.displayName || user?.name || user?.email || contributor.contributor}
                         className={styles.avatar}
                       />
                     )}

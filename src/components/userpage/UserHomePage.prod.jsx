@@ -34,30 +34,42 @@ export default function UserHomePage({ userid }) {
     const [commentsPage, setCommentsPage] = useState(1);
     const [commentsTotalPages, setCommentsTotalPages] = useState(1);
     const [commentsLoading, setCommentsLoading] = useState(true);
+    const [commentsTotalComments, setCommentsTotalComments] = useState(0);
 
     // Contributions state
     const [userContributions, setUserContributions] = useState([]);
     const [contributionsPage, setContributionsPage] = useState(1);
     const [contributionsTotalPages, setContributionsTotalPages] = useState(1);
     const [contributionsLoading, setContributionsLoading] = useState(true);
+    const [contributionsTotalContributions, setContributionsTotalContributions] = useState(0);
 
     // Favorites state
     const [userFavorites, setUserFavorites] = useState([]);
     const [favoritesPage, setFavoritesPage] = useState(1);
     const [favoritesTotalPages, setFavoritesTotalPages] = useState(1);
     const [favoritesLoading, setFavoritesLoading] = useState(true);
+    const [favoritesTotalFavs, setFavoritesTotalFavs] = useState(0);
 
     // Translations state
     const [userTranslations, setUserTranslations] = useState([]);
     const [translationsPage, setTranslationsPage] = useState(1);
     const [translationsTotalPages, setTranslationsTotalPages] = useState(1);
     const [translationsLoading, setTranslationsLoading] = useState(true);
+    const [translationsTotalTranslations, setTranslationsTotalTranslations] = useState(0);
 
      // Blogs state
     const [userBlogs, setUserBlogs] = useState([]);
     const [blogsPage, setBlogsPage] = useState(1);
     const [blogsTotalPages, setBlogsTotalPages] = useState(1);
     const [blogsLoading, setBlogsLoading] = useState(true);
+    const [blogsTotalBlogs, setBlogsTotalBlogs] = useState(0);
+
+    // Notes state
+    const [userNotes, setUserNotes] = useState([]);
+    const [notesPage, setNotesPage] = useState(1);
+    const [notesTotalPages, setNotesTotalPages] = useState(1);
+    const [notesLoading, setNotesLoading] = useState(true);
+    const [notesTotalNotes, setNotesTotalNotes] = useState(0);
 
     const fetchUserData = async () => {
         try {
@@ -106,6 +118,7 @@ export default function UserHomePage({ userid }) {
                 setUserComments(data.comments || []);
                 setCommentsPage(data.currentPage || 1);
                 setCommentsTotalPages(data.totalPages || 1);
+                setCommentsTotalComments(data.totalComments || 0);
             }
         } catch (error) {
             console.error('Failed to fetch user comments:', error);
@@ -134,6 +147,7 @@ export default function UserHomePage({ userid }) {
                 setUserContributions(data.contributions || []);
                 setContributionsPage(data.currentPage || 1);
                 setContributionsTotalPages(data.totalPages || 1);
+                setContributionsTotalContributions(data.totalContributions || 0);
             }
         } catch (error) {
             console.error('Failed to fetch user contributions:', error);
@@ -162,6 +176,7 @@ export default function UserHomePage({ userid }) {
         setUserTranslations(data.translations || []);
         setTranslationsPage(data.currentPage || 1);
         setTranslationsTotalPages(data.totalPages || 1);
+        setTranslationsTotalTranslations(data.totalTranslations || 0);
         }
     } catch (error) {
         console.error('Failed to fetch user translations:', error);
@@ -197,6 +212,7 @@ export default function UserHomePage({ userid }) {
             setUserBlogs(data.blogs || []);
             setBlogsPage(data.currentPage || 1);
             setBlogsTotalPages(data.totalPages || 1);
+            setBlogsTotalBlogs(data.totalBlogs || 0);
             }
         } catch (error) {
             console.error('Failed to fetch user blogs:', error);
@@ -231,6 +247,7 @@ export default function UserHomePage({ userid }) {
                 setUserFavorites(data.favs || []);
                 setFavoritesPage(data.currentPage || 1);
                 setFavoritesTotalPages(data.totalPages || 1);
+                setFavoritesTotalFavs(data.totalFavs || 0);
             }
         } catch (error) {
             console.error('Failed to fetch user favorites:', error);
@@ -248,6 +265,35 @@ export default function UserHomePage({ userid }) {
         fetchUserFavorites(newPage);
     };
 
+    // Fetch user's comments with pagination
+    const fetchUserNotes = async (page = 1) => {
+        if (!session) return;
+        
+        try {
+            const response = await fetch(`/api/user/getNotes?page=${page}&limit=5`);
+            if (response.ok) {
+                const data = await response.json();
+                setUserNotes(data.notes || []);
+                setNotesPage(data.currentPage || 1);
+                setNotesTotalPages(data.totalPages || 1);
+                setNotesTotalNotes(data.totalNotes || 0);
+            }
+        } catch (error) {
+            console.error('Failed to fetch user notes:', error);
+        } finally {
+            setNotesLoading(false);
+        }
+    };
+
+    // Handle notes pagination
+    const handleNotesPageChange = (newPage) => {
+        if (newPage < 1 || newPage > notesTotalPages || newPage === notesPage || notesLoading) {
+            return;
+        }
+        setNotesPage(newPage);
+        fetchUserNotes(newPage);
+    };
+
     // Init data fetching
     useEffect(() => {
         if (user) {
@@ -257,6 +303,10 @@ export default function UserHomePage({ userid }) {
                 fetchUserFavorites();
                 fetchUserTranslations();
                 fetchUserBlogs();
+
+                if (isCurrentUser) {
+                    fetchUserNotes();
+                }
             }
             setLoading(false);
         }
@@ -332,7 +382,7 @@ export default function UserHomePage({ userid }) {
             <div className={styles.loginPrompt}>
                 <LogIn size={24} className={styles.loginIcon} />
                 <h3>Sign in to view this content</h3>
-                <p>Please sign in to see {user.name}&apos; comments, contributions, and favorite poems.</p>
+                <p>Please sign in to see {user.name}&apos; comments, contributions, favorite poems, and notes.</p>
                 <div className={styles.loginActions}>
                     <Link href="/api/auth/signin" className={styles.signInButton}>
                         Sign In
@@ -353,36 +403,46 @@ export default function UserHomePage({ userid }) {
                     onClick={() => setActiveTab('comments')}
                 >
                     COMMENTS
-                    <span className={styles.tabCount}> ({userComments.length})</span>
+                    <span className={styles.tabCount}> ({commentsTotalComments})</span>
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'contributions' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('contributions')}
                 >
-                    CONTRIBUTIONS
-                    <span className={styles.tabCount}> ({userContributions.length})</span>
+                    POEM PAGES EDITED
+                    <span className={styles.tabCount}> ({contributionsTotalContributions})</span>
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'translations' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('translations')}
                 >
                     TRANSLATIONS
-                    <span className={styles.tabCount}> ({userTranslations.length})</span>
+                    <span className={styles.tabCount}> ({translationsTotalTranslations})</span>
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'blogs' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('blogs')}
                 >
                     BLOGS
-                    <span className={styles.tabCount}> ({userBlogs.length})</span>
+                    <span className={styles.tabCount}> ({blogsTotalBlogs})</span>
                 </button>
                 <button 
                     className={`${styles.tabButton} ${activeTab === 'favorites' ? styles.activeTab : ''}`}
                     onClick={() => setActiveTab('favorites')}
                 >
                     FAVORITE POEMS
-                    <span className={styles.tabCount}> ({userFavorites.length})</span>
+                    <span className={styles.tabCount}> ({favoritesTotalFavs})</span>
                 </button>
+                { isCurrentUser && (
+                    <button 
+                    className={`${styles.tabButton} ${activeTab === 'notes' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('notes')}
+                >
+                    NOTES
+                    <span className={styles.tabCount}> ({notesTotalNotes})</span>
+                </button>
+                    )
+                }
             </div>
         );
     };
@@ -622,32 +682,32 @@ export default function UserHomePage({ userid }) {
 
                             {/* Contributions Tab */}
                             {activeTab === 'contributions' && (
-                                <div className={styles.tabPanel}>
-                                    <h2 className={styles.tabContentTitle}>CONTRIBUTIONS</h2>
-                                    
-                                    {contributionsLoading ? (
-                                        <div className={styles.loadingState}>Loading contributions...</div>
-                                    ) : userContributions.length === 0 ? (
-                                        <div className={styles.emptyState}>No contributions yet</div>
-                                    ) : (
-                                        <>
-                                            <div className={styles.contributionsList}>
-                                                {userContributions.map(contribution => (
-                                                    <div key={contribution._id} className={styles.contributionCard}>
-                                                        <div className={styles.contributionContent}>
-                                                            <h3 className={styles.contributionTitle}>
-                                                                {contribution.pageType.charAt(0).toUpperCase() + contribution.pageType.slice(1)}
-                                                            </h3>
-                                                            <Link 
-                                                                href={`/${contribution.pageType === 'poem' ? 'poems' : 'characters' }/${contribution.pageType === 'poem' ? contribution.identifier.replace('-', '/') : contribution.identifier}`}
-                                                                className={styles.contributionLink}
-                                                            >
-                                                                {contribution.identifier}
-                                                            </Link>
-                                                        </div>
+                            <div className={styles.tabPanel}>
+                                <h2 className={styles.tabContentTitle}>POEM PAGES EDITED</h2>
+                                
+                                {contributionsLoading ? (
+                                    <div className={styles.loadingState}>Loading poem pages edited...</div>
+                                ) : userContributions.length === 0 ? (
+                                    <div className={styles.emptyState}>No poem pages edited yet</div>
+                                ) : (
+                                    <>
+                                        <div className={styles.contributionsList}>
+                                            {userContributions.map(contribution => (
+                                                <div key={contribution._id} className={styles.contributionCard}>
+                                                    <div className={styles.contributionContent}>
+                                                        <h3 className={styles.contributionTitle}>
+                                                            Poem Page Edited
+                                                        </h3>
+                                                        <Link 
+                                                            href={`/${contribution.pageType === 'poem' ? 'poems' : 'characters'}/${contribution.pageType === 'poem' ? contribution.identifier.replace('-', '/') : contribution.identifier}`}
+                                                            className={styles.contributionLink}
+                                                        >
+                                                            {contribution.identifier}
+                                                        </Link>
                                                     </div>
-                                                ))}
-                                            </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                             
                                             {contributionsTotalPages > 1 && (
                                                 <Pagination
@@ -769,8 +829,6 @@ export default function UserHomePage({ userid }) {
                                 </div>
                             )}
 
-
-
                             {/* Favorites Tab */}
                             {activeTab === 'favorites' && (
                                 <div className={styles.tabPanel}>
@@ -819,6 +877,55 @@ export default function UserHomePage({ userid }) {
                                     )}
                                 </div>
                             )}
+
+                            {/* Notes Tab */}
+                            {activeTab === 'notes' && isCurrentUser && (
+                                <div className={styles.tabPanel}>
+                                    <h2 className={styles.tabContentTitle}>RECENT NOTES</h2>
+                                    
+                                    {notesLoading ? (
+                                        <div className={styles.loadingState}>Loading notes...</div>
+                                    ) : userNotes.length === 0 ? (
+                                        <div className={styles.emptyState}>No notes yet</div>
+                                    ) : (
+                                        <>
+                                            <div className={styles.notesList}>
+                                                {userNotes.map(note => (
+                                                    <div key={note._id} className={styles.noteCard}>
+                                                        <div className={styles.noteHeader}>
+                                                            <FormatContent content={note.content} className={styles.noteText}/>
+                                                            <span className={styles.noteDate}>
+                                                                {formatDate(note.createdAt)}
+                                                            </span>
+                                                        </div>
+                                                        <div className={styles.noteMeta}>
+                                                            <span className={styles.noteLocation}>
+                                                                In {note.pageType}{' '}
+                                                                <Link 
+                                                                    href={`/${note.pageType === 'poem' ? 'poems' : 'characters' }/${note.pageType === 'poem' ? note.identifier.replace('-', '/') : note.identifier}`}
+                                                                    className={styles.noteLink}
+                                                                >
+                                                                    {note.identifier}
+                                                                </Link>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            
+                                            {notesTotalPages > 1 && (
+                                                <Pagination
+                                                    currentPage={notesPage}
+                                                    totalPages={notesTotalPages}
+                                                    onPageChange={handleNotesPageChange}
+                                                    disabled={notesLoading}
+                                                />
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
                         </div>
                     </>
                 ) : (

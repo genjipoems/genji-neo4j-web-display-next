@@ -604,6 +604,69 @@
   color: #ffffff;
 }
 
+/* Notes Section */
+.notesList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.noteCard {
+  padding: 1rem;
+  background-color: #BFAE93;
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+
+.noteHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.noteText {
+  margin: 0;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.85);
+  font-size: 14px;
+  flex: 1;
+  padding-right: 1rem;
+  text-align: left;
+}
+
+.noteDate {
+  font-size: 0.8rem;
+  color: #777;
+  white-space: nowrap;
+}
+
+.noteMeta {
+  display: flex;
+  justify-content: flex-end;
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: auto;
+}
+
+.noteLocation {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.noteLink {
+  color: #c97852;
+  text-decoration: none;
+}
+
+.noteLink:hover {
+  text-decoration: underline;
+}
+
 /* Common Components */
 .emptyState {
   padding: 2rem;
