@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from '../styles/pages/adminBlogEditor.module.css';
 import adminStyles from '../styles/pages/administrator.module.css';
+import Tiptap from './Tiptap.prod';
 
 const AdminChapterEditor = ({ chapter, onUpdate, onClose }) => {
     const [description, setDescription] = useState('');
@@ -118,22 +119,19 @@ const AdminChapterEditor = ({ chapter, onUpdate, onClose }) => {
                         Chapter Description:
                     </label>
                     {isEditing ? (
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
+                        <Tiptap
+                            content={description}
+                            onChange={setDescription}
+                            editable={true}
                             placeholder="Enter chapter description..."
-                            className={styles.contentTextarea}
-                            disabled={isSaving}
-                            rows={15}
+                            blogTitle={chapter.name}
                         />
                     ) : (
                         <div className={styles.contentDisplay}>
                             {description ? (
-                                <div 
+                                <div
                                     className={styles.renderedContent}
-                                    dangerouslySetInnerHTML={{ 
-                                        __html: description.replace(/\n/g, '<br>') 
-                                    }}
+                                    dangerouslySetInnerHTML={{ __html: description }}
                                 />
                             ) : (
                                 <p className={styles.emptyContent}>No description available. Click &quot;Edit Description&quot; to add one.</p>
