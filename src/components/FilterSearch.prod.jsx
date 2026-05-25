@@ -1097,20 +1097,40 @@ const PoemSearch = () => {
     )
       .filter(([_, { checked }]) => checked)
       .map(([gender]) => gender);
-  
+
     const selectedAddresseeGenders = Object.entries(
       filters.addressee_gender.options
     )
       .filter(([_, { checked }]) => checked)
       .map(([gender]) => gender);
-  
+
+    const selectedChapters = Object.entries(filters.chapterNum.options)
+      .filter(([_, { checked }]) => checked)
+      .map(([ch]) => ch);
+
+    const speakersInSelectedChapters = selectedChapters.length > 0
+      ? new Set(results.filter(r => selectedChapters.includes(r.chapterNum)).map(r => r.speaker_name))
+      : null;
+
+    const addresseesInSelectedChapters = selectedChapters.length > 0
+      ? new Set(results.filter(r => selectedChapters.includes(r.chapterNum)).map(r => r.addressee_name))
+      : null;
+
     const filteredSpeakerOptions = Object.entries(
       filters.speaker_name.options
-    ).filter(([name, { gender }]) => selectedSpeakerGenders.includes(gender));
-  
+    ).filter(([name, { gender }]) => {
+      if (!selectedSpeakerGenders.includes(gender)) return false;
+      if (speakersInSelectedChapters && !speakersInSelectedChapters.has(name)) return false;
+      return true;
+    });
+
     const filteredAddresseeOptions = Object.entries(
       filters.addressee_name.options
-    ).filter(([name, { gender }]) => selectedAddresseeGenders.includes(gender));
+    ).filter(([name, { gender }]) => {
+      if (!selectedAddresseeGenders.includes(gender)) return false;
+      if (addresseesInSelectedChapters && !addresseesInSelectedChapters.has(name)) return false;
+      return true;
+    });
 
     const handleTranslatorSearch = (e) => {
       setSearchTranslator(e.target.value.toLowerCase());
