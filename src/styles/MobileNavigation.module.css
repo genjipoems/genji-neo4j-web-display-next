@@ -12,7 +12,7 @@
     width: 100%;
     height: 60px;
     box-sizing: border-box;
-    background-color: #737373;
+    background-color: #4B4B4B;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -117,7 +117,7 @@
     width: 100%;
     height: 60px;
     box-sizing: border-box;
-    background-color: #737373;
+    background-color: #4B4B4B;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -249,7 +249,7 @@
     left: 0;
     width: 100%;
     height: calc(100vh - 60px);
-    background-color: #737373;
+    background-color: #4B4B4B;
     transform: translateX(-100%);
     transition: transform 0.3s ease-in-out;
     z-index: 101;

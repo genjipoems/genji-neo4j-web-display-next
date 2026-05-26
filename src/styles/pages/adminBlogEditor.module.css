@@ -3,13 +3,13 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    background: #737373;
+    background: #4B4B4B;
     color: #ffffff;
     font-family: 'Lexend', sans-serif;
 }
 
 .editorHeader {
-    background: #737373;
+    background: #4B4B4B;
     padding: 20px;
     display: flex;
     justify-content: space-between;
@@ -34,7 +34,7 @@
 
 .titleInput {
     width: calc(100% - 20px);
-    background: #737373;
+    background: #4B4B4B;
     border: 2px solid #cbd5e1;
     border-radius: 8px;
     padding: 12px;
@@ -87,7 +87,7 @@
 }
 
 .saveButton:disabled {
-    background: #737373;
+    background: #4B4B4B;
     border-color: transparent;
     cursor: not-allowed;
     transform: none;
@@ -96,7 +96,7 @@
 
 .cancelButton {
     background: #ffffff;
-    color: #737373;
+    color: #4B4B4B;
     border-color: #cbd5e1;
 }
 
@@ -191,7 +191,7 @@
 .metadata {
     margin-bottom: 20px;
     padding: 15px;
-    background: #737373;
+    background: #4B4B4B;
     border: 1px solid #ffffff33;
     border-radius: 8px;
     display: flex;
@@ -206,7 +206,7 @@
 }
 
 .userBadge {
-    background: #737373;
+    background: #4B4B4B;
     color: white;
     padding: 4px 12px;
     border-radius: 12px;
@@ -258,7 +258,7 @@
 
 .contentDisplay {
     flex: 1;
-    background: #737373;
+    background: #4B4B4B;
     border: 2px solid #ffffff33;
     border-radius: 8px;
     min-height: 400px;
@@ -374,7 +374,7 @@
 
 /* Code - match edit mode */
 .contentDisplay .renderedContent code {
-    background-color: #737373 !important;
+    background-color: #4B4B4B !important;
     padding: 0.2em 0.4em !important;
     border-radius: 3px !important;
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
@@ -383,7 +383,7 @@
 }
 
 .contentDisplay .renderedContent pre {
-    background-color: #737373 !important;
+    background-color: #4B4B4B !important;
     color: #ffffff !important;
     padding: 1em !important;
     border-radius: 8px !important;
@@ -512,7 +512,7 @@
 /* Checkbox Section Styles */
 .checkboxSection {
     padding: 15px 20px;
-    background: #737373;
+    background: #4B4B4B;
     border-bottom: 1px solid #ffffff33;
 }
 

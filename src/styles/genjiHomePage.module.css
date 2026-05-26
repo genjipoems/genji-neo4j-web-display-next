@@ -5,7 +5,7 @@
   margin: 0 auto;
   overflow-x: hidden;
   position: relative;
-  background-color: #737373;
+  background-color: #4B4B4B;
   min-width: 1440px;
 }
 
@@ -65,7 +65,7 @@
 }
 
 .descriptionSection {
-  background-color: #737373;
+  background-color: #4B4B4B;
   position: relative;
   padding: 4rem 0;
   overflow: visible;

@@ -14,7 +14,7 @@
 }
 
 .modal {
-    background-color: #737373;
+    background-color: #4B4B4B;
     border-radius: 12px;
     max-width: 400px;
     width: 100%;
@@ -90,7 +90,7 @@
 .continueButton {
     width: 100%;
     background-color: #EDB940;
-    color: #737373;
+    color: #4B4B4B;
     border: none;
     border-radius: 8px;
     padding: 12px 16px;

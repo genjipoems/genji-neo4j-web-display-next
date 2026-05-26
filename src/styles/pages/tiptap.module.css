@@ -1,7 +1,7 @@
 /* TipTap Editor Wrapper */
 .tiptapWrapper {
   flex: 1;
-  background: #737373;
+  background: #4B4B4B;
   border: 2px solid #ffffff33;
   border-radius: 8px;
   min-height: 400px;
@@ -156,7 +156,7 @@
 
 /* Code - scoped to wrapper */
 .tiptapWrapper .tiptapEditor code {
-  background-color: #737373;
+  background-color: #4B4B4B;
   padding: 0.2em 0.4em;
   border-radius: 3px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -165,7 +165,7 @@
 }
 
 .tiptapWrapper .tiptapEditor pre {
-  background-color: #737373;
+  background-color: #4B4B4B;
   color: #ffffff;
   padding: 1em;
   border-radius: 8px;
@@ -219,7 +219,7 @@
 
 /* Disabled state */
 .tiptapWrapper:has(.tiptapEditor[contenteditable="false"]) {
-  background: #737373;
+  background: #4B4B4B;
   cursor: default;
 }
 
@@ -508,7 +508,7 @@
   padding: 8px 12px;
   font-size: 12px;
   color: #ffffff;
-  background: #737373;
+  background: #4B4B4B;
   gap: 8px;
 }
 
