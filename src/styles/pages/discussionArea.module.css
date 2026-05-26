@@ -4,7 +4,7 @@
   padding: 0 0;
   overflow-x: hidden; 
   word-wrap: break-word;
-  background-color: #737373;
+  background-color: #4B4B4B;
   color: #ffffff;
   font-family: 'Lexend', sans-serif;
 }
@@ -500,7 +500,7 @@
   padding: 20px;
   text-align: center;
   border-radius: 10px;
-  background-color: #737373;
+  background-color: #4B4B4B;
   margin: 10px 0;
   font-family: 'Lexend', sans-serif;
   font-weight: 500;

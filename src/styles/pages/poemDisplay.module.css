@@ -10,7 +10,7 @@
   overflow-x: auto;
   position: relative;
   overflow-y: hidden;
-  background-color: #737373;
+  background-color: #4B4B4B;
   min-width: 1440px;
 }
 
@@ -398,7 +398,7 @@
 .analysisLeft {
   width: 50%;
   padding: 10px 20px 30px 20px;
-  background-color: #737373;
+  background-color: #4B4B4B;
   color: white;
 }
 
@@ -417,7 +417,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   position: relative;
   z-index: 1;
-  background-color: #737373;
+  background-color: #4B4B4B;
 }
 
 .panelHeader h2 {
@@ -601,7 +601,7 @@
 .translationsRight {
   width: 50%;
   padding: 10px 20px 30px 20px;
-  background-color: #737373;
+  background-color: #4B4B4B;
 }
 
 .translationsHeader {
