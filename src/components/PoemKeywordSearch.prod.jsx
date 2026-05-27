@@ -38,9 +38,10 @@ const PoemSearch = () => {
   // highlight matching keywords
   const highlightMatch = (text, query) => {
     if (!query) return text;
-    const regex = new RegExp(`(${query})`, 'gi');
-    return text.split(regex).map((part, index) => 
-      regex.test(part) ? <mark key={index} className={styles.highlight}>{part}</mark> : part
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    return text.split(regex).map((part, index) =>
+      index % 2 === 1 ? <mark key={index} className={styles.highlight}>{part}</mark> : part
     );
   };
 
