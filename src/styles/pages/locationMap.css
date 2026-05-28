@@ -1,0 +1,61 @@
+.box {
+    background-color: black;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.box a {
+    padding: 15px;
+    background-color: #fff;
+    border-radius: 13px;
+    text-decoration: none;
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(46, 27, 15, 0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.content {
+    position: relative;
+    background: white;
+    padding: 1em 2em;
+    border-radius: 10px;
+    height: 575px;
+    width: 575px;
+    overflow-y: scroll;
+}
+
+.main-box {
+    display: flex;
+}
+
+.main-box button {
+    height: 40px;
+    border-radius: 7px;
+}
+
+.vertical {
+    -webkit-writing-mode: vertical-rl;
+    -moz-writing-mode: vertical-rl;
+    -ms-writing-mode: vertical-rl;
+    writing-mode: vertical-rl;
+}
+
+#poems {
+    display:block;
+}
+
+.a_hv {
+    text-decoration: none;
+}
+
+.a_hv:hover {
+    text-decoration: underline;
+}
