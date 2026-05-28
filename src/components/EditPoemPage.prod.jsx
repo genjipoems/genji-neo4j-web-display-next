@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useIsAdmin } from '../hooks/useAuth';
 import "../styles/pages/editPoemPage.css";
+import Tiptap from './Tiptap.prod';
 
 
 // Helper: check if value is primitive or array of primitives
@@ -2535,13 +2536,45 @@ export default function EditPoemPage({ chapter, poemNum }) {
                         );
                     }
 
+                    // Special handling for notes (Commentary) - use Tiptap rich text editor
+                    if (key === "notes") {
+                        return (
+                            <div key={key} className="full-field-container">
+                                <label className="full-field-label">
+                                    {formatFieldName(key)}
+                                </label>
+                                <div className="full-input-wrapper">
+                                    <Tiptap
+                                        content={editData[key] || ''}
+                                        onChange={(newContent) => {
+                                            setEditData((prev) => ({
+                                                ...prev,
+                                                [key]: newContent
+                                            }));
+                                        }}
+                                        editable={true}
+                                        placeholder="Enter commentary..."
+                                        blogTitle={editData.poemId || ''}
+                                    />
+                                    <button
+                                        className="delete-button"
+                                        onClick={() => handleDelete(key)}
+                                        title="Clear field"
+                                    >
+                                        ❌
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    }
+
                     // Regular field handling
                     return (
                         <div key={key} className="full-field-container">
                             <label className="full-field-label" style={{ display: "flex", alignItems: "center" }}>
                                 {formatFieldName(key)}
-                                
-                                {(key === "notes" || key === "narrativeContext" || key === "paraphrase" || key === "handwritingDescription") && (
+
+                                {(key === "narrativeContext" || key === "paraphrase" || key === "handwritingDescription") && (
                                     <span
                                         title="Formatting: **bold**, *italic*, &amp;nbsp; for indent, [link title](URL) for links"
                                         style={{
@@ -2561,7 +2594,7 @@ export default function EditPoemPage({ chapter, poemNum }) {
                                     value={(() => {
                                         const rawValue = editData[key] || "";
                                         // Convert \n to actual line breaks for these specific fields
-                                        if (key === "notes" || key === "narrativeContext" || key === "paraphrase" || key === "handwritingDescription") {
+                                        if (key === "narrativeContext" || key === "paraphrase" || key === "handwritingDescription") {
                                             return rawValue.replace(/\\n/g, '\n');
                                         }
                                         return rawValue;
@@ -2569,10 +2602,10 @@ export default function EditPoemPage({ chapter, poemNum }) {
                                     onChange={(e) => {
                                         const newValue = e.target.value;
                                         // Convert actual line breaks back to \n for storage for these specific fields
-                                        const valueToStore = (key === "notes" || key === "narrativeContext" || key === "paraphrase" || key === "handwritingDescription") 
+                                        const valueToStore = (key === "narrativeContext" || key === "paraphrase" || key === "handwritingDescription")
                                             ? newValue.replace(/\n/g, '\\n')
                                             : newValue;
-                                        
+
                                         setEditData((prev) => ({
                                             ...prev,
                                             [key]: valueToStore

@@ -291,7 +291,7 @@
 .toggleButton {
   width: 200px;
   height: 23px;
-  background: var(--1-GREY-WEBSITE-BACKGROUND, #737373);
+  background: var(--1-GREY-WEBSITE-BACKGROUND, #4B4B4B);
   text-align: left;
   font-family: 'Lexend', sans-serif;
   font-size: 16px;
