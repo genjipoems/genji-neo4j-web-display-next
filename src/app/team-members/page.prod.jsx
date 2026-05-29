@@ -33,32 +33,15 @@ const BlogPage = () => {
             </div>
 
             <div className={styles.mainSection}>
-                <div className={styles.analysisContainer}>
-                    {/* Left Side - Panels with Toggles */}
-                    <div className={styles.analysisLeft}>
-                        <div className={styles.descriptionSources}>
-                            <div className={styles.descriptionContentSources}>
-                                {isLoading ? (
-                                    <div className={styles.loading}>Loading...</div>
-                                ) : (
-                                    <>  
-                                        <FormatContent content={content.split('---')[0]} className={styles.descriptionText} />
-                                    </>
-                                )}
-                            </div>
-                        </div> 
-                    </div>
-                </div>
-
                 <div className={styles.rightSideMembers}>
                     <h2 className={styles.membersHeader}>TEAM MEMBERS</h2>
                     {isLoading ? (
-                                    <div className={styles.loading}>Loading...</div>
-                                ) : (
-                                    <>  
-                                        <FormatContent content={content.split('---')[1]} className={styles.descriptionText} />
-                                    </>
-                                )}
+                        <div className={styles.loading}>Loading...</div>
+                    ) : (
+                        <div className={styles.membersColumns}>
+                            <FormatContent content={content} className={styles.descriptionText} />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
