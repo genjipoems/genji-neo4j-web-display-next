@@ -706,10 +706,21 @@
 }
 
 .rightSideMembers {
-  width: 50%;
+  width: 100%;
   padding: 10px 20px 30px 20px;
   background-color: #4B4B4B;
   text-align: left;
+}
+
+.membersColumns {
+  column-count: 2;
+  column-gap: 2rem;
+}
+
+@media (max-width: 1194px) {
+  .membersColumns {
+    column-count: 1;
+  }
 }
 
 .membersHeader {
