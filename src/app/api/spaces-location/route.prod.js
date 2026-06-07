@@ -1,134 +1,126 @@
-const { getSession } = require('../neo4j_driver/route.prod.js');
-
-import { add } from 'lodash';
+import { getSession } from '../neo4j_driver/route.prod.js';
 import { toNativeTypes } from '../neo4j_driver/utils.prod.js';
 
-async function getData (chapter, number){
-	const session = await getSession();
+export async function GET(request) {
+    const { searchParams } = new URL(request.url);
+	const chapter = (searchParams.get('chapter') || '1').replace(/^0+/, '');
 
-	//all the get method and return the db data
+    const session = await getSession();
 
-	const queries = {
-		resPlaces : 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(c:Chapter {chapter_number: "' + chapter + '"}), (g)-[:PLACE_OF_COMPOSITION|PLACE_OF_RECEIPT]->(place:Place) RETURN DISTINCT place.name as place, place.lat as lat, place.lng as lng',
-		resPnum : 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(c:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH (CASE WHEN "' + number + '" < 10 THEN \'0\' + toString("' + number + '") ELSE toString($number) END) RETURN g.pnum as pnum',
-		resMessenger: 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(c:Chapter {chapter_number: "' + chapter + '"}), (g:Genji_Poem)<-[:MESSENGER_OF]-(a:Character) WHERE g.pnum ends with "' + number + '" RETURN a.name as name',
-		resPlaceOfComp: 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[r:PLACE_OF_COMPOSITION]->(place:Place) WHERE g.pnum ENDS WITH "' + number + '" RETURN place.name as placeOfComp, r.evidence as placeOfComp_evidence, place.lat as lat, place.lng as lng',
-		resPlaceOfReceipt: 'MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[r:PLACE_OF_RECEIPT]->(place:Place) WHERE g.pnum ENDS WITH "' + number + '" RETURN place.name as placeOfReceipt, r.evidence as placeOfReceipt_evidence, place.lat as lat, place.lng as lng',		
-		resGroup: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:IN_GROUP_OF]->(group:Group) where g.pnum ends with "' + number + '" match (otherPoems:Genji_Poem)-[:IN_GROUP_OF]->(group) where otherPoems.pnum <> g.pnum return otherPoems.pnum as groupMembers',
-		resReplyPoem: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (g)-[:REPLY_TO]->(reply:Genji_Poem) where g.pnum ends with "' + number + '" return reply.pnum as replyPoem',
-		resRepliesTo: 'match (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}), (reply:Genji_Poem)-[:REPLY_TO]->(g) where g.pnum ends with "' + number + '" return reply.pnum as replyPoem',
-	};
+    try {
 
-	const result = {};
-	try {
-		for (let key in queries) {
-			const queryResult = await session.readTransaction(tx => 
-				tx.run(queries[key], { chapter, number})
-			); 
-			result[key] = queryResult;
-		} 
+		const query = `
+            MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: $chapter})
+            OPTIONAL MATCH (g)-[:PLACE_OF_COMPOSITION|PLACE_OF_RECEIPT]->(p:Place)
+            WITH collect(DISTINCT {
+                name: p.name,
+                lat: p.lat,
+                lng: p.lng,
+                type: p.type,
+                evidence: p.evidence
+            }) as cleanPlaces
+
+            MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: $chapter})
+            OPTIONAL MATCH (s:Character)-[:SPEAKER_OF]->(g)
+            OPTIONAL MATCH (g)<-[:ADDRESSEE_OF]-(a:Character)
+			OPTIONAL MATCH (g)-[rComp:PLACE_OF_COMPOSITION]->(pComp:Place)
+			OPTIONAL MATCH (g)-[rRec:PLACE_OF_RECEIPT]->(pRec:Place)
+			OPTIONAL MATCH (g)<-[:MESSENGER_OF]-(mess:Character)
+
+			OPTIONAL MATCH (g)-[:IN_GROUP_OF]->(group:Group)<-[:IN_GROUP_OF]-(otherPoems:Genji_Poem WHERE otherPoems.pnum <> g.pnum)
+
+			OPTIONAL MATCH (g)-[:REPLY_TO]->(reply:Genji_Poem)
+			OPTIONAL MATCH (repliesToThis:Genji_Poem)-[:REPLY_TO]->(g)
+
+            WITH g, cleanPlaces, s, a, pComp, pRec, mess,
+                 collect(DISTINCT otherPoems.pnum) as groupMembers,
+                 collect(DISTINCT reply.pnum) as replyPoemList,
+                 collect(DISTINCT repliesToThis.pnum) as repliesToThisList
+
+            RETURN 
+                g.pnum as pnum,
+                cleanPlaces,
+                s.name as speaker, s.gender as speakerGender,
+                a.name as addressee, a.gender as addresseeGender,
+                pComp.name as compName, pComp.lat as compLat, pComp.lng as compLng,
+                pRec.name as recName, pRec.lat as recLat, pRec.lng as recLng,
+                mess.name as messengerName,
+                groupMembers,
+                replyPoemList,
+                repliesToThisList
+        `;		
+		const result = await session.readTransaction(tx => tx.run(query, { chapter }));
+		console.log('records:', result.records.length);
+        console.log('record count:', result.records.length);
+		if (result.records.length > 0) {
+			console.log('first record keys:', result.records[0].keys);
+		}
+
+        let places = [];
+        const poemsData = {};
+
+        if (result.records.length > 0) {
+            places = (result.records[0].get('cleanPlaces') || [])
+                .filter(p => p.name !== null)
+                .map(p => ({
+                    name: p.name,
+                    type: p.type,
+                    evidence: p.evidence,
+                    lat: p.lat != null ? toNativeTypes(p.lat) : null,
+                    lng: p.lng != null ? toNativeTypes(p.lng) : null
+                }));
+        }
+
+        result.records.forEach(record => {
+            const pnum = record.get('pnum');
+            if (!pnum) return; 
+            const speaker = record.get('speaker');
+            const addressee = record.get('addressee');
+            const speakerGender = record.get('speakerGender');
+            const addresseeGender = record.get('addresseeGender');
+            const messenger = record.get('messengerName');
+            const groupPoems = record.get('groupMembers') || [];
+            const replyPoems = record.get('replyPoemList') || [];
+            const repliesToThis = record.get('repliesToThisList') || [];
+            const compName = record.get('compName');
+            const recName = record.get('recName');
 
 
-		// messenger
-		let messenger = result['resMessenger'].records[0]?.get('name') || null;
-		
-		// places
-		let place = result['resPlaces'].records.map(record => ({
-			name: record.get('place'),
-			lat: record.get('lat') ? toNativeTypes(record.get('lat')) : null,
-			lng: record.get('lng') ? toNativeTypes(record.get('lng')) : null
-		}));
-		let pnum = result['resPnum'].records[0]?.get('pnum') || null;
-		let compRecord = result['resPlaceOfComp'].records[0];
-		let placeOfComp = compRecord?.get('placeOfComp') || null;
-		let compLat = compRecord?.get('lat') ? toNativeTypes(compRecord.get('lat')) : null;
-		let compLng = compRecord?.get('lng') ? toNativeTypes(compRecord.get('lng')) : null;
+            let compLat = null, compLng = null;
+            let receiptLat = null, receiptLng = null;
 
-		let receiptRecord = result['resPlaceOfReceipt'].records[0];
-		let placeOfReceipt = receiptRecord?.get('placeOfReceipt') || null;
-		let receiptLat = receiptRecord?.get('lat') ? toNativeTypes(receiptRecord.get('lat')) : null;
-		let receiptLng = receiptRecord?.get('lng') ? toNativeTypes(receiptRecord.get('lng')) : null;
-		let placeOfComp_evidence = result['resPlaceOfComp'].records[0]?.get('placeOfComp_evidence') || null;
-		let placeOfReceipt_evidence = result['resPlaceOfReceipt'].records[0]?.get('placeOfReceipt_evidence') || null;
+            if (compName) {
+				compLat = record.get('compLat') != null ? toNativeTypes(record.get('compLat')) : null;
+				compLng = record.get('compLng') != null ? toNativeTypes(record.get('compLng')) : null;
+            }
 
-		// group poems
-		let groupPoems = new Set()
-		result['resGroup'].records.map(e => {
-			const groupMembers = e.get('groupMembers');
-			return groupMembers ? toNativeTypes(groupMembers) : null;
-		}).filter(e => e !== null).forEach(e => {groupPoems.add([Object.values(e).join('')])})
-		groupPoems = Array.from(groupPoems).flat()
-		groupPoems = groupPoems.map(e => [e, true])
+            if (recName) {
+				receiptLat = record.get('recLat') != null ? toNativeTypes(record.get('recLat')) : null;
+				receiptLng = record.get('recLng') != null ? toNativeTypes(record.get('recLng')) : null;
+            }
 
-		// reply poem (what this poem replies TO - for display)
-		let replyPoems = new Set()
-		result['resReplyPoem'].records.map(e => {
-			const replyPoem = e.get('replyPoem');
-			return replyPoem ? toNativeTypes(replyPoem) : null;
-		}).filter(e => e !== null).forEach(e => {replyPoems.add([Object.values(e).join('')])})
-		replyPoems = Array.from(replyPoems).flat()
-		replyPoems = replyPoems.map(e => [e, true])
-
-		// replies to this poem (poems that reply TO this poem - for editing)
-		let repliesToThis = new Set()
-		result['resRepliesTo'].records.map(e => {
-			const replyPoem = e.get('replyPoem');
-			return replyPoem ? toNativeTypes(replyPoem) : null;
-		}).filter(e => e !== null).forEach(e => {repliesToThis.add([Object.values(e).join('')])})
-		repliesToThis = Array.from(repliesToThis).flat()
-		repliesToThis = repliesToThis.map(e => [e, true])
-
+            poemsData[pnum] = {
+				pnum,
+                composition: { placeName: compName, speaker, speakerGender, lat: compLat, lng: compLng },
+                receipt: { placeName: recName, addressee, addresseeGender, lat: receiptLat, lng: receiptLng },
+                relationships: { groupPoems, replyPoems, repliesToThis, messenger }
+            };
+        });
 
 		const data = {
-			places: place,
+            places,
+            poems: poemsData
+        };
 
-			composition: {
-				pnum: pnum,
-				name: placeOfComp,
-				evidence: placeOfComp_evidence,
-				lat: compLat,
-				lng: compLng
-			},
-			
-			receipt: {
-				pnum: pnum,
-				name: placeOfReceipt,
-				evidence: placeOfReceipt_evidence,
-				lat: receiptLat,
-				lng: receiptLng
-			},
-			
-			relationships: {
-				groupPoems,
-				replyPoems,
-				repliesToThis,
-				messenger
-			}
-		};
+        return new Response(JSON.stringify(data), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
 
-		return (data);
-
-	} catch(error) {
-		console.error('Failed to execute queries:', error);
-		console.error('Error details:', {
-			chapter,
-			number,
-			stack: error.stack
-		});
-		throw new Error(`Failed to execute queries for chapter ${chapter}, number ${number}: ${error.message}`);
-	} finally{
-		await session.close();
-	}
+    } catch (error) {
+        console.error("Database Error:", error);
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    } finally {
+        await session.close();
+    }
 }
-
-export const GET = async (request) => {
-	try {   
-		const {searchParams} = new URL(request.url);
-		const chapter = searchParams.get('chapter')
-		const number = searchParams.get('number')
-		const data = await getData(chapter, number)
-		return new Response(JSON.stringify(data), {status: 200})
-	}catch (error){
-		return new Response(error, {status: 500})
-	}
-} 

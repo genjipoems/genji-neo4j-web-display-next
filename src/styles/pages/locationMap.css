@@ -1,61 +1,78 @@
-.box {
-    background-color: black;
-    height: 100vh;
+@import url('https://fonts.googleapis.com/css2?family=Sofia+Sans+Extra+Condensed:wght@400;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap");
+
+.map-container {
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #252525; 
+    width: 100%;
+    height: 725px; 
+    -webkit-user-select: none; /* Safari */
+    -moz-user-select: none;    /* Firefox */
+    -ms-user-select: none;     /* IE10+ */
+    user-select: none;         /* Standard modern browsers */
+}
+
+.connection-line {
+    opacity : 0.4;
+}
+
+.location-text {
+    user-select: none;
+    pointer-events: none; 
+    font-size: 11px;
+    font-family: 'Sofia Sans Extra Condensed';
+    color: #000000;
+    word-wrap: break-word;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+}
+
+.location-container {
     display: flex;
-    align-items: center;
     justify-content: center;
-}
-
-.box a {
-    padding: 15px;
-    background-color: #fff;
-    border-radius: 13px;
-    text-decoration: none;
-}
-
-.modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(46, 27, 15, 0.7);
-    display: none;
     align-items: center;
-    justify-content: center;
+    margin: 0;
+    padding: 0;
+    height: 100%;
 }
 
-.content {
-    position: relative;
-    background: white;
-    padding: 1em 2em;
-    border-radius: 10px;
-    height: 575px;
-    width: 575px;
-    overflow-y: scroll;
+.place-rect {
+    cursor: grab;
+
 }
 
-.main-box {
+.place-rect:active {
+    cursor: grabbing;
+}
+.poem-node-group {
+    cursor: default;
+}
+
+.poem-node-text {
+    font-family: 'Sofia Sans Extra Condensed';
+    user-select: none;
+    pointer-events: none;
+}
+
+.legend-item {
     display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.main-box button {
-    height: 40px;
-    border-radius: 7px;
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border-color: #4B4B4B;
 }
 
-.vertical {
-    -webkit-writing-mode: vertical-rl;
-    -moz-writing-mode: vertical-rl;
-    -ms-writing-mode: vertical-rl;
-    writing-mode: vertical-rl;
-}
-
-#poems {
-    display:block;
-}
-
-.a_hv {
-    text-decoration: none;
-}
-
-.a_hv:hover {
-    text-decoration: underline;
+.legend-text {
+    font-size: 14px;
+    font-family: 'Lexend';
+    color: #FFF;
 }

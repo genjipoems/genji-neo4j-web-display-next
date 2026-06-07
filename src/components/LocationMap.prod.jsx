@@ -1,506 +1,398 @@
-import React, { useState } from "react";
-import L from 'leaflet';
-import * as d3 from 'd3';
-import '../styles/pages/locationMap.css'
+'use client';
 
+import React, { useState, useEffect, useRef } from "react";
+import '../styles/pages/locationMap.css';
 
+export default function CharacterMap({ initialData }) {
+    const places = initialData?.places || [];
+    const rawPoems = initialData?.poems ? Object.values(initialData.poems) : [];
 
-const map = L.map('map', {
-    crs: L.CRS.Simple,
-    minZoom: -2,
-    maxZoom: 2
-});
+    const [simulatedNodes, setSimulatedNodes] = useState([]);
+    const [simulatedLinks, setSimulatedLinks] = useState([]);
+    const [placePositions, setPlacePositions] = useState({});
+    const [transform, setTransform] = useState({ x: 475, y: 325, scale: 0.5 });
 
-// 2. Define the dimensions of your fictional map image (in pixels)
-const mapWidth = 2048;
-const mapHeight = 1536;
-const bounds = [[0, 0], [mapHeight, mapWidth]];
+    const hoveredPnumRef = useRef(null);
+    const draggingPlaceRef = useRef(null);
+    const isPanningRef = useRef(false);
+    const lastMouseRef = useRef({ x: 0, y: 0 });
+    const svgRef = useRef(null);
 
-// 3. Add your custom fictional map background
-L.imageOverlay('/path-to-your-fictional-map-image.png', bounds).addTo(map);
-map.fitBounds(bounds);
-
-
-const svgLayer = d3.select(map.getPanes().overlayPane).append("svg");
-const g = svgLayer.append("g").attr("class", "leaflet-zoom-hide");
-
-function updateD3Overlay(apiData) {
-    // Assuming apiData format: { compCoords: [y, x], receiptCoords: [y, x], ... }
-    const { compCoords, receiptCoords } = apiData; 
-    
-    if (!compCoords || !receiptCoords) return;
-
-    // Convert flat XY map coordinates into dynamic Leaflet screen pixel positions
-    const startPoint = map.latLngToLayerPoint(L.latLng(compCoords));
-    const endPoint = map.latLngToLayerPoint(L.latLng(receiptCoords));
-
-    const lineData = [{ start: startPoint, end: endPoint }];
-
-    // Bind data and draw/update travel paths using D3
-    const links = g.selectAll(".poem-delivery")
-        .data(lineData);
-
-    links.enter()
-        .append("line")
-        .attr("class", "poem-delivery")
-        .merge(links)
-        .attr("x1", d => d.start.x)
-        .attr("y1", d => d.start.y)
-        .attr("x2", d => d.end.x)
-        .attr("y2", d => d.end.y)
-        .attr("stroke", "#ffffff")
-        .attr("stroke-width", 3)
-        .attr("stroke-dasharray", "5,5"); // Gives it a nice dotted messenger path look
-
-    links.exit().remove();
-}
-
-// Reset SVG dimensions and paths whenever the user zooms or pans
-map.on("zoomend moveend", () => {
-    const topLeft = map.latLngToLayerPoint(map.getBounds().getNorthWest());
-    const bottomRight = map.latLngToLayerPoint(map.getBounds().getSouthEast());
-
-    svgLayer.attr("width", bottomRight.x - topLeft.x)
-            .attr("height", bottomRight.y - topLeft.y)
-            .style("left", topLeft.x + "px")
-            .style("top", topLeft.y + "px");
-
-    g.attr("transform", `translate(${-topLeft.x}, ${-topLeft.y})`);    
-    // Re-run your drawing function to align coordinates accurately
-    if (currentApiData) updateD3Overlay(currentApiData);
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class Building { //Labeled edge
-    constructor(type, coordinates, vB, width, height, fill, stroke, pts, jpText, enText, jpSize, enSize, the) {
-        this.type = type
-        this.coordinates = coordinates
-        this.viewBox = (vB[0][0]-1).toString() + " " + vB[0][1] + " " + (vB[1][0]+2).toString() + " " + vB[1][1]
-
-        this.width = width
-        this.height = height
-        this.fill = fill
-        this.stroke = stroke
-
-        this.d = ""
-
-        for (let i = 0; i < pts.length; i++) {
-        const x = pts[i][0]
-        const y = pts[i][1]
-        if (i == 0) {
-            this.d += "M " + x.toString() + " " + y.toString() + " "
-        } else {
-            this.d += "L " + x.toString() + " " + y.toString() + " "
+    // Initialize place positions from database
+    useEffect(() => {
+        if (places.length > 0) {
+            const initial = {};
+            places.forEach(place => {
+                initial[place.name] = { x: Number(place.lng), y: Number(place.lat) };
+            });
+            setPlacePositions(initial);
         }
+    }, [initialData?.places]);
+
+    // Hover highlight handlers
+    const handleMouseOver = (node) => {
+        hoveredPnumRef.current = node.pnum;
+        simulatedNodes.forEach(n => {
+            const el = document.getElementById(`node-${n.id}`);
+            if (!el) return;
+            const highlighted = n.pnum === node.pnum ||
+                n.groupPoems.includes(node.pnum) ||
+                n.replyPoems.includes(node.pnum) ||
+                n.repliesToThis.includes(node.pnum);
+            el.setAttribute('fill', highlighted && n.gender === 'female' ? '#ff7d69' : highlighted ? '#c8fdf6' : n.gender === 'female' ? '#B03F2E' : '#9CBAB6');
+            el.setAttribute('stroke', highlighted ? '#FFF' : '#252525');
+        });
+    };
+
+    const handleMouseOut = () => {
+        hoveredPnumRef.current = null;
+        simulatedNodes.forEach(n => {
+            const el = document.getElementById(`node-${n.id}`);
+            if (!el) return;
+            el.setAttribute('fill', n.gender === 'female' ? '#B03F2E' : '#9CBAB6');
+            el.setAttribute('stroke', '#252525');
+        });
+    };
+
+    // SVG coordinate conversion
+    const toSVGCoords = (clientX, clientY) => {
+        const svg = svgRef.current.getBoundingClientRect();
+        const x = (clientX - svg.left - transform.x) / transform.scale;
+        const y = (clientY - svg.top - transform.y) / transform.scale;
+        return { x, y };
+    };
+
+    const handleWheel = (e) => {
+        e.preventDefault();
+        const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
+        const newScale = Math.max(0.1, Math.min(10, transform.scale * scaleFactor));
+
+        // Zoom toward mouse position
+        const svg = svgRef.current.getBoundingClientRect();
+        const mouseX = e.clientX - svg.left;
+        const mouseY = e.clientY - svg.top;
+
+        setTransform(prev => ({
+            scale: newScale,
+            x: mouseX - (mouseX - prev.x) * (newScale / prev.scale),
+            y: mouseY - (mouseY - prev.y) * (newScale / prev.scale),
+        }));
+    };
+
+    const handleMouseDown = (e) => {
+        if (draggingPlaceRef.current) return;
+        isPanningRef.current = true;
+        lastMouseRef.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const handleMouseMove = (e) => {
+        if (draggingPlaceRef.current) {
+            const { x, y } = toSVGCoords(e.clientX, e.clientY);
+            setPlacePositions(prev => ({
+                ...prev,
+                [draggingPlaceRef.current]: { x, y }
+            }));
+            return;
         }
 
-        this.d += "L " + pts[0][0] + " " + pts[0][1] + "Z"
-
-        this.jpText = jpText
-        this.enText = enText
-        this.jpSize = jpSize
-        this.enSize = enSize
-        this.the = the
-    }
-}
-
-class Shape {
-  constructor(type, coordinates, vB, width, height, fill, stroke, pts) {
-        this.type = type
-        this.coordinates = coordinates
-        this.viewBox = vB[0][0] + " " + vB[0][1] + " " + vB[1][0] + " " + vB[1][1]
-
-        this.width = width
-        this.height = height
-        this.fill = fill
-        this.stroke = stroke
-
-        this.d = ""
-
-        for (let i = 0; i < pts.length; i++) {
-        const x = pts[i][0]
-        const y = pts[i][1]
-        if (i == 0) {
-            this.d += "M " + x.toString() + " " + y.toString() + " "
-        } else {
-            this.d += "L " + x.toString() + " " + y.toString() + " "
+        if (isPanningRef.current) {
+            const dx = e.clientX - lastMouseRef.current.x;
+            const dy = e.clientY - lastMouseRef.current.y;
+            lastMouseRef.current = { x: e.clientX, y: e.clientY };
+            setTransform(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
         }
-        }
+    };
 
-        this.d += "L " + pts[0][0] + " " + pts[0][1] + "Z"
-  }
-}
+    const handleMouseUp = () => {
+        isPanningRef.current = false;
+        draggingPlaceRef.current = null;
+    };
 
-class Circle {
-    constructor(type, coordinates, vB, width, height, fill, stroke, radius, jpText, enText, jpSize, enSize) {
-        this.type = type
-        this.coordinates = coordinates
-        this.viewBox = vB[0][0] + " " + vB[0][1] + " " + vB[1][0] + " " + vB[1][1]
-        this.width = width
-        this.height = height
-        this.fill = fill
-        this.stroke = stroke
-        this.radius = radius
-        this.jpText = jpText
-        this.enText = enText
-        this.jpSize = jpSize
-        this.enSize = enSize
-    }
-}
+    // Physics simulation
+    useEffect(() => {
+        if (rawPoems.length === 0 || places.length === 0 || Object.keys(placePositions).length === 0) return;
 
-export default function CharacterMap({l}) { 
-    
-    const dictionary = {}
+        let nodes = [];
+        let links = [];
 
-    for (const {pnum, japanese, notes, romaji, location_name, speaker} of l) {
-        if (dictionary[location_name] == undefined) {
-            dictionary[location_name] = []
-        }
-        dictionary[location_name].push({
-            pnum: pnum,
-            japanese: japanese,
-            notes: notes,
-            romaji: romaji,
-            speaker: speaker
-        })
-    }
+        rawPoems.forEach((poem, index) => {
+            // 1. Direct, lightning-fast key lookups using your new clean API fields
+            const compPlaceName = poem.composition?.placeName;
+            const recPlaceName = poem.receipt?.placeName;
 
-    console.log(dictionary)
+            const currentCompPos = compPlaceName ? placePositions[compPlaceName] : null;
+            const currentRecPos = recPlaceName ? placePositions[recPlaceName] : null;
 
-    const vectors = [
-        new Shape("hallway", [31,9.5], [[0,0], [125,100]], "80px", "80px", "#f2cb3f", "black", [[0,0], [15, 0], [15,42], [0,42]]),
-        new Shape("hallway", [18.5,9.5], [[0,0], [125,100]], "80px", "80px", "#f2cb3f", "black", [[0,0], [15, 0], [15,42], [0,42]]),
-        new Shape("hallway", [6,9.5], [[0,0], [125,100]], "80px", "80px", "#f2cb3f", "black", [[0,0], [15, 0], [15,42], [0,42]]),
-        new Shape("hallway", [30.75,33], [[0,0], [125,100]], "100px", "80px", "#f2cb3f", "black", [[0,0], [15, 0], [15,25], [0,25]]),
-        new Shape("hallway", [18.3,33], [[0,0], [125,100]], "100px", "80px", "#f2cb3f", "black", [[0,0], [15, 0], [15,25], [0,25]]),
-        new Shape("hallway", [6,33], [[0,0], [125,100]], "100px", "80px", "#f2cb3f", "black", [[0,0], [15, 0], [15,25], [0,25]]),
-        new Shape("hallway", [-32,45], [[0,0], [125,101]], "100px", "80px", "#f2cb3f", "black", [[0,0], [102, 0], [102,15], [15,15], [15,35], [0,35]]),
-        new Shape("hallway", [-51,90], [[0,0], [250,185]], "350px", "120px", "#f2cb3f", "black", [[115,0], [135, 0], [135,125], [250,125], [250,145], [135,145], [135,185], [115,185], [115,145], [0,145], [0,125], [115,125]]),
-        new Shape("hallway", [-16.5,93.5], [[0,0], [100,100]], "100px", "80px", "#f2cb3f", "black", [[0,0], [45, 0], [45,10], [0,10]]),
-        new Shape("hallway", [35,102], [[0,0], [100,100]], "100px", "80px", "#f2cb3f", "black", [[0,0], [55, 0], [55,10], [0,10]]),
-        new Shape("hallway", [64,102], [[0,0], [100,100]], "100px", "80px", "#f2cb3f", "black", [[0,0], [55, 0], [55,10], [0,10]]),
-        new Shape("hallway", [34,109.5], [[0,0], [100,100]], "100px", "80px", "#f2cb3f", "black", [[0,0], [55, 0], [55,10], [0,10]]),
-        new Shape("hallway", [-19,109.5], [[0,0], [100,100]], "100px", "80px", "#f2cb3f", "black", [[0,0], [54.5, 0], [54.5,10], [0,10]]),
-        new Shape("hallway", [39.5,45], [[0,0], [125,101]], "100px", "80px", "#f2cb3f", "black", [[0,0], [102, 0], [102,35], [87,35], [87,15], [0,15]]),
-        new Shape("hallway", [-24,100], [[0,0], [50,50]], "80px", "80px", "#f2cb3f", "black", [[0,0], [5, 0], [5,7.5], [0,7.5]]),
-        new Shape("hallway", [-52,56.5], [[0,0], [100,100]], "150px", "150px", "#f2cb3f", "black", [[0,43], [5,43], [5,0], [12.5,0], [12.5,43], [25,43],[25,48],[0,48] ]),
-        new Shape("hallway", [-53,89], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [7.5, 0], [7.5,40.5], [0,40.5]]),
-        new Shape("hallway", [-75,89], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [7.5, 0], [7.5,40.5], [0,40.5]]),
-        new Shape("hallway", [-75,109.15], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [7.5, 0], [7.5,50.5], [0,50.5]]),
-        new Shape("hallway", [-56,18], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [28, 0], [28,6], [0, 6]]),
-        new Shape("hallway", [-56,-2], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [28, 0], [28,6], [0, 6]]),
-        new Shape("hallway", [78,52.5], [[0,0], [100,100]], "150px", "150px", "#f2cb3f", "black", [[0,33], [12.5,33], [12.5,0], [19.5,0], [19.5,33], [25,33],[25,38],[0,38] ]),
-        new Shape("hallway", [73.75,18], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [28, 0], [28,6], [0, 6]]),
-        new Shape("hallway", [73.75,-2], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [28, 0], [28,6], [0, 6]]),
-        new Shape("hallway", [83,76.5], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [7.5, 0], [7.5,19.5], [0,19.5]]),
-        new Shape("hallway", [103,76.5], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [7.5, 0], [7.5,19.5], [0,19.5]]),
-        new Shape("hallway", [93,100], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [7.5, 0], [7.5,22.5], [0,22.5]]),
-        new Shape("hallway", [103,108.65], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [7.5, 0], [7.5,19.5], [0,19.5]]),
-        new Shape("hallway", [-25.15,-19.5], [[0,0], [100,100]], "100px", "80px", "#f2cb3f", "black", [[0,0], [54.5, 0], [54.5,15], [0,15]]),
-        new Shape("hallway", [40.45,-19.5], [[0,0], [100,100]], "100px", "80px", "#f2cb3f", "black", [[0,0], [54.5, 0], [54.5,15], [0,15]]),
-        new Shape("hallway", [-37,-56.65], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [13.5, 0], [13.5,29.5], [0,29.5]]),
-        new Shape("hallway", [63,-56.65], [[0,0], [60,60.5]], "100px", "80px", "#f2cb3f", "black", [[0,0], [13.5, 0], [13.5,29.5], [0,29.5]]),
-        new Shape("hallway", [64,59.5], [[0,0], [100,100]], "100px", "80px", "#f2cb3f", "black", [[0,0], [55, 0], [55,10], [0,10]]),
-        new Shape("", [-94,113.5], [[0,0], [250,350]], "250px", "350px", "#b2d1d6", "black", [[0,0], [235, 0], [235,20], [20,20], [20,350], [0,350]]),
-        new Shape("", [-94,3.5], [[0,0], [250,350]], "250px", "350px", "#b2d1d6", "black", [[0,0], [20, 0], [20,330], [235,330], [235,350], [0,350]]),
-        new Shape("", [32,113.5], [[0,0], [250,350]], "250px", "350px", "#b2d1d6", "black", [[15,0], [250, 0], [250,350], [230,350], [230,20], [15,20]]),
-        new Shape("", [32,3.5], [[0,0], [250,350]], "250px", "350px", "#b2d1d6", "black", [[230,0], [250, 0], [250,350], [15,350], [15,330], [230,330]]),
+            // 2. Derive active coordinates: Use live state position if dragged, fall back to base DB coords if not
+            const compX = currentCompPos ? currentCompPos.x : (poem.composition?.lng != null ? Number(poem.composition.lng) : NaN);
+            const compY = currentCompPos ? currentCompPos.y : (poem.composition?.lat != null ? Number(poem.composition.lat) : NaN);
+            const recX = currentRecPos ? currentRecPos.x : (poem.receipt?.lng != null ? Number(poem.receipt.lng) : NaN);
+            const recY = currentRecPos ? currentRecPos.y : (poem.receipt?.lat != null ? Number(poem.receipt.lat) : NaN);
+            
+            const speaker = poem.composition?.speaker ?? "Unknown Sender";
+            const addressee = poem.receipt?.addressee ?? "Unknown Recipient";
+            const speakerGender = poem.composition?.speakerGender ?? "Unknown Gender";
+            const addresseeGender = poem.receipt?.addresseeGender ?? "Unknown Gender";
+            const compId = `${poem.pnum || index}-comp`;
+            const recId = `${poem.pnum || index}-rec`;
+            const validComp = !isNaN(compX) && !isNaN(compY);
+            const validRec = !isNaN(recX) && !isNaN(recY);
+            
+            if (validComp) {
+                nodes.push({
+                    id: compId, pnum: poem.pnum, type: 'sender',
+                    gender: speakerGender, label: speaker,
+                    groupPoems: poem.relationships?.groupPoems || [],
+                    replyPoems: poem.relationships?.replyPoems || [],
+                    repliesToThis: poem.relationships?.repliesToThis || [],
+                    chapter: parseInt(poem.pnum.substring(0, 2)),
+                    poem: parseInt(poem.pnum.slice(-2)),
+                    x: compX, y: compY, homeX: compX, homeY: compY + 6
+                });
+            }
+            if (validRec) {
+                nodes.push({
+                    id: recId, pnum: poem.pnum, type: 'receiver',
+                    gender: addresseeGender, label: addressee,
+                    groupPoems: poem.relationships?.groupPoems || [],
+                    replyPoems: poem.relationships?.replyPoems || [],
+                    repliesToThis: poem.relationships?.repliesToThis || [],
+                    chapter: parseInt(poem.pnum.substring(0, 2)),
+                    poem: parseInt(poem.pnum.slice(-2)),
+                    x: recX, y: recY, homeX: recX, homeY: recY + 6
+                });
+            }
+            if (validComp && validRec) links.push({ sourceId: compId, targetId: recId });
+        });
 
-        new Building("building", [-4,0], [[0,0], [150,100]], "120px", "100px", "#d99deb", "black", [[0,0],  [150, 0], [150, 75], [125, 75], [125, 90], [25, 90], [25, 75], [0, 75]], "紫宸殿", "Shishinden", "20px", "15px", true),
-        new Building("building", [0,30.5], [[0,0], [125,85]], "100px", "90px", "#FFA500", "black", [[0,0], [125, 0], [125, 55], [115, 55], [115, 65], [15, 65], [15, 55], [0, 55]], "仁壽殿", "Jijuden", "20px", "15px", true),
-        new Building("building", [0,55.5], [[0,0], [125,80]], "100px", "100px", "#ffabfc", "black", [[0,15], [15,15], [15,0], [110,0], [110,15], [125,15], [125,65] , [0,65]], "承香殿", "Jōkyōden", "20px", "15px", true),
-        new Building("building", [-50,38], [[0,0], [100,300]], "100px", "125px", "#ffabfc", "black", [[0,0], [100,0], [100,275], [0,275]], "清涼殿", "Seiryōden", "30px", "14px", true),
-        new Building("building", [0,105.85], [[0,0], [125,70]], "100px", "100px", "#ffabfc", "black", [[0,0], [125,0], [125,55], [0,55]], "常寧殿", "Jōneiden", "20px", "15px", true),
-        new Building("building", [-40.75,97.5], [[0,0], [85,257]], "100px", "125px", "#ffabfc", "black", [[0,0], [85,0], [85,243], [0,243]], "弘徽殿", "Kokiden", "30px", "16px", true),
-        new Building("building", [42,110.55], [[0,0], [65,200]], "100px", "107px", "#ffabfc", "black", [[0,0], [65,0], [65,175], [0,175]], "宣耀殿", "Senyōden", "22px", "13px", true),
-        new Building("building", [40.5,97.5], [[0,0], [85,257]], "100px", "125px", "#ffabfc", "black", [[0,25], [15,25], [15,0], [85,0], [85,243], [0,243]], "麗景殿", "Reikeiden", "32px", "16px", true),
-        new Building("building", [84.5,107.65], [[0,0], [85,70]], "70px", "80px", "#ffabfc", "black", [[0,0], [85,0], [85,55], [0,55]], "淑景舎", "Shigeisha", "15px", "10px", true),
-        new Building("building", [-42,110.55], [[0,0], [65,200]], "100px", "107px", "#ffabfc", "black", [[0,0], [65,0], [65,175], [0,175]], "登華殿", "Tōkaden", "22px", "13px", true),
-        new Building("building", [2,112], [[0,0], [125,70]], "90px", "100px", "#ffabfc", "black", [[0,0], [125,0], [125,55], [0,55]], "常寧殿", "Jōneiden", "20px", "15px", true),
-        new Building("building", [50,38], [[0,0], [100,300]], "100px", "125px", "#ffabfc", "black", [[0,0], [100,0], [100,275], [0,275]], "綾綺殿", "Ryōkiden", "30px", "14px", true),
-        new Building("building", [-80,38], [[0,0], [100,300]], "100px", "125px", "#ffabfc", "black", [[0,0], [100,0], [100,275], [0,275]], "後涼殿", "Kōrōden", "30px", "14px", true),
-        new Building("building", [80,38], [[0,0], [100,300]], "100px", "125px", "#ffabfc", "black", [[0,0], [100,0], [100,275], [0,275]], "温明殿", "Unmeiden", "30px", "14px", true),
-        new Building("building", [-76.5,74.65], [[0,0], [100,70]], "85px", "90px", "#ffabfc", "black", [[0,0], [100,0], [100,55], [20,55], [20,75], [0,75]], "飛香舎", "Higyōsha", "15px", "12px", true),
-        new Building("building", [-74,104.65], [[0,0], [100,70]], "75px", "90px", "#ffabfc", "black", [[0,0], [100,0], [100,55], [0,55]], "凝花舎", "Gyōkasha", "15px", "10px", true),
-        new Building("building", [-74,112.65], [[0,0], [90,70]], "75px", "90px", "#ffabfc", "black", [[0,0], [90,0], [90,55], [0,55]], "龍芳舎", "Shūhōsha", "15px", "10px", true),
-        new Building("building", [84.5,69.65], [[0,0], [85,90]], "70px", "80px", "#ffabfc", "black", [[0,0], [85,0], [85,70], [0,70]], "昭陽舍", "Shōyōsha", "15px", "10px", true),
-        new Building("building", [84.5,97.65], [[0,0], [85,50]], "70px", "80px", "#ffabfc", "black", [[0,0], [85,0], [85,40], [0,40]], "昭陽北舎", "Shōyōhokusha", "15px", "8px", true),
-        new Building("building", [84.5,112.2], [[0,0], [85,70]], "70px", "80px", "#ffabfc", "black", [[0,0], [85,0], [85,55], [0,55]], "淑景北舎", "Shigeihokusha", "15px", "10px", true),
-        new Building("building", [-50, -17.5], [[0,0], [100,300]], "100px", "125px", "#ffabfc", "black", [[0,0], [100,0], [100,275], [0,275]], "校書殿", "Kyōshoden", "30px", "14px", true),
-        new Building("building", [52.5,-17.5], [[0,0], [125,300]], "100px", "125px", "#ffabfc", "black", [[0,0], [125,0], [125,200], [100,200], [100,275], [0,275]], "綾綺殿", "Ryōkiden", "35px", "18px", true),
-        new Building("building", [50,-67.5], [[0,0], [100,300]], "100px", "125px", "#ffabfc", "black", [[0,0], [100,0], [100,250], [75,250], [75,275], [25,275], [25,250], [0,250]], "春興殿", "Shunkyōden", "35px", "18px", true),
-        new Building("building", [-50,-67.5], [[0,0], [100,300]], "100px", "125px", "#ffabfc", "black", [[0,0], [100,0], [100,250], [75,250], [75,275], [25,275], [25,250], [0,250]], "安風殿", "Anpukuden", "35px", "18px", true),
-        new Building("building", [-78,-17.5], [[0,0], [125,300]], "100px", "125px", "#ffabfc", "black", [[0,0], [65,0], [65,25], [125,25], [125,275], [0,275]], "蔵人町屋", "Kurōdomachiya", "35px", "17px", false),
-        new Building("building", [-94.75,28.05], [[0,0], [50,140]], "25px", "65px", "#98a5b3", "black", [[0,0], [47.5,0], [47.5,125], [0, 125]], "陰明門", "Onmeimon Gate", "17px", "12px", false),
-        new Building("building", [125.75,28.05], [[0,0], [50,140]], "25px", "65px", "#98a5b3", "black", [[0,0], [47.5,0], [47.5,125], [0, 125]], "宣陽門", "Senyōmon Gate", "17px", "12px", false),
-        new Building("building", [3.75,-103.35], [[0,0], [165,60]], "80px", "80px", "#98a5b3", "black", [[0,0], [165,0], [165,43.5], [0, 43.5]], "承明門", "Shōmeimon Gate", "17px", "12px", false),
-        new Building("building", [3.75,114.65], [[0,0], [165,60]], "80px", "80px", "#98a5b3", "black", [[0,0], [165,0], [165,43.5], [0, 43.5]], "玄輝門", "Genkimon Gate", "17px", "12px", false),
-        new Building("building", [-73.5,-67.5], [[0,0], [70,300]], "100px", "125px", "#ffabfc", "black", [[0,0], [70,0], [70,250], [0,250]], "進物所", "Palace Kitchen", "24px", "10px", false),
-        new Building("building", [-82.5,-50.5], [[0,0], [130,100]], "45px", "40x", "#ffabfc", "black", [[0,0], [130,0], [130,75], [0,75]], "造物所", "Palace Workshop", "24px", "12px", false),
-        new Building("building", [-90.5,-67.5], [[0,0], [70,250]], "100px", "100px", "#ffabfc", "black", [[0,0], [70,0], [70,200], [0,200]], "造物所", "Palace Workshop", "24px", "9px", false),
-        new Building("building", [87.5,-27.5], [[0,0], [125,170]], "75px", "75px", "#ffabfc", "black", [[0,0], [125,0], [125,125], [0,125]], "御興宿", "Portable Shrine", "30px", "12px", false),
-        new Building("building", [88.5,-77.5], [[0,0], [125,170]], "65px", "65px", "#ffabfc", "black", [[0,0], [125,0], [125,125], [0,125]], "朱器殿", "Jūkiden", "30px", "12px", true),
+        const iterations = 300;
+        const idealNodeDistance = 48;
+        const gravityStrength = 0.2;
+        const boxWidthBuffer = 85;
+        const boxHeightBuffer = 40;
+        const linkStrength = 0.1;
+        const linkNodes = new Set();
+        const nonLinkNodes = new Set();
+        const matchLink = [];
+        const nonRecNodes = [];
 
-        new Circle("circle", [-10, -40], [[0,0], [80,110]], "40px", "40px", "#06c24e", "black", "40", "橘", "Tangerine tree", "30px", "12px"),
-        new Circle("circle", [35, -40], [[0,0], [80,110]], "40px", "40px", "#ff63f2", "black", "40", "桜", "Cherry tree", "30px", "12px"),
-    ];  
-    
-    const projection = geoPatterson()
-    
-    const [position, setPosition] = useState({ coordinates: [20, 5], zoom: 1.95 });
-
-    function handleZoomIn() {
-        setPosition((pos) => ({ ...pos, zoom: pos.zoom * 2 }));
-    }
-
-    function handleZoomOut() {
-        setPosition((pos) => ({ ...pos, zoom: pos.zoom / 2 }));
-    }
-
-    function handleMoveEnd(position) {
-        setPosition(position);
-    }
-
-    function handleHover(location, id_name, og_color) {
-        document.getElementById(id_name).style.fillOpacity = "50%"
-        if (dictionary[location] !== undefined) {
-            document.getElementById(id_name).style.fill = "#00FFFF"
-        }
-    }
-
-    function lookUpPoems(location) {
-        if (dictionary[location] !== undefined) {
-            document.getElementById('popup-box').style.display = "flex"
-
-            // replace name:
-            document.getElementById("place_name").innerHTML = location 
-
-            // get poems: 
-            var poems = document.getElementById("poems")
-            poems.innerHTML = "" //clean up
-
-            var p_num = document.createElement("span")
-            p_num.innerHTML = " " + "<br>"
-            poems.appendChild(document.createElement("span"))
-
-            for (const {pnum, japanese, notes, romaji, location_name, speaker}  of dictionary[location]) {
-                poems.appendChild(document.createElement("hr"))
-
-                var chapter = pnum.substring(0, 2)
-                var poem_num = pnum.substring(4, 6)
-
-                var p_num = document.createElement("h4")
-                p_num.fontWeight = "none"
-                p_num.innerHTML = "Chapter " + chapter  + " | Speaker: " + "<span style=\" font-weight: bold\">" + speaker + "<\span>"
-                p_num.style.marginTop = "3px" 
-                p_num.style.marginLeft = "0" 
-                poems.appendChild(p_num)
-
-                var jp_poem = document.createElement("h4")
-                jp_poem.innerHTML = japanese.replaceAll("\n", "<br>"); 
-                jp_poem.lang = "ja"
-                jp_poem.className = "vertical"
-                jp_poem.style.marginLeft = "0" 
-                jp_poem.style.marginBottom = "0" 
-                poems.appendChild(jp_poem)
-
-                poems.appendChild(document.createElement("br"))
-
-                var rmji = document.createElement("p")
-                rmji.innerHTML = romaji.replaceAll("\n", "<br>"); 
-                rmji.style.marginLeft = "0" 
-                rmji.style.marginBottom = "0" 
-                poems.appendChild(rmji)
-
-                poems.appendChild(document.createElement("br"))
-
-                var ns = document.createElement("p")
-                ns.innerHTML = notes; 
-                ns.style.fontFamily = "serif"; 
-                ns.style.marginLeft = "0" 
-                ns.style.marginBottom = "0" 
-                poems.appendChild(ns)
-
-                poems.appendChild(document.createElement("br"))
-
-                var a_url = document.createElement("a")
-                a_url.innerHTML = "More details"
-                a_url.target = "_blank"
-                if (chapter.substring(0,1) == "0") {
-                    chapter = chapter.substring(1, 2) 
+        function snapToPerim(nodeSet) {
+            for (let i = 0; i < 100; i++) {
+                for (let node of nodeSet) {
+                    let dx = node.x - node.homeX;
+                    let dy = node.y - node.homeY;
+                    if (dx === 0 && dy === 0) dy = -1;
+                    const angle = Math.atan2(dy, dx);
+                    const absCos = Math.abs(Math.cos(angle));
+                    const absSin = Math.abs(Math.sin(angle));
+                    let targetX = node.homeX;
+                    let targetY = node.homeY;
+                    if (boxWidthBuffer * absSin > boxHeightBuffer * absCos) {
+                        targetY += Math.sign(dy) * boxHeightBuffer;
+                        targetX += (Math.sign(dy) * boxHeightBuffer) / Math.tan(angle);
+                    } else {
+                        targetX += Math.sign(dx) * boxWidthBuffer;
+                        targetY += (Math.sign(dx) * boxWidthBuffer) * Math.tan(angle);
+                    }
+                    node.x += (targetX - node.x) * gravityStrength;
+                    node.y += (targetY - node.y) * gravityStrength;
                 }
-                if (poem_num.substring(0,1) == "0") {
-                    poem_num = poem_num.substring(1, 2) 
-                }
-                a_url.href = `/poems/${chapter}/${poem_num}`
-                a_url.className = "a_hv"
-                poems.appendChild(a_url)
-
-
-                var new_line = document.createElement("p")
-                new_line.innerHTML = "<br>"
-                poems.appendChild(new_line)
             }
         }
-    }
+
+        for (let link of links) {
+            const sourceNode = nodes.find(n => n.id === link.sourceId);
+            const targetNode = nodes.find(n => n.id === link.targetId);
+            if (!sourceNode || !targetNode) continue; // Safety condition moved up to prevent array mutations on broken references
+            nonRecNodes.push(sourceNode);
+            
+            const dx = targetNode.x - sourceNode.x;
+            const dy = targetNode.y - sourceNode.y;
+            if (dx === 0 && dy === 0) {
+                sourceNode.x += (Math.random() - 0.5) * 10;
+                sourceNode.y += (Math.random() - 0.5) * 10;
+                matchLink.push(link);
+                nonLinkNodes.add(sourceNode);
+            } else {
+                nonRecNodes.push(targetNode);
+                nonRecNodes.push(sourceNode);
+                linkNodes.add(sourceNode);
+                linkNodes.add(targetNode);
+                sourceNode.x += dx * linkStrength;
+                sourceNode.y += dy * linkStrength;
+                targetNode.x -= dx * linkStrength;
+                targetNode.y -= dy * linkStrength;
+            }
+        }
+
+        snapToPerim(linkNodes);
+
+        for (let i = 0; i < iterations; i++) {
+            for (let a = 0; a < nonRecNodes.length; a++) {
+                for (let b = a + 1; b < nonRecNodes.length; b++) {
+                    let dx = nonRecNodes[b].x - nonRecNodes[a].x;
+                    let dy = nonRecNodes[b].y - nonRecNodes[a].y;
+                    if (dx === 0 && dy === 0) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; }
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < idealNodeDistance) {
+                        const force = (idealNodeDistance - distance) / distance * 0.5;
+                        const pushX = dx * force;
+                        const pushY = dy * force;
+                        const aIsFixed = linkNodes.has(nonRecNodes[a]);
+                        const bIsFixed = linkNodes.has(nonRecNodes[b]);
+                        let factorA = aIsFixed && bIsFixed ? 0.5 : aIsFixed ? 0 : bIsFixed ? 2 : 1;
+                        let factorB = aIsFixed && bIsFixed ? 0.5 : aIsFixed ? 2 : bIsFixed ? 0 : 1;
+                        nonRecNodes[a].x -= pushX * factorA;
+                        nonRecNodes[a].y -= pushY * factorA;
+                        nonRecNodes[b].x += pushX * factorB;
+                        nonRecNodes[b].y += pushY * factorB;
+                    }
+                }
+            }
+        }
+
+        snapToPerim(nonLinkNodes);
+
+        for (let link of matchLink) {
+            const sourceNode = nodes.find(n => n.id === link.sourceId);
+            const targetNode = nodes.find(n => n.id === link.targetId);
+            if (!sourceNode || !targetNode) continue;
+            let dx = sourceNode.x - sourceNode.homeX;
+            let dy = sourceNode.y - sourceNode.homeY;
+            if (dx === 0 && dy === 0) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; }
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            targetNode.x = sourceNode.x + (dx / dist) * 45;
+            targetNode.y = sourceNode.y + (dy / dist) * 45;
+        }
+
+        setSimulatedNodes(nodes);
+        setSimulatedLinks(links);
+    }, [initialData?.poems, initialData?.places, placePositions]);
+
+    const placeColor = (type) => {
+        if (type === "fictional with evidence") return "#BFAE93";
+        if (type === "historical") return "#767D43";
+        if (type === "fictional without evidence") return "#EDB940";
+        if (type === "projected") return "#CC683D";
+        return "#FFF";
+    };
 
     return (
-        <div>
-            <div style={{paddingTop: "30px"}}>
-                <ComposableMap
-                    height={350}
-                    projection={projection} projectionConfig={{ rotate: [-10, 0, 0], scale: 4000}}
-                >
-                    <ZoomableGroup
-                    maxZoom={10000}
-                    minZoom={0.35}
-                    zoom={position.zoom}
-                    center={position.coordinates}
-                    onMoveEnd={handleMoveEnd}
-                    >
-                    {
-                        vectors.map((v) => {
-                        if (v.type == "building") {
-                            return (
-                            <Marker coordinates={v.coordinates}>
-                                <svg viewBox={v.viewBox} width={v.width} height={v.height}
-                                    style={{
-                                        filter: "drop-shadow( 3px 3px 2px rgba(0, 0, 0, .7))",
-                                        WebkitFilter: "drop-shadow( 3px 3px 2px rgba(0, 0, 0, .7))"
-                                    }}
-                                    onMouseOver={(e) => handleHover(v.enText, "path" + v.coordinates.toString() + v.type, v.fill)}
-                                    onMouseOut={(e) => {
-                                        document.getElementById("path" + v.coordinates.toString() + v.type).style.fillOpacity = "100%"
-                                        document.getElementById("path" + v.coordinates.toString() + v.type).style.fill = v.fill
-                                    }}
-                                    onClick={(e) => lookUpPoems(v.enText)}
-                                >
-                                <path id={"path" + v.coordinates.toString() + v.type} style={{fill: v.fill, stroke: v.stroke}} 
-                                    
-                                    d={v.d} strokeWidth="1.20"
-                                />
-                                <text x="50%" y ="34%" fontSize={v.jpSize} dominantBaseline="middle" textAnchor="middle" fontWeight="bold">
-                                    {v.jpText}
-                                </text>
-                                <text x="50%" y ="52.5%" fontSize={v.enSize}  dominantBaseline="middle" textAnchor="middle" fontWeight="bold">
-                                    {(v.the) ? <>{"The " + v.enText}</> : <>{v.enText}</>}
-                                </text>
-                                <g>
-                                {
-                                    (dictionary[v.enText] !== undefined) ? 
-                                    dictionary[v.enText].map(() => {
-                                        return <image opacity="70%" x={(Math.floor(Math.random() * 50) -1).toString() + "%"} y={(Math.floor(Math.random() * 60) + 1).toString()+ "%"} href="/images/location_pin.png" width="30%" height="30%" />
-                                    })
-                                    : <></>
-                                }
-                                </g>
-                                </svg>
-                            </Marker>
-                            );
-                        } else if (v.type == "circle") {
-                            return (
-                            <Marker coordinates={v.coordinates}>
-                                <svg viewBox={v.viewBox} width={v.width} height={v.height}
-                                    style={{
-                                        filter: "drop-shadow( 3px 3px 2px rgba(0, 0, 0, .7))",
-                                        WebkitFilter: "drop-shadow( 3px 3px 2px rgba(0, 0, 0, .7))"
-                                    }}
-                                    onMouseOver={(e) => handleHover(v.enText, "path" + v.coordinates.toString() + v.type, v.fill)}
-                                    onMouseOut={(e) => {
-                                        document.getElementById("path" + v.coordinates.toString() + v.type).style.fillOpacity = "100%"
-                                        document.getElementById("path" + v.coordinates.toString() + v.type).style.fill = v.fill
-                                    }}
-                                    onClick={(e) => lookUpPoems(v.enText)}
-                                >
-                                <circle id={"path" + v.coordinates.toString() + v.type} style={{fill: v.fill, stroke: v.stroke}}  cx={v.radius} cy={v.radius} r="50"/>
-                                <text x="50%" y ="34%" fontSize={v.jpSize} dominantBaseline="middle" textAnchor="middle" fontWeight="bold">
-                                    {v.jpText}
-                                </text>
-                                <text x="50%" y ="52.5%" fontSize={v.enSize}  dominantBaseline="middle" textAnchor="middle" fontWeight="bold">
-                                    {v.enText}
-                                </text>
-                                </svg>
-                            </Marker>
-                            );
-                        } else {
-                            return (
-                            <Marker coordinates={v.coordinates}>
-                                <svg viewBox={v.viewBox} width={v.width} height={v.height} 
-                                onMouseOver={(e) => {
-                                    document.getElementById("text" + v.coordinates.toString() + v.type).innerHTML = v.type
-                                    document.getElementById("path" + v.coordinates.toString() + v.type).style.fillOpacity = "50%"
-                                }}
-                                onMouseOut={(e) => {
-                                    document.getElementById("text" + v.coordinates.toString() + v.type).innerHTML = ""
-                                    document.getElementById("path" + v.coordinates.toString() + v.type).style.fillOpacity = "100%"
-                                }}
-                                >
-                                <path id={"path" + v.coordinates.toString() + v.type} style={{fill: v.fill, stroke: v.stroke}} d={v.d} />
-                                <text id={"text" + v.coordinates.toString() + v.type} x="32%" y ="15%" fontSize="15px"  dominantBaseline="middle" textAnchor="middle"></text>
-                                </svg> 
-                            </Marker>
-                            );
-                        }
-                        })
-                    }
-                    </ZoomableGroup>
-                </ComposableMap>
-                <div className="controls">
-                    <button onClick={handleZoomIn}>
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                    >
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    </button>
-                    <button onClick={handleZoomOut} id="bottom">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                    >
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    </button>
-                </div>
-                <br></br>
-            </div>
-            <div id="popup-box" class="modal">
-                <div class="main-box">
-                    <button onClick={(e) => {document.getElementById('popup-box').style.display = "none"}} style={{fontSize: "30px"}}>&times;</button>
-                    <div class="content" >
-                        <h1 style={{fontFamily: "monospace", marginTop: "14px", textAlign: "left"}}><span id="place_name">Somewhere</span></h1>
-                        <div id="poems" style={{fontFamily: "monospace", marginTop: "14px", textAlign: "left"}}>
+        <div className="map-container">
+            <svg
+                ref={svgRef}
+                width="100%"
+                height="650"
+                //style={{ cursor: isPanningRef.current ? 'grabbing' : 'grab', display: 'block' }}
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+            >
+                <defs>
+                    <marker id="arrow" viewBox="0 0 10 10" refX="21" refY="5" markerWidth={6} markerHeight={6} orient="auto-start-reverse">
+                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#fff" />
+                    </marker>
+                </defs>
 
-                        </div>
-                    </div>
-                </div>
-            </div>
+                <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
+
+                    {/* 1. LINKS */}
+                    {simulatedLinks.map((link, idx) => {
+                        const src = simulatedNodes.find(n => n.id === link.sourceId);
+                        const tgt = simulatedNodes.find(n => n.id === link.targetId);
+                        if (!src || !tgt) return null;
+                        return (
+                            <line
+                                key={`link-${idx}`}
+                                x1={src.x} y1={src.y}
+                                x2={tgt.x} y2={tgt.y}
+                                stroke="#ffffff"
+                                strokeWidth={1.5}
+                                markerEnd="url(#arrow)"
+                                className="connection-line"
+                            />
+                        );
+                    })}
+
+                    {/* Text labels */}
+                    {simulatedNodes.map((node, idx) => (
+                        <foreignObject key={`label-${idx}`} x={node.x - 23} y={node.y - 52} width={46} height={40}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'flex-end',
+                                justifyContent: 'center',
+                                width: '100%',
+                                height: '100%',
+                                textAlign: 'center',
+                                lineHeight: '1.1'
+                            }}>
+                                <span className="poem-node-text" style={{
+                                    color: '#fff',
+                                    fontSize: '7.5px',
+                                    wordBreak: 'break-word',
+                                    overflowWrap: 'anywhere'
+                                }}>
+                                    {node.label}
+                                </span>
+                            </div>
+                        </foreignObject>
+                    ))}
+
+                    {/* Circles */}
+                    {simulatedNodes.map((node, idx) => (
+                        <circle
+                            key={`circle-${idx}`}
+                            id={`node-${node.id}`}
+                            cx={node.x}
+                            cy={node.y}
+                            r={11}
+                            fill={node.gender === 'female' ? '#B03F2E' : '#9CBAB6'}
+                            stroke='#252525'
+                            strokeWidth={1.5}
+                            style={{ cursor: 'pointer' }}
+                            onMouseOver={() => handleMouseOver(node)}
+                            onMouseOut={handleMouseOut}
+                            onClick={() => window.location.href = `/poems/${node.chapter}/${node.poem}`}
+                        />
+                    ))}
+
+                    {/* 2. PLACE RECTANGLES */}
+                    {places.map((place, idx) => {
+                        const pos = placePositions[place.name];
+                        if (!pos) return null;
+                        return (
+                            <g
+                                key={`place-${idx}`}
+                                transform={`translate(${pos.x}, ${pos.y})`}
+                                className='place-rect'
+                                onMouseDown={(e) => {
+                                    draggingPlaceRef.current = place.name;
+                                    isPanningRef.current = false;
+                                    e.stopPropagation();
+                                }}
+                            >
+                                <rect
+                                    x={-65} y={-20}
+                                    width={130} height={40}
+                                    fill={placeColor(place.type)}
+                                    stroke="#DFD6C8"
+                                    strokeWidth={2}
+                                    rx={8}
+                                />
+                                <foreignObject x={-65} y={-10} width={130} height={20}>
+                                    <div xmlns="http://www.w3.org/1999/xhtml" className="location-container">
+                                        <div className="location-text">
+                                            {place.name.toUpperCase()}
+                                        </div>
+                                    </div>
+                                </foreignObject>
+                            </g>
+                        );
+                    })}
+                </g>
+            </svg>
         </div>
-      );
-    
+    );
 }
