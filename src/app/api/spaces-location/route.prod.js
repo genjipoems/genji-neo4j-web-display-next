@@ -28,9 +28,11 @@ export async function GET(request) {
 			OPTIONAL MATCH (g)<-[:MESSENGER_OF]-(mess:Character)
 
 			OPTIONAL MATCH (g)-[:IN_GROUP_OF]->(group:Group)<-[:IN_GROUP_OF]-(otherPoems:Genji_Poem WHERE otherPoems.pnum <> g.pnum)
-
 			OPTIONAL MATCH (g)-[:REPLY_TO]->(reply:Genji_Poem)
 			OPTIONAL MATCH (repliesToThis:Genji_Poem)-[:REPLY_TO]->(g)
+
+            OPTIONAL MATCH (Washburn:Translation)-[:TRANSLATION_OF]->(g)
+            WHERE toUpper(Translation.id) ENDS WITH 'W'
 
             WITH g, cleanPlaces, s, a, pComp, pRec, mess,
                  collect(DISTINCT otherPoems.pnum) as groupMembers,
@@ -40,6 +42,7 @@ export async function GET(request) {
             RETURN 
                 g.pnum as pnum,
                 cleanPlaces,
+                Washburn.translation as Washburn,
                 s.name as speaker, s.gender as speakerGender,
                 a.name as addressee, a.gender as addresseeGender,
                 pComp.name as compName, pComp.lat as compLat, pComp.lng as compLng,
@@ -84,7 +87,7 @@ export async function GET(request) {
             const repliesToThis = record.get('repliesToThisList') || [];
             const compName = record.get('compName');
             const recName = record.get('recName');
-
+            const washburn = record.get('Washburn');
 
             let compLat = null, compLng = null;
             let receiptLat = null, receiptLng = null;
@@ -101,8 +104,8 @@ export async function GET(request) {
 
             poemsData[pnum] = {
 				pnum,
-                composition: { placeName: compName, speaker, speakerGender, lat: compLat, lng: compLng },
-                receipt: { placeName: recName, addressee, addresseeGender, lat: receiptLat, lng: receiptLng },
+                composition: { placeName: compName, washburn, speaker, speakerGender, lat: compLat, lng: compLng },
+                receipt: { placeName: recName, washburn, addressee, addresseeGender, lat: receiptLat, lng: receiptLng },
                 relationships: { groupPoems, replyPoems, repliesToThis, messenger }
             };
         });

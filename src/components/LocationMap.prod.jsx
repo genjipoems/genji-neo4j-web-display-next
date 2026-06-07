@@ -32,6 +32,7 @@ export default function CharacterMap({ initialData }) {
     // Hover highlight handlers
     const handleMouseOver = (node) => {
         hoveredPnumRef.current = node.pnum;
+
         simulatedNodes.forEach(n => {
             const el = document.getElementById(`node-${n.id}`);
             if (!el) return;
@@ -42,16 +43,21 @@ export default function CharacterMap({ initialData }) {
             el.setAttribute('fill', highlighted && n.gender === 'female' ? '#ff7d69' : highlighted ? '#c8fdf6' : n.gender === 'female' ? '#B03F2E' : '#9CBAB6');
             el.setAttribute('stroke', highlighted ? '#FFF' : '#252525');
         });
+        const el = document.getElementById('translation-display')
+        if (el) el.textContent = node.translation || '';
     };
 
     const handleMouseOut = () => {
         hoveredPnumRef.current = null;
+        
         simulatedNodes.forEach(n => {
             const el = document.getElementById(`node-${n.id}`);
             if (!el) return;
             el.setAttribute('fill', n.gender === 'female' ? '#B03F2E' : '#9CBAB6');
             el.setAttribute('stroke', '#252525');
         });
+        const el = document.getElementById('translation-display')
+        if (el) el.textContent = '';
     };
 
     // SVG coordinate conversion
@@ -147,6 +153,7 @@ export default function CharacterMap({ initialData }) {
                     repliesToThis: poem.relationships?.repliesToThis || [],
                     chapter: parseInt(poem.pnum.substring(0, 2)),
                     poem: parseInt(poem.pnum.slice(-2)),
+                    translation: poem?.washburn || null,
                     x: compX, y: compY, homeX: compX, homeY: compY + 6
                 });
             }
@@ -159,6 +166,7 @@ export default function CharacterMap({ initialData }) {
                     repliesToThis: poem.relationships?.repliesToThis || [],
                     chapter: parseInt(poem.pnum.substring(0, 2)),
                     poem: parseInt(poem.pnum.slice(-2)),
+                    translation: poem?.washburn || null,
                     x: recX, y: recY, homeX: recX, homeY: recY + 6
                 });
             }
@@ -392,6 +400,11 @@ export default function CharacterMap({ initialData }) {
                         );
                     })}
                 </g>
+                <foreignObject x={10} y={500} width={400} height={140}>
+                    <div xmlns="http://www.w3.org/1999/xhtml" className="translation">
+                        <div id="translation-display" className="translation-text"></div>
+                    </div>
+                </foreignObject>
             </svg>
         </div>
     );

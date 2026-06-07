@@ -2,13 +2,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import CharacterMap from '../../components/LocationMap.prod.jsx';
-import ChapterDropdown from '../../components/ChapterDropdown.prod.jsx';
+import LocationMap from '../../components/LocationMap.prod.jsx';
+import MapSidebar from '../../components/MapSidebar.prod.jsx';
 
 export default function MapPage() {
     const [selectedChapters, setSelectedChapters] = useState([]);
     const [mapData, setMapData] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [hoveredMapItem, setHoveredMapItem] = useState(null);
 
     const legendItems = [
         {color: '#CC683D', label: 'PROJECTED'},
@@ -60,34 +61,30 @@ export default function MapPage() {
             loadDatabaseContent();
         } else {
             setMapData(null);
+            setHoveredMapItem(null);
+            setIsLoading(false);
         }
     }, [selectedChapters]);
 
     return (
         <div style = {{ display: 'flex', gap: '30px', margin: '20px', overflow: 'hidden', height: '100%' }}>
 
-            {/* LEFT SIDEBAR AREA */}
-            <aside style={{ width: '350px', flexShrink: 0}}>
-                { /* Pass state elements */ }
-                <ChapterDropdown 
-                    value={selectedChapters}
-                    onChange={(chapters) => setSelectedChapters(chapters)}
-                />
-                { /* Display Legend */}
-                    <div>
-                        {legendItems.map((item, idx) => (
-                            <div key={idx} className = "legend-item">
-                                <div className = "legend-color" style = {{background: item.color}}></div>
-                                <p className = "legend-text">{item.label}</p>
-                        </div>
-                        ))}
-                    </div>
-                </aside>
+            <MapSidebar
+                selectedChapters={selectedChapters}
+                onChapterChange={(chapters) => setSelectedChapters(chapters)}
+                legendItems={legendItems}
+                hoveredMapItem={hoveredMapItem}
+                mapData={mapData}
+            />
 
             {isLoading ? (
                 <div>Loading Locations...</div>
             ) : (
-                <CharacterMap initialData={mapData} /> 
+                <LocationMap
+                    initialData={mapData}
+                    hoveredMapItem={hoveredMapItem}
+                    onHoverMapItem={setHoveredMapItem}
+                /> 
             )}
         </div>
     );
