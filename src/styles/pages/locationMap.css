@@ -76,3 +76,19 @@
     font-family: 'Lexend';
     color: #FFF;
 }
+
+.translation {
+    width: 100%;
+    height: 100%;
+    align-items: baseline;
+    justify-content: flex-end;
+    display: flex;
+}
+.translation-text {
+    font-family: 'Lexend';
+    color: #ffffff;
+    width: 100%;
+    height:100%;
+    word-wrap: break-word;
+    white-space: pre-line;
+}

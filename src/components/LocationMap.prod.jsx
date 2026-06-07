@@ -44,6 +44,10 @@ export default function CharacterMap({ initialData }) {
             el.setAttribute('stroke', highlighted ? '#FFF' : '#252525');
         });
         const el = document.getElementById('translation-display')
+        console.log('translation el:', el, 'translation:', node.translation);
+        el.innerHTML = (node.translation || '')
+        .replace(/(?!^)([A-Z])/g, '<br>$1');
+        
         if (el) el.textContent = node.translation || '';
     };
 
@@ -153,7 +157,7 @@ export default function CharacterMap({ initialData }) {
                     repliesToThis: poem.relationships?.repliesToThis || [],
                     chapter: parseInt(poem.pnum.substring(0, 2)),
                     poem: parseInt(poem.pnum.slice(-2)),
-                    translation: poem?.washburn || null,
+                    translation: poem.composition?.washburn || null,
                     x: compX, y: compY, homeX: compX, homeY: compY + 6
                 });
             }
@@ -166,7 +170,7 @@ export default function CharacterMap({ initialData }) {
                     repliesToThis: poem.relationships?.repliesToThis || [],
                     chapter: parseInt(poem.pnum.substring(0, 2)),
                     poem: parseInt(poem.pnum.slice(-2)),
-                    translation: poem?.washburn || null,
+                    translation: poem.receipt?.washburn || null,
                     x: recX, y: recY, homeX: recX, homeY: recY + 6
                 });
             }
@@ -400,12 +404,18 @@ export default function CharacterMap({ initialData }) {
                         );
                     })}
                 </g>
-                <foreignObject x={10} y={500} width={400} height={140}>
-                    <div xmlns="http://www.w3.org/1999/xhtml" className="translation">
-                        <div id="translation-display" className="translation-text"></div>
-                    </div>
-                </foreignObject>
             </svg>
+            <foreignObject x={10} y={500} width={400} height={140}>
+                <div
+                    xmlns="http://www.w3.org/1999/xhtml"
+                    className="translation"
+                >
+                    <div
+                        id="translation-display"
+                        className="translation-text"
+                    />
+                </div>
+            </foreignObject>
         </div>
     );
 }

@@ -31,10 +31,10 @@ export async function GET(request) {
 			OPTIONAL MATCH (g)-[:REPLY_TO]->(reply:Genji_Poem)
 			OPTIONAL MATCH (repliesToThis:Genji_Poem)-[:REPLY_TO]->(g)
 
-            OPTIONAL MATCH (Washburn:Translation)-[:TRANSLATION_OF]->(g)
-            WHERE toUpper(Translation.id) ENDS WITH 'W'
+            OPTIONAL MATCH (t:Translation)-[:TRANSLATION_OF]->(g)
+            WHERE toUpper(t.id) ENDS WITH 'W'
 
-            WITH g, cleanPlaces, s, a, pComp, pRec, mess,
+            WITH g, cleanPlaces, s, a, pComp, pRec, mess, t,
                  collect(DISTINCT otherPoems.pnum) as groupMembers,
                  collect(DISTINCT reply.pnum) as replyPoemList,
                  collect(DISTINCT repliesToThis.pnum) as repliesToThisList
@@ -42,7 +42,7 @@ export async function GET(request) {
             RETURN 
                 g.pnum as pnum,
                 cleanPlaces,
-                Washburn.translation as Washburn,
+                t.translation as Washburn,
                 s.name as speaker, s.gender as speakerGender,
                 a.name as addressee, a.gender as addresseeGender,
                 pComp.name as compName, pComp.lat as compLat, pComp.lng as compLng,

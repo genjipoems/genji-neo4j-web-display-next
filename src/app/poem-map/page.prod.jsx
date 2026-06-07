@@ -3,13 +3,12 @@
 
 import React, { useState, useEffect } from 'react';
 import LocationMap from '../../components/LocationMap.prod.jsx';
-import MapSidebar from '../../components/MapSidebar.prod.jsx';
+import ChapterDropdown from '../../components/ChapterDropdown.prod.jsx';
 
 export default function MapPage() {
     const [selectedChapters, setSelectedChapters] = useState([]);
     const [mapData, setMapData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [hoveredMapItem, setHoveredMapItem] = useState(null);
 
     const legendItems = [
         {color: '#CC683D', label: 'PROJECTED'},
@@ -19,6 +18,9 @@ export default function MapPage() {
     ];
 
     useEffect(() => {
+            console.log('selectedChapters:', selectedChapters);
+    console.log('mapData:', mapData);
+
         async function loadDatabaseContent() {
             setIsLoading(true);
             try {
@@ -61,30 +63,34 @@ export default function MapPage() {
             loadDatabaseContent();
         } else {
             setMapData(null);
-            setHoveredMapItem(null);
-            setIsLoading(false);
         }
     }, [selectedChapters]);
 
     return (
         <div style = {{ display: 'flex', gap: '30px', margin: '20px', overflow: 'hidden', height: '100%' }}>
 
-            <MapSidebar
-                selectedChapters={selectedChapters}
-                onChapterChange={(chapters) => setSelectedChapters(chapters)}
-                legendItems={legendItems}
-                hoveredMapItem={hoveredMapItem}
-                mapData={mapData}
-            />
+            {/* LEFT SIDEBAR AREA */}
+            <aside style={{ width: '350px', flexShrink: 0 }}>
+                <ChapterDropdown 
+                    value={selectedChapters}
+                    onChange={(chapters) => setSelectedChapters(chapters)}
+                />
+                <div>
+                    {legendItems.map((item, idx) => (
+                        <div key={idx} className="legend-item">
+                            <div className="legend-color" style={{ background: item.color }}></div>
+                            <p className="legend-text">{item.label}</p>
+                        </div>
+                    ))}
+                </div>
+            </aside>
 
             {isLoading ? (
                 <div>Loading Locations...</div>
+            ) : mapData ? (
+                <LocationMap initialData={mapData} /> 
             ) : (
-                <LocationMap
-                    initialData={mapData}
-                    hoveredMapItem={hoveredMapItem}
-                    onHoverMapItem={setHoveredMapItem}
-                /> 
+                <p>Select a chapter to view the map</p>
             )}
         </div>
     );
