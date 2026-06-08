@@ -28,8 +28,8 @@ export async function GET(request) {
 			OPTIONAL MATCH (g)<-[:MESSENGER_OF]-(mess:Character)
 
 			OPTIONAL MATCH (g)-[:IN_GROUP_OF]->(group:Group)<-[:IN_GROUP_OF]-(otherPoems:Genji_Poem WHERE otherPoems.pnum <> g.pnum)
-			OPTIONAL MATCH (g)-[:REPLY_TO]->(reply:Genji_Poem)
-			OPTIONAL MATCH (repliesToThis:Genji_Poem)-[:REPLY_TO]->(g)
+			OPTIONAL MATCH (g)-[:REPLIES_TO]->(reply:Genji_Poem)
+			OPTIONAL MATCH (repliesToThis:Genji_Poem)-[:REPLIES_TO]->(g)
 
             OPTIONAL MATCH (t:Translation)-[:TRANSLATION_OF]->(g)
             WHERE toUpper(t.id) ENDS WITH 'W'
