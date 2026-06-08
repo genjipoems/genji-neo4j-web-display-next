@@ -1,5 +1,7 @@
 import { getSession } from '../neo4j_driver/route.prod.js';
 
+export const dynamic = 'force-dynamic';
+
 export const GET = async () => {
   var resGraph;
   try {
