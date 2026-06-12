@@ -6,7 +6,7 @@
     overflow: hidden;
     background-color: #252525; 
     width: 100%;
-    height: 100%; 
+    height: 100vh; 
     -webkit-user-select: none; /* Safari */
     -moz-user-select: none;    /* Firefox */
     -ms-user-select: none;     /* IE10+ */
@@ -77,18 +77,74 @@
     color: #FFF;
 }
 
-.translation {
-    width: 100%;
-    height: 100%;
-    align-items: baseline;
-    justify-content: flex-end;
-    display: flex;
-}
 .translation-text {
     font-family: 'Lexend';
     color: #ffffff;
-    width: 100%;
-    height:100%;
-    word-wrap: break-word;
+    margin:20px;
+    width: 500px;
+    height: 100px;
     white-space: pre-line;
+}
+
+.chapter-poem {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 10px;
+    margin:20px;
+    height:100%;
+    width:200px;
+}
+
+.chapter {
+    font-family: 'Lexend';
+    color: #ffffff;
+    white-space: pre-line;
+}
+
+.poem {
+    font-family: 'Lexend';
+    color: #ffffff;
+    white-space: pre-line;
+}
+
+.translation-outer {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    width: 100%;
+    height: 140px;
+}
+
+.speaker-hover {
+    font-family: 'Lexend';
+    color: #ffffff;
+    white-space: pre-line;
+    word-wrap: break-word;
+}
+
+.addressee-hover {
+    font-family: 'Lexend';
+    color: #ffffff;
+    white-space: pre-line;
+    word-wrap: break-word;
+}
+
+.messenger-hover {
+    font-family: 'Lexend';
+    color: #ffffff;
+    white-space: pre-line;
+    word-wrap: break-word;
+}
+
+.speaker-addressee-mess {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    margin:20px;
+    height:140px;
+    width:500px;
 }

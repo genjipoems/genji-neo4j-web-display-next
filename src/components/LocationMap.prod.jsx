@@ -17,7 +17,8 @@ export default function CharacterMap({ initialData }) {
     const isPanningRef = useRef(false);
     const lastMouseRef = useRef({ x: 0, y: 0 });
     const svgRef = useRef(null);
-
+    const dragPositionRef = useRef(null);
+    
     // Initialize place positions from database
     useEffect(() => {
         if (places.length > 0) {
@@ -44,11 +45,25 @@ export default function CharacterMap({ initialData }) {
             el.setAttribute('stroke', highlighted ? '#FFF' : '#252525');
         });
         const el = document.getElementById('translation-display')
-        console.log('translation el:', el, 'translation:', node.translation);
         el.innerHTML = (node.translation || '')
         .replace(/(?!^)([A-Z])/g, '<br>$1');
-        
         if (el) el.textContent = node.translation || '';
+
+        const ch = document.getElementById('chapter-display')
+        ch.innerHTML = (`CHAPTER: ${node.chapter}` || '')
+
+        const pn = document.getElementById('poemnum-display')
+        pn.innerHTML = (`POEM: ${node.poem}` || '')
+
+        const mess = document.getElementById('messenger-display')
+        
+        if (mess) mess.innerHTML = (`MESSENGER: ${node.messenger}` || '');
+
+        const sp = document.getElementById('speaker-display')
+        if (sp) sp.innerHTML = (`SPEAKER: ${node.speaker}` || '');
+
+        const ad = document.getElementById('addressee-display')
+        if (ad) ad.innerHTML = (`ADDRESSEE: ${node.addressee}` || '');
     };
 
     const handleMouseOut = () => {
@@ -61,7 +76,18 @@ export default function CharacterMap({ initialData }) {
             el.setAttribute('stroke', '#252525');
         });
         const el = document.getElementById('translation-display')
+        const ch = document.getElementById('chapter-display')
+        const pn = document.getElementById('poemnum-display')
+        const ad = document.getElementById('addressee-display')
+        const sp = document.getElementById('speaker-display')
+        const mess = document.getElementById('messenger-display')
+
         if (el) el.textContent = '';
+        if (ch) ch.textContent = '';
+        if (pn) pn.textContent = '';
+        if (ad) ad.textContent = '';
+        if (sp) sp.textContent = '';
+        if (mess) mess.textContent = '';
     };
 
     // SVG coordinate conversion
@@ -98,10 +124,10 @@ export default function CharacterMap({ initialData }) {
     const handleMouseMove = (e) => {
         if (draggingPlaceRef.current) {
             const { x, y } = toSVGCoords(e.clientX, e.clientY);
-            setPlacePositions(prev => ({
-                ...prev,
-                [draggingPlaceRef.current]: { x, y }
-            }));
+            dragPositionRef.current = { x, y };
+
+            const el = document.getElementById(`place-${draggingPlaceRef.current}`);
+            if (el) el.setAttribute('transform', `translate(${x}, ${y})`);
             return;
         }
 
@@ -115,6 +141,12 @@ export default function CharacterMap({ initialData }) {
 
     const handleMouseUp = () => {
         isPanningRef.current = false;
+        if (draggingPlaceRef.current && dragPositionRef.current) {
+            const name = draggingPlaceRef.current;
+            const { x, y } = dragPositionRef.current;
+            setPlacePositions(prev => ({ ...prev, [name]: { x, y } }));
+            dragPositionRef.current = null;
+        }
         draggingPlaceRef.current = null;
     };
 
@@ -148,6 +180,7 @@ export default function CharacterMap({ initialData }) {
             const validComp = !isNaN(compX) && !isNaN(compY);
             const validRec = !isNaN(recX) && !isNaN(recY);
             
+
             if (validComp) {
                 nodes.push({
                     id: compId, pnum: poem.pnum, type: 'sender',
@@ -158,6 +191,9 @@ export default function CharacterMap({ initialData }) {
                     chapter: parseInt(poem.pnum.substring(0, 2)),
                     poem: parseInt(poem.pnum.slice(-2)),
                     translation: poem.composition?.washburn || null,
+                    speaker: poem.composition?.speaker ?? "Unknown Sender",
+                    addressee: poem.receipt?.addressee ?? "Unknown Recipient",
+                    messenger: poem.relationships?.messenger || "none",
                     x: compX, y: compY, homeX: compX, homeY: compY + 6
                 });
             }
@@ -171,6 +207,9 @@ export default function CharacterMap({ initialData }) {
                     chapter: parseInt(poem.pnum.substring(0, 2)),
                     poem: parseInt(poem.pnum.slice(-2)),
                     translation: poem.receipt?.washburn || null,
+                    speaker: poem.composition?.speaker ?? "Unknown Sender",
+                    addressee: poem.receipt?.addressee ?? "Unknown Recipient",
+                    messenger: poem.relationships?.messenger || "none",
                     x: recX, y: recY, homeX: recX, homeY: recY + 6
                 });
             }
@@ -226,10 +265,16 @@ export default function CharacterMap({ initialData }) {
                 matchLink.push(link);
                 nonLinkNodes.add(sourceNode);
             } else {
+                const Xoff = (Math.random()-0.5) * 50;
+                const Yoff = (Math.random()-0.5) * 50;
                 nonRecNodes.push(targetNode);
                 nonRecNodes.push(sourceNode);
                 linkNodes.add(sourceNode);
                 linkNodes.add(targetNode);
+                sourceNode.x += Xoff;
+                targetNode.y += Yoff;
+                sourceNode.y += Yoff;
+                targetNode.x += Xoff;
                 sourceNode.x += dx * linkStrength;
                 sourceNode.y += dy * linkStrength;
                 targetNode.x -= dx * linkStrength;
@@ -252,8 +297,8 @@ export default function CharacterMap({ initialData }) {
                         const pushY = dy * force;
                         const aIsFixed = linkNodes.has(nonRecNodes[a]);
                         const bIsFixed = linkNodes.has(nonRecNodes[b]);
-                        let factorA = aIsFixed && bIsFixed ? 0.5 : aIsFixed ? 0 : bIsFixed ? 2 : 1;
-                        let factorB = aIsFixed && bIsFixed ? 0.5 : aIsFixed ? 2 : bIsFixed ? 0 : 1;
+                        let factorA = aIsFixed && bIsFixed ? 1 : aIsFixed ? 0 : bIsFixed ? 1.5 : .6;
+                        let factorB = aIsFixed && bIsFixed ? 1 : aIsFixed ? 1.5 : bIsFixed ? 0 : .6;
                         nonRecNodes[a].x -= pushX * factorA;
                         nonRecNodes[a].y -= pushY * factorA;
                         nonRecNodes[b].x += pushX * factorB;
@@ -264,6 +309,7 @@ export default function CharacterMap({ initialData }) {
         }
 
         snapToPerim(nonLinkNodes);
+        snapToPerim(linkNodes);
 
         for (let link of matchLink) {
             const sourceNode = nodes.find(n => n.id === link.sourceId);
@@ -276,7 +322,7 @@ export default function CharacterMap({ initialData }) {
             targetNode.x = sourceNode.x + (dx / dist) * 45;
             targetNode.y = sourceNode.y + (dy / dist) * 45;
         }
-
+        console.log(nodes[0])
         setSimulatedNodes(nodes);
         setSimulatedLinks(links);
     }, [initialData?.poems, initialData?.places, placePositions]);
@@ -294,7 +340,7 @@ export default function CharacterMap({ initialData }) {
             <svg
                 ref={svgRef}
                 width="100%"
-                height="650"
+                height="625"
                 //style={{ cursor: isPanningRef.current ? 'grabbing' : 'grab', display: 'block' }}
                 onWheel={handleWheel}
                 onMouseDown={handleMouseDown}
@@ -309,7 +355,177 @@ export default function CharacterMap({ initialData }) {
                 </defs>
 
                 <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
-
+                    {/* 3. MAJOR SECTIONS */}
+                    {
+                        <g>
+                            <rect
+                                x={-850} y={-600}
+                                width={400} height={200}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <rect
+                                x={850} y={-600}
+                                width={400} height={200}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <foreignObject x={-850} y={-625} width={250} height={20}>
+                                <div style={{textAlign: "left"}}>
+                                    <div style={{color: "white", fontFamily: "Lexend"}}>
+                                        {"Hokuhen Avenue"}
+                                    </div>
+                                </div>
+                            </foreignObject>
+                            <rect
+                                x={-850} y={-300}
+                                width={400} height={200}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <rect
+                                x={850} y={-300}
+                                width={400} height={200}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <foreignObject x={-850} y={-325} width={250} height={20}>
+                                <div style={{textAlign: "left"}}>
+                                    <div style={{color: "white", fontFamily: "Lexend"}}>
+                                        {"Ichijō Avenue"}
+                                    </div>
+                                </div>
+                            </foreignObject>
+                            <rect
+                                x={-850} y={0}
+                                width={400} height={200}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <rect
+                                x={850} y={0}
+                                width={400} height={200}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <foreignObject x={-850} y={-25} width={250} height={20}>
+                                <div style={{textAlign: "left"}}>
+                                    <div style={{color: "white", fontFamily: "Lexend"}}>
+                                        {"Nijō Avenue"}
+                                    </div>
+                                </div>
+                            </foreignObject>
+                            <rect
+                                x={-400} y={-600}
+                                width={1200} height={900}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <foreignObject x={-400} y={-625} width={250} height={20}>
+                                <div style={{textAlign: "left"}}>
+                                    <div style={{color: "white", fontFamily: "Lexend"}}>
+                                        {"The Greater Imperial Palace"}
+                                    </div>
+                                </div>
+                            </foreignObject>
+                            <rect
+                                x={-400} y={350}
+                                width={1200} height={200}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <foreignObject x={-400} y={325} width={250} height={20}>
+                                <div style={{textAlign: "left"}}>
+                                    <div style={{color: "white", fontFamily: "Lexend"}}>
+                                        {"Sanjō Avenue"}
+                                    </div>
+                                </div>
+                            </foreignObject>
+                            <rect
+                                x={-400} y={600}
+                                width={1200} height={200}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <foreignObject x={-400} y={575} width={250} height={20}>
+                                <div style={{textAlign: "left"}}>
+                                    <div style={{color: "white", fontFamily: "Lexend"}}>
+                                        {"Shijō Avenue"}
+                                    </div>
+                                </div>
+                            </foreignObject>
+                            <rect
+                                x={-400} y={850}
+                                width={1200} height={200}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <foreignObject x={-400} y={825} width={250} height={20}>
+                                <div style={{textAlign: "left"}}>
+                                    <div style={{color: "white", fontFamily: "Lexend"}}>
+                                        {"Gojō Avenue"}
+                                    </div>
+                                </div>
+                            </foreignObject>
+                            <rect
+                                x={-400} y={1100}
+                                width={1200} height={200}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <foreignObject x={-400} y={1075} width={250} height={20}>
+                                <div style={{textAlign: "left"}}>
+                                    <div style={{color: "white", fontFamily: "Lexend"}}>
+                                        {"Rokujō Avenue"}
+                                    </div>
+                                </div>
+                            </foreignObject>
+                        </g>
+                    }
                     {/* 1. LINKS */}
                     {simulatedLinks.map((link, idx) => {
                         const src = simulatedNodes.find(n => n.id === link.sourceId);
@@ -330,7 +546,7 @@ export default function CharacterMap({ initialData }) {
 
                     {/* Text labels */}
                     {simulatedNodes.map((node, idx) => (
-                        <foreignObject key={`label-${idx}`} x={node.x - 23} y={node.y - 52} width={46} height={40}>
+                        <foreignObject key={`label-${idx}`} x={node.x - 23} y={node.y - 46} width={46} height={40}>
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'flex-end',
@@ -359,7 +575,7 @@ export default function CharacterMap({ initialData }) {
                             id={`node-${node.id}`}
                             cx={node.x}
                             cy={node.y}
-                            r={11}
+                            r={6}
                             fill={node.gender === 'female' ? '#B03F2E' : '#9CBAB6'}
                             stroke='#252525'
                             strokeWidth={1.5}
@@ -377,6 +593,7 @@ export default function CharacterMap({ initialData }) {
                         return (
                             <g
                                 key={`place-${idx}`}
+                                id={`place-${place.name}`}   // ← add this
                                 transform={`translate(${pos.x}, ${pos.y})`}
                                 className='place-rect'
                                 onMouseDown={(e) => {
@@ -405,17 +622,36 @@ export default function CharacterMap({ initialData }) {
                     })}
                 </g>
             </svg>
-            <foreignObject x={10} y={500} width={400} height={140}>
-                <div
-                    xmlns="http://www.w3.org/1999/xhtml"
-                    className="translation"
-                >
+            <div className="translation-outer">
+                <div className="chapter-poem">
+                    <div 
+                        className="chapter"
+                        id="chapter-display"
+                    ></div>
                     <div
-                        id="translation-display"
-                        className="translation-text"
-                    />
+                        className="poem"
+                        id="poemnum-display"    
+                    ></div>
                 </div>
-            </foreignObject>
+                <div
+                    id="translation-display"
+                    className="translation-text"
+                ></div>
+                <div className="speaker-addressee-mess">
+                    <div 
+                        className="speaker-hover"
+                        id="speaker-display"
+                    ></div>
+                    <div
+                        className="addressee-hover"
+                        id="addressee-display"    
+                    ></div>
+                    <div
+                        className="messenger-hover"
+                        id="messenger-display"
+                    ></div>
+                </div>
+            </div>
         </div>
     );
 }
