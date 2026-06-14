@@ -177,6 +177,43 @@
     color: #ffffff !important;
 }
 
+/* Tighter, two-column layout for the User Guide table of contents (always the first ul) */
+.descriptionText > ul:first-of-type {
+    column-count: 2;
+    column-gap: 2.5em;
+}
+
+.descriptionText > ul:first-of-type,
+.descriptionText > ul:first-of-type * {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* Zero line-height on list items themselves so the whitespace text nodes
+   (newlines that ReactMarkdown inserts between <a> and a nested <ul>)
+   don't generate stray line boxes inside the parent <li>. */
+.descriptionText > ul:first-of-type li {
+    line-height: 0 !important;
+    break-inside: avoid;
+}
+
+/* Restore line-height only on the actual text-bearing elements. */
+.descriptionText > ul:first-of-type a {
+    line-height: 1.2 !important;
+    display: inline-block;
+}
+
+.descriptionText > ul:first-of-type > li + li {
+    margin-top: 0.6em !important;
+}
+
+/* Slight breathing room between subsection entries (e.g. 2.1, 2.2, 2.3) */
+.descriptionText > ul:first-of-type > li > ul > li {
+    margin-top: 0.2em !important;
+}
+
 .descriptionText blockquote {
     border-left: 3px solid rgba(255, 255, 255, 0.5) !important;
     padding-left: 1em !important;
