@@ -25,6 +25,7 @@ const STORAGE_KEYS = {
 };
 
 const TAG_FIELD_BY_LABEL = {
+  'Included in a Run of Poems': 'in_run',
   'My Favorites': 'isFavorite',
   'Omitted By Waley': 'omitted_by_waley',
   'Omitted By Seidensticker': 'omitted_by_seidensticker',
@@ -103,7 +104,15 @@ const PoemSearch = () => {
       const stored = sessionStorage.getItem(STORAGE_KEYS.SEARCH_FILTERS);
       if (stored) {
         try {
-          return JSON.parse(stored);
+          const parsed = JSON.parse(stored);
+          delete parsed.poem_runs;
+          if (parsed?.other_tags?.options && !parsed.other_tags.options['Included in a Run of Poems']) {
+            parsed.other_tags.options = {
+              'Included in a Run of Poems': { checked: false },
+              ...parsed.other_tags.options,
+            };
+          }
+          return parsed;
         } catch (e) {
           console.error('Failed to parse stored filters:', e);
         }
@@ -224,6 +233,7 @@ const PoemSearch = () => {
       other_tags: {
         label: "Other Tags",
         options: {
+          'Included in a Run of Poems': { checked: false },
           'My Favorites': { checked: false },
           'Omitted By Waley': { checked: false },
           'Omitted By Seidensticker': { checked: false },
@@ -491,6 +501,7 @@ const PoemSearch = () => {
               chapter_title_poem: !!result.chapter_title_poem,
               morning_after_poem: !!result.morning_after_poem,
               proxy_poem: !!result.proxy_poem,
+              in_run: !!result.in_run,
               poetic_tech: Object.values(result.peotic_tech).join(""),
               genji_age: Object.values(result.genji_age).join(""),
               waley_translation: Object.values(result.waley_translation).join(""),
