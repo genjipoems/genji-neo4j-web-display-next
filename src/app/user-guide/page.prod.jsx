@@ -1,17 +1,19 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-import FormatContent from "../../components/FormatText.prod"
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSlug from 'rehype-slug';
 import styles from "../../styles/pages/blogTemplate.module.css"
 
-const BlogPage = () => {
-    const [content, setContent] = useState(null);
+const UserGuidePage = () => {
+    const [content, setContent] = useState('');
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchContent = async () => {
-            const res = await fetch(`/api/blog/getSingle?title=User Guide`);
-            const data = await res.json();
-            setContent(data.content);
+            const res = await fetch('/USER_GUIDE.md');
+            const text = await res.text();
+            setContent(text);
             setIsLoading(false);
         };
 
@@ -24,43 +26,24 @@ const BlogPage = () => {
                 <img
                     className={styles.fullBackgroundImage}
                     src={`/images/user_guide.png`}
-                    alt="whats new banner"
+                    alt="user guide banner"
                 />
-                {/* <div className={styles.titleOverlay}>
-                    <span className={styles.nameEnglish}>ABOUT</span>
-                </div> */}
             </div>
 
             <div className={styles.mainSection}>
-                <div className={styles.analysisContainer}>
-                    {/* Left Side - Panels with Toggles */}
-                    <div className={styles.analysisLeft}>
-                        
-                        {/* Blogs Panel */}
-                        <div className={styles.analysisPanel}>
-                            
-                        </div>
-
-                        {/* Discusssion Panel */}
-                        <div className={styles.analysisPanel}>
-                            
-                        </div>
-
-                        {/* Other Panel */}
-                        <div className={styles.analysisPanel}>
-                            
-                        </div>
-                    </div>
-                </div>
-
                 <div className={styles.description}>
                     <div className={styles.descriptionContent}>
                         {isLoading ? (
                             <div className={styles.loading}>Loading...</div>
                         ) : (
-                            <>  
-                                <FormatContent content={content} className={styles.descriptionText} />
-                            </>
+                            <div className={styles.descriptionText}>
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    rehypePlugins={[rehypeSlug]}
+                                >
+                                    {content}
+                                </ReactMarkdown>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -69,4 +52,4 @@ const BlogPage = () => {
     )
 }
 
-export default BlogPage;
+export default UserGuidePage;
