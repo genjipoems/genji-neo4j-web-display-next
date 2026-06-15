@@ -167,6 +167,7 @@ const PoemDisplay = ({ poemData }) => {
         placeOfReceipt_evidence: "",
         groupPoems: [],
         replyPoems: [],
+        repliesToThis: [],
         furtherReadings: [],
         spoken_or_written_evidence: "",
         complete: "",
@@ -446,6 +447,7 @@ const PoemDisplay = ({ poemData }) => {
                     replyPoems: responseData[28],
                     furtherReadings: responseData[29],
                     spoken_or_written_evidence: responseData[30],
+                    repliesToThis: responseData[31],
                     complete: responseData[32],
                     last_updated: responseData[33],
                     otherTranslations: responseData[34] || [],
@@ -566,6 +568,7 @@ const PoemDisplay = ({ poemData }) => {
     poemState.spoken === 'true' ||
     poemState.written === 'true' ||
     (Array.isArray(poemState.tag) && poemState.tag.length > 0) || //display all tags under more details
+    (Array.isArray(poemState.repliesToThis) && poemState.repliesToThis.length > 0) ||
     (Array.isArray(poemState.replyPoems) && poemState.replyPoems.length > 0) ||
     (Array.isArray(poemState.relWithEvidence) && poemState.relWithEvidence.length > 0) ||
     (Array.isArray(poemState.groupPoems) && poemState.groupPoems.length > 0) ||
@@ -1069,12 +1072,29 @@ const PoemDisplay = ({ poemData }) => {
                                     </div>
                                 )} */}
                                 
+                                {poemState.repliesToThis && poemState.repliesToThis.length > 0 && (
+                                    <div className={styles.detailItem}>
+                                        <h3>REPLY POEM</h3>
+                                        <div className={styles.relatedPoemsContainer}>
+                                            {poemState.repliesToThis.map((reply, idx) => (
+                                                <a
+                                                    key={idx}
+                                                    href={`/poems/${parseInt(reply[0].substring(0, 2), 10)}/${parseInt(reply[0].substring(4, 6), 10)}`}
+                                                    className={styles.relatedPoemLink}
+                                                >
+                                                    {reply}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {poemState.replyPoems && poemState.replyPoems.length > 0 && (
                                     <div className={styles.detailItem}>
                                         <h3>REPLY TO</h3>
                                         <div className={styles.relatedPoemsContainer}>
                                             {poemState.replyPoems.map((reply, idx) => (
-                                                <a 
+                                                <a
                                                     key={idx}
                                                     href={`/poems/${parseInt(reply[0].substring(0, 2), 10)}/${parseInt(reply[0].substring(4, 6), 10)}`}
                                                     className={styles.relatedPoemLink}
