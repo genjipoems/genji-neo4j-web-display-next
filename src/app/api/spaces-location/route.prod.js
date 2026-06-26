@@ -17,6 +17,7 @@ export async function GET(request) {
                 lat: p.lat,
                 lng: p.lng,
                 type: p.type,
+                description: p.Description,
                 evidence: p.evidence
             }) as cleanPlaces
 
@@ -68,6 +69,7 @@ export async function GET(request) {
                 .map(p => ({
                     name: p.name,
                     type: p.type,
+                    description: p.description,
                     evidence: p.evidence,
                     lat: p.lat != null ? toNativeTypes(p.lat) : null,
                     lng: p.lng != null ? toNativeTypes(p.lng) : null

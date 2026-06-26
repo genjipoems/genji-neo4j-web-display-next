@@ -3,10 +3,10 @@
 
 .map-container {
     border-radius: 4px;
-    overflow: hidden;
     background-color: #252525; 
     width: 100%;
-    height: 100vh; 
+    height: 80vh;
+    position: relative;  /* ← add this */
     -webkit-user-select: none; /* Safari */
     -moz-user-select: none;    /* Firefox */
     -ms-user-select: none;     /* IE10+ */
@@ -41,7 +41,6 @@
 
 .place-rect {
     cursor: grab;
-
 }
 
 .place-rect:active {
@@ -82,7 +81,8 @@
     color: #ffffff;
     margin:20px;
     width: 500px;
-    height: 100px;
+    min-height: 80px;
+    height: fit-content;
     white-space: pre-line;
 }
 
@@ -93,7 +93,7 @@
     justify-content: flex-start;
     gap: 10px;
     margin:20px;
-    height:100%;
+    height: fit-content;
     width:200px;
 }
 
@@ -111,11 +111,29 @@
 
 .translation-outer {
     display: flex;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 80%;
+    flex-direction: row;
+    text-align: left;
+    justify-content: space-between;
+    height: fit-content;
+    background-color: #252525;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    padding: 0;
+}
+
+.translation-outer.place-active {
+    display: flex;
     flex-direction: row;
     align-items: flex-start;
-    justify-content: space-between;
+    justify-content: flex-start;
+    background-color: #252525;
     width: 100%;
-    height: 140px;
+    height: fit-content;
+    padding: 10px 0;
 }
 
 .speaker-hover {
@@ -145,6 +163,30 @@
     align-items: flex-end;
     justify-content: flex-start;
     margin:20px;
-    height:140px;
+    min-height:80px;
+    height: fit-content;
     width:500px;
 }
+
+.translation-text.place-description {
+    font-family: 'Lexend';
+    color: #ffffff;
+    margin:20px;
+    width: 900px;
+    min-height: 80px;
+    height: fit-content;
+    white-space: pre-line;
+}
+
+.chapter-poem.place-active {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 10px;
+    margin:20px;
+    height:fit-content;
+    width:300px;
+    text-align: left;
+}
+

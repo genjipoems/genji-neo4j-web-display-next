@@ -11,14 +11,14 @@ export default function CharacterMap({ initialData }) {
     const [simulatedLinks, setSimulatedLinks] = useState([]);
     const [placePositions, setPlacePositions] = useState({});
     const [transform, setTransform] = useState({ x: 475, y: 325, scale: 0.5 });
-
     const hoveredPnumRef = useRef(null);
+    const hoveredPlaceRef = useRef(null);
     const draggingPlaceRef = useRef(null);
     const isPanningRef = useRef(false);
     const lastMouseRef = useRef({ x: 0, y: 0 });
     const svgRef = useRef(null);
     const dragPositionRef = useRef(null);
-    
+
     // Initialize place positions from database
     useEffect(() => {
         if (places.length > 0) {
@@ -30,7 +30,6 @@ export default function CharacterMap({ initialData }) {
         }
     }, [initialData?.places]);
 
-    // Hover highlight handlers
     const handleMouseOver = (node) => {
         hoveredPnumRef.current = node.pnum;
 
@@ -81,6 +80,48 @@ export default function CharacterMap({ initialData }) {
         const ad = document.getElementById('addressee-display')
         const sp = document.getElementById('speaker-display')
         const mess = document.getElementById('messenger-display')
+
+        if (el) el.textContent = '';
+        if (ch) ch.textContent = '';
+        if (pn) pn.textContent = '';
+        if (ad) ad.textContent = '';
+        if (sp) sp.textContent = '';
+        if (mess) mess.textContent = '';
+    };
+    const handlePlaceMouseOver = (place) => {
+        console.log(place);
+        hoveredPlaceRef.current = place.name;
+
+        const el = document.getElementById('translation-display')
+        el.innerHTML = (place.description || '')
+        document.getElementById('translation-display').classList.add('place-description');
+
+        const ch = document.getElementById('poemnum-display')
+        ch.innerHTML = (`TYPE: ${place.type}` || '')
+
+        const pn = document.getElementById('chapter-display')
+        pn.innerHTML = (`LOCATION: ${place.name}` || '')
+
+        document.getElementById('chapter-poem').classList.add('place-active');
+        document.getElementById('speaker-addressee-mess').style.display = 'none';
+        document.getElementById('translation-outer').classList.add('place-active');
+    };
+
+    const handlePlaceMouseOut = () => {
+        hoveredPlaceRef.current = null;
+        
+        const el = document.getElementById('translation-display')
+        const ch = document.getElementById('chapter-display')
+        const pn = document.getElementById('poemnum-display')
+        const ad = document.getElementById('addressee-display')
+        const sp = document.getElementById('speaker-display')
+        const mess = document.getElementById('messenger-display')
+        document.getElementById('translation-display').classList.remove('place-description');
+        document.getElementById('poemnum-display').classList.remove('place-type');
+        document.getElementById('chapter-display').classList.remove('place-name');
+        document.getElementById('chapter-poem').classList.remove('place-active');
+        document.getElementById('speaker-addressee-mess').style.display = '';
+        document.getElementById('translation-outer').classList.remove('place-active');
 
         if (el) el.textContent = '';
         if (ch) ch.textContent = '';
@@ -322,7 +363,6 @@ export default function CharacterMap({ initialData }) {
             targetNode.x = sourceNode.x + (dx / dist) * 45;
             targetNode.y = sourceNode.y + (dy / dist) * 45;
         }
-        console.log(nodes[0])
         setSimulatedNodes(nodes);
         setSimulatedLinks(links);
     }, [initialData?.poems, initialData?.places, placePositions]);
@@ -588,20 +628,24 @@ export default function CharacterMap({ initialData }) {
 
                     {/* 2. PLACE RECTANGLES */}
                     {places.map((place, idx) => {
+                        console.log('place object:', place);
                         const pos = placePositions[place.name];
                         if (!pos) return null;
                         return (
                             <g
                                 key={`place-${idx}`}
-                                id={`place-${place.name}`}   // ← add this
+                                id={`place-${place.name}`}
                                 transform={`translate(${pos.x}, ${pos.y})`}
                                 className='place-rect'
+                                onMouseOver={() => handlePlaceMouseOver(place)}
+                                onMouseOut={handlePlaceMouseOut}
                                 onMouseDown={(e) => {
                                     draggingPlaceRef.current = place.name;
                                     isPanningRef.current = false;
                                     e.stopPropagation();
                                 }}
-                            >
+                                onClick={() => window.location.href = `/location-page/${encodeURIComponent(place.name)}`}
+                                >
                                 <rect
                                     x={-65} y={-20}
                                     width={130} height={40}
@@ -622,8 +666,8 @@ export default function CharacterMap({ initialData }) {
                     })}
                 </g>
             </svg>
-            <div className="translation-outer">
-                <div className="chapter-poem">
+            <div className="translation-outer" id="translation-outer">
+                <div className="chapter-poem" id="chapter-poem">
                     <div 
                         className="chapter"
                         id="chapter-display"
@@ -637,7 +681,7 @@ export default function CharacterMap({ initialData }) {
                     id="translation-display"
                     className="translation-text"
                 ></div>
-                <div className="speaker-addressee-mess">
+                <div className="speaker-addressee-mess" id="speaker-addressee-mess">
                     <div 
                         className="speaker-hover"
                         id="speaker-display"

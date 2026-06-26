@@ -88,20 +88,64 @@ async function generalSearch(q, gender, translatorNames = [], includeRomanizatio
             OPTIONAL MATCH (p)-[:USES_POETIC_TECHNIQUE_OF]->(pt:Poetic_Technique)
             OPTIONAL MATCH (p)-[:AT_GENJI_AGE_OF]->(ga:Genji_Age)
             OPTIONAL MATCH (p)-[:HAS_PERSON_REFERENCE]->(pr:Person_Reference)
+            OPTIONAL MATCH (p)-[reply:REPLY_TO]->(replyPoem:Genji_Poem)
+            WHERE reply.replyType = "reply to soliloquy"
+            OPTIONAL MATCH (p)-[:IN_RUN]->(run:Run)
+
             OPTIONAL MATCH (p)-[:TAGGED_AS]->(tag:Tag)
-                WHERE tag.Type IN ["Proffered Poem", "Reply Poem", "Group Poem", "Soliloquy"]
-            WITH p, 
+            WHERE tag.Type IN [
+                "Proffered Poem",
+                "Reply Poem",
+                "Group Poem",
+                "Soliloquy",
+                "unmatched",
+                "no reply"
+            ]
+
+            WITH DISTINCT p
+            OPTIONAL MATCH (p)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(translator:People)
+            OPTIONAL MATCH (p)<-[:ADDRESSEE_OF]-(addressee:Character)
+            OPTIONAL MATCH (p)<-[:SPEAKER_OF]-(speaker:Character)
+            OPTIONAL MATCH (p)-[:IN_SEASON_OF]->(season:Season)
+            OPTIONAL MATCH (p)-[:USES_POETIC_TECHNIQUE_OF]->(pt:Poetic_Technique)
+            OPTIONAL MATCH (p)-[:AT_GENJI_AGE_OF]->(ga:Genji_Age)
+            OPTIONAL MATCH (p)-[:HAS_PERSON_REFERENCE]->(pr:Person_Reference)
+            OPTIONAL MATCH (p)-[:TAGGED_AS]->(tag:Tag)
+            WHERE tag.Type IN ["Proffered Poem", "Reply Poem", "Group Poem", "Soliloquy", "unmatched", "no reply"]
+
+            WITH p,
                 collect(DISTINCT {translator_name: COALESCE(translator.name, ""), text: t.translation}) AS translations,
                 collect(DISTINCT addressee.name) AS addressee_names,
                 collect(DISTINCT addressee.gender) AS addressee_genders,
-                speaker,
-                season,
-                pt,
-                ga,
+                speaker, season, pt, ga,
                 collect(DISTINCT tag.Type) AS poem_types,
                 collect(DISTINCT pr.value) AS person_reference_values
+
+            OPTIONAL MATCH (p)-[reply:REPLY_TO]->(replyPoem:Genji_Poem)
+            WHERE reply.replyType = "reply to soliloquy"
+            OPTIONAL MATCH (p)-[:IN_RUN]->(run:Run)
+
+            WITH p,
+                translations,
+                addressee_names,
+                addressee_genders,
+                speaker, season, pt, ga,
+                poem_types,
+                person_reference_values,
+                reply,
+                run
+
             WHERE ($genders IS NULL OR toLower(speaker.gender) IN $genders)
             RETURN DISTINCT
+                CASE
+                    WHEN run IS NOT NULL AND reply IS NOT NULL
+                        THEN poem_types + ["Run", "Replies to Soliloquy"]
+                    WHEN run IS NOT NULL
+                        THEN poem_types + ["Run"]
+                    WHEN reply IS NOT NULL
+                        THEN poem_types + ["Replies to Soliloquy"]
+                    ELSE poem_types
+                END AS poem_types,
                 COALESCE(p.pnum, "") AS pnum,
                 COALESCE(p.Japanese, "") AS Japanese,
                 COALESCE(p.Romaji, "") AS Romaji,
@@ -116,10 +160,6 @@ async function generalSearch(q, gender, translatorNames = [], includeRomanizatio
                 COALESCE(pt.name, "") AS poetic_tech,
                 COALESCE(ga.age, "") AS genji_age,
                 COALESCE(p.Complete, "") AS annotations_complete,
-                CASE
-                    WHEN size(poem_types) > 0 THEN poem_types[0]
-                    ELSE ""
-                END AS poem_type,
                 CASE
                     WHEN size(person_reference_values) > 0 THEN person_reference_values[0]
                     ELSE ""
@@ -188,7 +228,7 @@ async function generalSearch(q, gender, translatorNames = [], includeRomanizatio
                     speaker_color:    record.get('speaker_color') || "",
                     season:           record.get('season') || "",
                     peotic_tech:      record.get('poetic_tech') || "",
-                    poem_type:        (record.get('poem_type') || "").toString(),
+                    poem_types: record.get('poem_types') || [],
                     person_reference: (record.get('person_reference') || "").toString(),
                     contain_a_pronoun: !!record.get('contain_a_pronoun'),
                     contain_a_person_referent: !!record.get('contain_a_person_referent'),

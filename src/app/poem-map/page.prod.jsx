@@ -67,7 +67,7 @@ export default function MapPage() {
     }, [selectedChapters]);
 
     return (
-        <div style = {{ display: 'flex', gap: '30px', padding: '20px', overflow: 'hidden', height: '81vh' }}>
+        <div style = {{ display: 'flex', gap: '30px', padding: '20px', height: '81vh' }}>
 
             {/* LEFT SIDEBAR AREA */}
             <aside style={{ width: '350px', flexShrink: 0 }}>
