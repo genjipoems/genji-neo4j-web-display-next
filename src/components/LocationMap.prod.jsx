@@ -6,7 +6,7 @@ import '../styles/pages/locationMap.css';
 export default function CharacterMap({ initialData }) {
     const places = initialData?.places || [];
     const rawPoems = initialData?.poems ? Object.values(initialData.poems) : [];
-
+    const [lastDropInfo, setLastDropInfo] = useState(null); //devtool
     const [simulatedNodes, setSimulatedNodes] = useState([]);
     const [simulatedLinks, setSimulatedLinks] = useState([]);
     const [placePositions, setPlacePositions] = useState({});
@@ -18,6 +18,7 @@ export default function CharacterMap({ initialData }) {
     const lastMouseRef = useRef({ x: 0, y: 0 });
     const svgRef = useRef(null);
     const dragPositionRef = useRef(null);
+    const hasDraggedRef = useRef(false);
 
     // Initialize place positions from database
     useEffect(() => {
@@ -164,6 +165,7 @@ export default function CharacterMap({ initialData }) {
 
     const handleMouseMove = (e) => {
         if (draggingPlaceRef.current) {
+            hasDraggedRef.current = true;
             const { x, y } = toSVGCoords(e.clientX, e.clientY);
             dragPositionRef.current = { x, y };
 
@@ -186,9 +188,12 @@ export default function CharacterMap({ initialData }) {
             const name = draggingPlaceRef.current;
             const { x, y } = dragPositionRef.current;
             setPlacePositions(prev => ({ ...prev, [name]: { x, y } }));
+            setLastDropInfo({ name, x: Math.round(x), y: Math.round(y) }); //devtool
             dragPositionRef.current = null;
         }
         draggingPlaceRef.current = null;
+        // Reset AFTER click fires (click follows mouseup synchronously but after a tick)
+        setTimeout(() => { hasDraggedRef.current = false; }, 0);
     };
 
     // Physics simulation
@@ -644,7 +649,10 @@ export default function CharacterMap({ initialData }) {
                                     isPanningRef.current = false;
                                     e.stopPropagation();
                                 }}
-                                onClick={() => window.location.href = `/location-page/${encodeURIComponent(place.name)}`}
+                                onClick={() => {
+                                    if (hasDraggedRef.current) return;
+                                    window.location.href = `/location-page/${encodeURIComponent(place.name)}`;
+                                }}
                                 >
                                 <rect
                                     x={-65} y={-20}
@@ -666,6 +674,17 @@ export default function CharacterMap({ initialData }) {
                     })}
                 </g>
             </svg>
+            {lastDropInfo && (
+                <div style={{
+                    position: 'absolute', top: 8, right: 8,
+                    background: '#222', color: '#fff',
+                    padding: '6px 10px', borderRadius: 6,
+                    fontFamily: 'monospace', fontSize: 12,
+                    pointerEvents: 'none'
+                }}>
+                    {lastDropInfo.name}: lng={lastDropInfo.x}, lat={lastDropInfo.y}
+                </div>
+            )}
             <div className="translation-outer" id="translation-outer">
                 <div className="chapter-poem" id="chapter-poem">
                     <div 

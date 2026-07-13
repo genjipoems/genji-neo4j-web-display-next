@@ -83,7 +83,7 @@ const LocationChapterGraph = ({ poems }) => {
     const options = {
         maintainAspectRatio: false,
         scales: {
-            x: { display: false, stacked: true, ticks: { display: false }, grid: { display: false } },
+            x: { display: false, stacked: true, ticks: { display: false }, grid: { display: false }, border: { display: false }},
             y: { beginAtZero: true, stacked: false, ticks: { display: false }, grid: { display: false }, border: { display: false } },
         },
         plugins: {
@@ -154,17 +154,9 @@ const LocationDisplay = ({ locationData }) => {
                 if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
                 const data = await response.json();
-                // Expected shape:
-                // {
-                //   place: { name, type, description, region },
-                //   poems: [{ poemId, chapter, number, speaker, addressee, season, japanese, translation, role }],
-                //   characters: [{ name, role }]
-                // }
-
                 const newState = {
                     place: data.place ?? null,
                     poems: data.poems ?? [],
-                    characters: data.characters ?? []
                 };
 
                 setState(prev => ({ ...prev, ...newState, isLoading: false }));
@@ -201,7 +193,7 @@ const LocationDisplay = ({ locationData }) => {
 
     const hasDescription = !!place.description;
     const hasCharacters = characters.length > 0;
-    const hasDetails = !!place.region || !!place.type;
+    const hasDetails = !!place.type;
 
     return (
         <div className={styles.locationPageContainer}>
@@ -217,11 +209,7 @@ const LocationDisplay = ({ locationData }) => {
                 <div className={styles.headerContent}>
                     <div className={styles.locationNameBlock}>
                         <h1 className={styles.locationName}>{place.name}</h1>
-                        {place.region && (
-                            <span className={styles.regionLabel}>{place.region.toUpperCase()}</span>
-                        )}
                     </div>
-
                     {/* Metadata grid — mirrors the poem page's info grid */}
                     <div className={styles.locationInfoGrid}>
 
@@ -286,6 +274,12 @@ const LocationDisplay = ({ locationData }) => {
                                     ▼
                                 </div>
                             </div>
+                            <div className={`${styles.AIVerified}`}>
+                                {place.descriptionVerified
+                                    ? <p className={styles.emptyNote}>AI generated and human verified</p>
+                                    : <p className={styles.emptyNote}>AI generated</p>
+                                }
+                            </div>
                             <div className={`${styles.panelContent} ${expandedPanels.description ? styles.expanded : styles.collapsed}`}>
                                 {place.description
                                     ? <FormatContent content={place.description} />
@@ -307,12 +301,6 @@ const LocationDisplay = ({ locationData }) => {
                                     </div>
                                 </div>
                                 <div className={`${styles.panelContent} ${expandedPanels.details ? styles.expanded : styles.collapsed}`}>
-                                    {place.region && (
-                                        <div className={styles.detailItem}>
-                                            <h3>REGION</h3>
-                                            <p>{place.region}</p>
-                                        </div>
-                                    )}
                                     {place.type && (
                                         <div className={styles.detailItem}>
                                             <h3>CLASSIFICATION</h3>

@@ -19,7 +19,8 @@ export async function GET(request) {
             RETURN
                 p.name        AS name,
                 p.type        AS type,
-                p.Description AS description,
+                p.description AS description,
+                p.descriptionVerified AS descriptionVerified,
                 p.evidence    AS evidence,
                 p.lat         AS lat,
                 p.lng         AS lng
@@ -37,6 +38,7 @@ export async function GET(request) {
             name:        pr.get('name'),
             type:        pr.get('type'),
             description: pr.get('description'),
+            descriptionVerified: pr.get('descriptionVerified'),
             evidence:    pr.get('evidence'),
             lat:         pr.get('lat')  != null ? toNativeTypes(pr.get('lat'))  : null,
             lng:         pr.get('lng')  != null ? toNativeTypes(pr.get('lng'))  : null,

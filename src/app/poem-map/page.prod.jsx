@@ -4,9 +4,11 @@
 import React, { useState, useEffect } from 'react';
 import LocationMap from '../../components/LocationMap.prod.jsx';
 import ChapterDropdown from '../../components/ChapterDropdown.prod.jsx';
+import LocationDropdown from '../../components/LocationDropdown.prod.jsx';
 
 export default function MapPage() {
     const [selectedChapters, setSelectedChapters] = useState([]);
+    const [selectedLocations, setSelectedLocations] = useState([]);
     const [mapData, setMapData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -18,31 +20,37 @@ export default function MapPage() {
     ];
 
     useEffect(() => {
-            console.log('selectedChapters:', selectedChapters);
-    console.log('mapData:', mapData);
+        console.log('selectedChapters:', selectedChapters);
+        console.log('mapData:', mapData);
 
         async function loadDatabaseContent() {
             setIsLoading(true);
             try {
+                const locationsSet = new Set(selectedLocations);
+
                 const results = await Promise.all(
-                    selectedChapters.map(chapter => 
+                    selectedChapters.map(chapter =>
                         fetch(`/api/spaces-location?chapter=${chapter}`).then(r => r.json())
                     )
                 );
 
-                // Merge all results together
-                const merged = {
-                    places: [],
-                    poems: {}
-                };
-
+                const merged = { places: [], poems: {} };
                 const seenPlaces = new Set();
 
                 results.forEach(data => {
-                    // Merge poems
-                    Object.assign(merged.poems, data.poems);
+                    if (locationsSet.size === 0) {
+                        Object.assign(merged.poems, data.poems);
+                    } else {
+                        Object.entries(data.poems).forEach(([pnum, poem]) => {
+                            const isMatch =
+                                locationsSet.has(poem.composition?.placeName) ||
+                                locationsSet.has(poem.receipt?.placeName);
+                            if (isMatch) {
+                                merged.poems[pnum] = poem;
+                            }
+                        });
+                    }
 
-                    // Merge places, avoiding duplicates
                     data.places?.forEach(place => {
                         if (!seenPlaces.has(place.name)) {
                             seenPlaces.add(place.name);
@@ -58,13 +66,12 @@ export default function MapPage() {
                 setIsLoading(false);
             }
         }
-
         if (selectedChapters.length > 0) {
             loadDatabaseContent();
         } else {
             setMapData(null);
         }
-    }, [selectedChapters]);
+    }, [selectedChapters, selectedLocations]);
 
     return (
         <div style = {{ display: 'flex', gap: '30px', padding: '20px', height: '81vh' }}>
@@ -74,6 +81,10 @@ export default function MapPage() {
                 <ChapterDropdown 
                     value={selectedChapters}
                     onChange={(chapters) => setSelectedChapters(chapters)}
+                />
+                <LocationDropdown
+                    value={selectedLocations}
+                    onChange={(locations) => setSelectedLocations(locations)}
                 />
                 <div>
                     {legendItems.map((item, idx) => (

@@ -25,7 +25,7 @@
   min-height: 300px;
   font-size: 1rem;
   margin-top: 30px;
-  color: white;
+  color: rgb(255, 255, 255);
   font-family: 'Lexend', sans-serif;
 }
 
@@ -48,8 +48,7 @@
   width: 1440px;
   height: 500px;
   object-fit: cover;
-  animation: slowZoom 20s ease-in-out infinite alternate;
-  transform-origin: center center;
+  transform-origin: center bottom;
 }
 
 .locationChartContainer {
@@ -66,11 +65,6 @@
   pointer-events: auto;
 }
 
-@keyframes slowZoom {
-  0%   { transform: scale(1); }
-  100% { transform: scale(1.05); }
-}
-
 /* Place name — left side, mirrors where the Japanese poem sits */
 .headerContent {
   position: absolute;
@@ -84,16 +78,18 @@
 
 .locationNameBlock {
   position: absolute;
-  top: 79px;
+  top: 20px;
   left: 110px;
+  width: 825px;
   pointer-events: auto;
 }
 
 .locationName {
-  font-family: 'Lexend', sans-serif;
+  font-family: 'Lexend';
   font-weight: 700;
   font-size: 64px;
   line-height: 100%;
+  text-align: start;
   letter-spacing: -0.02rem;
   color: #ffffff;
   margin: 0 0 12px 0;
@@ -101,32 +97,20 @@
   opacity: 0.9;
 }
 
-.regionLabel {
-  display: inline-block;
-  font-family: 'Lexend', sans-serif;
-  font-weight: 600;
-  font-size: 13px;
-  letter-spacing: 0.2rem;
-  color: #ffffff;
-  opacity: 0.6;
-  text-transform: uppercase;
-  border-top: 1px solid rgba(255,255,255,0.4);
-  padding-top: 6px;
-}
 
 /* ── INFO GRID (right side, mirrors poemInfoGrid) ───────────────────────── */
 
 .locationInfoGrid {
   position: absolute;
   left: 950px;
-  top: 33.5px;
+  top: 20px;
   width: 455px;
   height: 440px;
   display: grid;
   grid-template-columns: repeat(10, 1fr);
   grid-template-rows: repeat(20, 1fr);
   grid-gap: 5px;
-  color: white;
+  color: rgb(255, 255, 255);
   pointer-events: auto;
 }
 
@@ -180,16 +164,16 @@
 
 /* Poem count — big number like Genji's age */
 .poemCountBox {
-  grid-column: 1 / 4;
-  grid-row: 4 / 11;
+  grid-column: 1 / 5;
+  grid-row: 4 / 7;
   background-color: #DBA18D;
-  border-radius: 20px;
+  border-radius: 10px;
 }
 
 .poemCountVal {
-  font-family: 'Train One', sans-serif;
-  font-weight: 500;
-  font-size: 72px;
+  font-family: 'Lexend', sans-serif;
+  font-weight: 700;
+  font-size: 32px;
   line-height: 100%;
   letter-spacing: -0.01rem;
   color: #ffffff;
@@ -197,7 +181,7 @@
 
 .poemCountLabel {
   font-family: 'Lexend', sans-serif;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 11px;
   line-height: 103%;
   letter-spacing: 0rem;
@@ -208,14 +192,14 @@
 
 /* Composed count */
 .composedCountBox {
-  grid-column: 4 / 8;
+  grid-column: 5 / 8;
   grid-row: 4 / 7;
   background-color: #8CA887;
   border-radius: 10px;
 }
 
 .composedCountVal {
-  font-family: 'Martian Mono', sans-serif;
+  font-family: 'Lexend', sans-serif;
   font-weight: 700;
   font-size: 32px;
   letter-spacing: -0.01rem;
@@ -242,7 +226,7 @@
 }
 
 .receivedCountVal {
-  font-family: 'Martian Mono', sans-serif;
+  font-family: 'Lexend';
   font-weight: 700;
   font-size: 32px;
   letter-spacing: -0.01rem;
@@ -250,7 +234,7 @@
 }
 
 .receivedCountLabel {
-  font-family: 'Lexend', sans-serif;
+  font-family: 'Lexend';
   font-weight: 600;
   font-size: 9px;
   letter-spacing: 0.1rem;
@@ -260,7 +244,6 @@
   text-align: center;
 }
 
-/* Character count (optional — only renders when there are characters) */
 .characterCountBox {
   grid-column: 4 / -1;
   grid-row: 7 / 11;
@@ -292,7 +275,6 @@
   background-color: #4B4B4B;
   padding: 0;
   margin-top: 0;
-  border-top: 1px solid #ddd;
 }
 
 .bodyContainer {
@@ -624,4 +606,15 @@
   padding-top: 0px;
   box-sizing: border-box;
   height: 340px;
+}
+
+.AIVerified {
+  font-family: 'Lexend';
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 130%;
+  color: #ffffff;
+  margin-bottom: 1em;
+  text-align: left;
+
 }

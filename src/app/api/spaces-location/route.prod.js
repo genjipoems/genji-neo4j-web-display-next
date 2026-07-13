@@ -17,7 +17,7 @@ export async function GET(request) {
                 lat: p.lat,
                 lng: p.lng,
                 type: p.type,
-                description: p.Description,
+                description: p.description,
                 evidence: p.evidence
             }) as cleanPlaces
 
