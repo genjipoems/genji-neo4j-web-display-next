@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from '../styles/pages/locationDisplay.module.css';
 import FormatContent from './FormatText.prod';
+import '../styles/pages/locationMap.css';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -13,6 +14,30 @@ const placeTypeColor = (type) => {
     if (type === 'fictional without evidence') return '#EDB940';
     if (type === 'projected') return '#CC683D';
     return '#9c9c9c';
+};
+
+const handleClaimVerifyToggle = async (claimId, currentlyVerified) => {
+    const nextVerified = !currentlyVerified;
+
+    setState(prev => ({
+        ...prev,
+        claims: prev.claims.map(c => c.id === claimId ? { ...c, verified: nextVerified } : c)
+    }));
+
+    try {
+        const res = await fetch(`/api/neo4j_driver/claims/${claimId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ verified: nextVerified }),
+        });
+        if (!res.ok) throw new Error('Update failed');
+    } catch (err) {
+        setState(prev => ({
+            ...prev,
+            claims: prev.claims.map(c => c.id === claimId ? { ...c, verified: currentlyVerified } : c)
+        }));
+        console.error(err);
+    }
 };
 
 const RoleBadge = ({ role }) => {
@@ -46,7 +71,7 @@ const LocationChapterGraph = ({ poems }) => {
         if (!ch || !labels.includes(ch)) return;
         locationCounts[ch]++;
     });
-
+ 
     const getBackgroundColor = (chapterNum) => {
         const originalCount = defaultChapterCounts[chapterNum] || 0;
         const locationCount = locationCounts[chapterNum] || 0;
@@ -111,14 +136,14 @@ const LocationDisplay = ({ locationData }) => {
     const [state, setState] = useState({
         place: null,
         poems: [],
-        characters: [],
+        claims: [],
         isLoading: true,
         error: null
     });
 
     const [expandedPanels, setExpandedPanels] = useState({
         description: true,
-        characters: false,
+        claims: true,
         details: false
     });
 
@@ -157,6 +182,7 @@ const LocationDisplay = ({ locationData }) => {
                 const newState = {
                     place: data.place ?? null,
                     poems: data.poems ?? [],
+                    claims: data.claims ?? [],
                 };
 
                 setState(prev => ({ ...prev, ...newState, isLoading: false }));
@@ -185,14 +211,27 @@ const LocationDisplay = ({ locationData }) => {
         return <div className={styles.errorContainer}>Could not load location data.</div>;
     }
 
-    const { place, poems, characters } = state;
+    const { place, poems, claims } = state;
+    const chapterLabels = Array.from({ length: 54 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+
+    const locationChapterCounts = chapterLabels.reduce((acc, ch) => {
+        acc[ch] = 0;
+        return acc;
+    }, {});
+
+    poems.forEach(poem => {
+        const ch = poem.chapter?.toString().padStart(2, '0');
+        if (ch && locationChapterCounts.hasOwnProperty(ch)) {
+            locationChapterCounts[ch]++;
+        }
+    });
     const typeColor = placeTypeColor(place.type);
 
     const composedPoems = poems.filter(p => p.role === 'composed' || p.role === 'both');
     const receivedPoems = poems.filter(p => p.role === 'received' || p.role === 'both');
 
     const hasDescription = !!place.description;
-    const hasCharacters = characters.length > 0;
+    const hasClaims = claims.length > 0;
     const hasDetails = !!place.type;
 
     return (
@@ -206,13 +245,20 @@ const LocationDisplay = ({ locationData }) => {
                     alt="Location Background"
                 />
                 <LocationChapterGraph poems={poems} />
+
+                <div className={styles.chapterCountBar}>
+                    {chapterLabels.map((ch) => (
+                        <div key={ch} className={styles.chapterCell}>
+                            {locationChapterCounts[ch] > 0 ? locationChapterCounts[ch].toString().padStart(2, '0') : ''}
+                        </div>
+                    ))}
+                </div>
                 <div className={styles.headerContent}>
                     <div className={styles.locationNameBlock}>
                         <h1 className={styles.locationName}>{place.name}</h1>
                     </div>
-                    {/* Metadata grid — mirrors the poem page's info grid */}
-                    <div className={styles.locationInfoGrid}>
 
+                    <div className={styles.locationInfoGrid}>
                         <div className={`${styles.gridBox} ${styles.typeBox}`}>
                             <span
                                 className={styles.typeIndicator}
@@ -243,12 +289,12 @@ const LocationDisplay = ({ locationData }) => {
                             <span className={styles.receivedCountLabel}>RECEIVED HERE</span>
                         </div>
 
-                        {hasCharacters && (
-                            <div className={`${styles.gridBox} ${styles.characterCountBox}`}>
-                                <span className={styles.characterCountVal}>
-                                    {characters.length.toString().padStart(2, '0')}
+                        {hasClaims && (
+                            <div className={`${styles.gridBox} ${styles.claimCountBox}`}>
+                                <span className={styles.claimCountVal}>
+                                    {claims.length.toString().padStart(2, '0')}
                                 </span>
-                                <span className={styles.characterCountLabel}>CHARACTERS</span>
+                                <span className={styles.claimCountLabel}>CLAIMS</span>
                             </div>
                         )}
                     </div>
@@ -311,32 +357,35 @@ const LocationDisplay = ({ locationData }) => {
                             </div>
                         )}
 
-                        {/* Characters panel */}
-                        {hasCharacters && (
+                        {/* Claims panel */}
+                        {hasClaims && (
                             <div className={styles.analysisPanel}>
                                 <div
-                                    className={styles.panelHeader}
-                                    onClick={() => togglePanel('characters')}
+                                    className={styles.panelHeader}  
+                                    onClick={() => togglePanel('claims')}
                                 >
-                                    <h2>ASSOCIATED CHARACTERS</h2>
-                                    <div className={`${styles.toggleArrow} ${expandedPanels.characters ? styles.arrowExpanded : styles.arrowCollapsed}`}>
+                                    <h2>ASSOCIATED CLAIMS</h2>
+                                    <div className={`${styles.toggleArrow} ${expandedPanels.claims ? styles.arrowExpanded : styles.arrowCollapsed}`}>
                                         ▼
                                     </div>
                                 </div>
-                                <div className={`${styles.panelContent} ${expandedPanels.characters ? styles.expanded : styles.collapsed}`}>
-                                    {characters.map((char, idx) => (
-                                        <div key={idx} className={styles.characterItem}>
-                                            <a
-                                                href={`/characters/${encodeURIComponent(char.name)}`}
-                                                className={styles.characterLink}
+                                <div className={`${styles.panelContent} ${expandedPanels.claims ? styles.expanded : styles.collapsed}`}>
+                                    {claims.map((claim, idx) => (
+                                        <div key={claim.id ?? idx} className={styles.claimItem}>
+                                            <span className={styles.claimChapPage}>
+                                                {`CHAPTER ${claim.chapter},  PAGE ${claim.page}`}
+                                            </span>
+                                            <button
+                                                role="switch"
+                                                aria-checked={claim.verified === true}
+                                                className={`toggle-switch ${claim.verified === true ? 'on' : ''}`}
+                                                onClick={() => handleClaimVerifyToggle(claim.id, claim.verified)}
                                             >
-                                                {char.name}
-                                            </a>
-                                            {char.role && (
-                                                <span className={styles.characterRole}>
-                                                    {char.role}
-                                                </span>
-                                            )}
+                                                <span className="toggle-thumb"></span>
+                                            </button>
+                                            <span className={styles.claimQuote}>
+                                                {claim.quote ?? 'Untitled claim'}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>

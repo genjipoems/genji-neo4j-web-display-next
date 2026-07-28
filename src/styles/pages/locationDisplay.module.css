@@ -3,7 +3,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Sofia+Sans+Extra+Condensed:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Train+One:wght@400;500;600;700&display=swap');
-
+@import url('https://fonts.googleapis.com/css2?family=Monomaniac+One:wght@400&display=swap');
 /* ── PAGE SHELL ─────────────────────────────────────────────────────────── */
 
 .locationPageContainer {
@@ -72,7 +72,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 3;
+  z-index: 1;
   pointer-events: none; /* children opt back in */
 }
 
@@ -244,14 +244,14 @@
   text-align: center;
 }
 
-.characterCountBox {
+.claimCountBox {
   grid-column: 4 / -1;
   grid-row: 7 / 11;
   background-color: #436875;
   border-radius: 20px;
 }
 
-.characterCountVal {
+.claimCountVal {
   font-family: 'Train One', sans-serif;
   font-weight: 500;
   font-size: 56px;
@@ -259,7 +259,7 @@
   color: #ffffff;
 }
 
-.characterCountLabel {
+.claimCountLabel {
   font-family: 'Lexend', sans-serif;
   font-weight: 800;
   font-size: 11px;
@@ -441,36 +441,34 @@
 }
 
 /* Characters */
-.characterItem {
+.claimItem {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 10px;
   margin: 10px 0;
 }
 
-.characterLink {
+.claimQuote {
   font-family: 'Lexend', sans-serif;
-  font-weight: 700;
+  width: 100%;
+  height: fit-content;
+  font-weight: 400;
   font-size: 16px;
   color: #ffffff;
+  text-align: left;
   text-decoration: none;
-  text-transform: uppercase;
-  letter-spacing: -0.02rem;
-  transition: opacity 0.2s;
 }
 
-.characterLink:hover {
-  opacity: 0.75;
-  text-decoration: underline;
-}
-
-.characterRole {
+.claimChapPage {
   font-family: 'Lexend', sans-serif;
   font-weight: 400;
-  font-size: 12px;
-  color: rgba(255,255,255,0.5);
-  text-transform: uppercase;
-  letter-spacing: 0.08rem;
+  width: 100%;
+  height: fit-content;
+  font-size: 16px;
+  color: #ffffff;
+  text-align: left;
+  text-decoration: underline;
 }
 
 /* ── RIGHT: POEMS LIST ──────────────────────────────────────────────────── */
@@ -617,4 +615,27 @@
   margin-bottom: 1em;
   text-align: left;
 
+}
+
+.chapterCountBar {
+  position: absolute;
+  top: 465px;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  left: 175px;
+  z-index: 3;
+}
+
+.chapterCell {
+  text-align: center;
+  font-size: 12.5px;
+  font-family: 'Monomaniac One';
+  color: white;
+  width: 20px;
+  margin-right: 2.33px;
+  line-height: 1;
 }

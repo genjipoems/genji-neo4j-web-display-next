@@ -14,6 +14,7 @@
 }
 
 .connection-line {
+    z-index: 0;
     opacity : 0.4;
 }
 
@@ -128,6 +129,7 @@
 .translation-outer.place-active {
     display: flex;
     flex-direction: row;
+    font-size: 12px;
     align-items: flex-start;
     justify-content: flex-start;
     background-color: #252525;
@@ -165,7 +167,7 @@
     margin:20px;
     min-height:80px;
     height: fit-content;
-    width:500px;
+    width:300px;
 }
 
 .translation-text.place-description {
@@ -186,7 +188,70 @@
     gap: 10px;
     margin:20px;
     height:fit-content;
-    width:300px;
+    width:200px;
     text-align: left;
 }
 
+.toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: #a1a1aa;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.toggle-switch.on {
+  background: #10b981;
+}
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.15s ease;
+}
+.toggle-switch.on .toggle-thumb {
+  transform: translateX(18px);
+}
+.toggle-switch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.evidence-block p {
+    font-family: 'Lexend';
+    color: #ffffff;
+    font-size: 12px;
+    width: 500px;
+    padding: 0 50px 0 0;
+    margin-top: -10px;
+}
+
+.evidence-block {
+    margin: 0px;
+    padding: 5px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: 800px;
+}
+
+.comp-block {
+    align-items: flex-start;
+    justify-content: space-between;
+    display: flex;
+    flex-direction: row;
+}
+
+.rec-block {
+    align-items: space-between;
+    justify-content: space-between;
+    display: flex;
+    flex-direction: row;
+}

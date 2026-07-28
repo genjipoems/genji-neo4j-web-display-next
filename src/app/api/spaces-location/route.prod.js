@@ -18,7 +18,8 @@ export async function GET(request) {
                 lng: p.lng,
                 type: p.type,
                 description: p.description,
-                evidence: p.evidence
+                evidence: p.evidence,
+                verified: p.verified
             }) as cleanPlaces
 
             MATCH (g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: $chapter})
@@ -35,7 +36,7 @@ export async function GET(request) {
             OPTIONAL MATCH (t:Translation)-[:TRANSLATION_OF]->(g)
             WHERE toUpper(t.id) ENDS WITH 'W'
 
-            WITH g, cleanPlaces, s, a, pComp, pRec, mess, t,
+            WITH g, cleanPlaces, s, a, pComp, pRec, rComp, rRec, mess, t,
                  collect(DISTINCT otherPoems.pnum) as groupMembers,
                  collect(DISTINCT reply.pnum) as replyPoemList,
                  collect(DISTINCT repliesToThis.pnum) as repliesToThisList
@@ -44,6 +45,7 @@ export async function GET(request) {
                 g.pnum as pnum,
                 cleanPlaces,
                 t.translation as Washburn,
+                rComp.evidence as compevidence, rComp.verified as compevverified, rRec.evidence as recevidence, rRec.verified as recevverified,
                 s.name as speaker, s.gender as speakerGender,
                 a.name as addressee, a.gender as addresseeGender,
                 pComp.name as compName, pComp.lat as compLat, pComp.lng as compLng,
@@ -52,13 +54,17 @@ export async function GET(request) {
                 groupMembers,
                 replyPoemList,
                 repliesToThisList
-        `;		
+        `;
 		const result = await session.readTransaction(tx => tx.run(query, { chapter }));
-		console.log('records:', result.records.length);
-        console.log('record count:', result.records.length);
-		if (result.records.length > 0) {
-			console.log('first record keys:', result.records[0].keys);
-		}
+        if (result.records.length > 0) {
+            console.log('raw compevidence:', result.records[0].get('compevidence'));
+            console.log('raw compevverified:', result.records[0].get('compevverified'));
+            console.log('has key?', result.records[0].keys.includes('compevidence'));
+        }
+
+		//console.log('records:', result.records.length);
+        //console.log('record count:', result.records.length);
+
 
         let places = [];
         const poemsData = {};
@@ -70,6 +76,7 @@ export async function GET(request) {
                     name: p.name,
                     type: p.type,
                     description: p.description,
+                    verified: p.verified,
                     evidence: p.evidence,
                     lat: p.lat != null ? toNativeTypes(p.lat) : null,
                     lng: p.lng != null ? toNativeTypes(p.lng) : null
@@ -90,24 +97,30 @@ export async function GET(request) {
             const compName = record.get('compName');
             const recName = record.get('recName');
             const washburn = record.get('Washburn');
-
+            
+            let compEv = null, compEvVerified = null;
+            let recEv = null, recEvVerified = null;
             let compLat = null, compLng = null;
             let receiptLat = null, receiptLng = null;
 
             if (compName) {
+                compEv = record.get('compevidence') ?? null;
+                compEvVerified = record.get('compevverified') ?? null;
 				compLat = record.get('compLat') != null ? toNativeTypes(record.get('compLat')) : null;
 				compLng = record.get('compLng') != null ? toNativeTypes(record.get('compLng')) : null;
             }
 
             if (recName) {
+                recEv = record.get('recevidence') ?? null;
+                recEvVerified = record.get('recevverified') ?? null;
 				receiptLat = record.get('recLat') != null ? toNativeTypes(record.get('recLat')) : null;
 				receiptLng = record.get('recLng') != null ? toNativeTypes(record.get('recLng')) : null;
             }
 
             poemsData[pnum] = {
 				pnum,
-                composition: { placeName: compName, washburn, speaker, speakerGender, lat: compLat, lng: compLng },
-                receipt: { placeName: recName, washburn, addressee, addresseeGender, lat: receiptLat, lng: receiptLng },
+                composition: { placeName: compName, washburn, speaker, speakerGender, evidence: compEv, verified: compEvVerified, lat: compLat, lng: compLng },
+                receipt: { placeName: recName, washburn, addressee, addresseeGender, evidence: recEv, verified: recEvVerified, lat: receiptLat, lng: receiptLng },
                 relationships: { groupPoems, replyPoems, repliesToThis, messenger }
             };
         });

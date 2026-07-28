@@ -13,12 +13,15 @@ export default function CharacterMap({ initialData }) {
     const [transform, setTransform] = useState({ x: 475, y: 325, scale: 0.5 });
     const hoveredPnumRef = useRef(null);
     const hoveredPlaceRef = useRef(null);
+    const hoveredRRef = useRef(null);
     const draggingPlaceRef = useRef(null);
     const isPanningRef = useRef(false);
     const lastMouseRef = useRef({ x: 0, y: 0 });
     const svgRef = useRef(null);
     const dragPositionRef = useRef(null);
     const hasDraggedRef = useRef(false);
+    const [pinnedLinkId, setPinnedLinkId] = useState(null);
+    const [hoveredLinkId, setHoveredLinkId] = useState(null);
 
     // Initialize place positions from database
     useEffect(() => {
@@ -32,6 +35,7 @@ export default function CharacterMap({ initialData }) {
     }, [initialData?.places]);
 
     const handleMouseOver = (node) => {
+        if (pinnedLinkId !== null) return;
         hoveredPnumRef.current = node.pnum;
 
         simulatedNodes.forEach(n => {
@@ -56,7 +60,6 @@ export default function CharacterMap({ initialData }) {
         pn.innerHTML = (`POEM: ${node.poem}` || '')
 
         const mess = document.getElementById('messenger-display')
-        
         if (mess) mess.innerHTML = (`MESSENGER: ${node.messenger}` || '');
 
         const sp = document.getElementById('speaker-display')
@@ -67,6 +70,8 @@ export default function CharacterMap({ initialData }) {
     };
 
     const handleMouseOut = () => {
+        if (pinnedLinkId !== null) return;
+
         hoveredPnumRef.current = null;
         
         simulatedNodes.forEach(n => {
@@ -89,7 +94,10 @@ export default function CharacterMap({ initialData }) {
         if (sp) sp.textContent = '';
         if (mess) mess.textContent = '';
     };
+    const handleBackgroundClick = () => setPinnedLinkId(null);
+
     const handlePlaceMouseOver = (place) => {
+        if (pinnedLinkId !== null) return;
         console.log(place);
         hoveredPlaceRef.current = place.name;
 
@@ -109,6 +117,8 @@ export default function CharacterMap({ initialData }) {
     };
 
     const handlePlaceMouseOut = () => {
+        if (pinnedLinkId !== null) return;
+
         hoveredPlaceRef.current = null;
         
         const el = document.getElementById('translation-display')
@@ -123,6 +133,116 @@ export default function CharacterMap({ initialData }) {
         document.getElementById('chapter-poem').classList.remove('place-active');
         document.getElementById('speaker-addressee-mess').style.display = '';
         document.getElementById('translation-outer').classList.remove('place-active');
+
+        if (el) el.textContent = '';
+        if (ch) ch.textContent = '';
+        if (pn) pn.textContent = '';
+        if (ad) ad.textContent = '';
+        if (sp) sp.textContent = '';
+        if (mess) mess.textContent = '';
+    };
+
+    const handleRMouseOver = (link, src, tgt) => {
+        hoveredRRef.current = link.idx;
+
+        const el = document.getElementById('translation-display')
+        el.innerHTML = `
+        <div class="evidence-block">
+            <div class="comp-block">
+                <p>Composition evidence: ${src.evidence}</p>
+                <label class="switch-row">
+                AI verified?
+                <button
+                    role="switch"
+                    aria-checked="${src.verified === true}"
+                    class="toggle-switch ${src.verified === true ? 'on' : ''}"
+                    data-pnum="${src.pnum}"
+                    data-field="src"
+                >
+                    <span class="toggle-thumb"></span>
+                </button>
+            </div>
+            <div class="rec-block">
+                <p>Receipt evidence: ${tgt.evidence}</p>
+                <label class="switch-row">
+                AI verified?
+                <button
+                    role="switch"
+                    aria-checked="${tgt.verified === true}"
+                    class="toggle-switch ${tgt.verified === true ? 'on' : ''}"
+                    data-pnum="${tgt.pnum}"
+                    data-field="tgt"
+                >
+                    <span class="toggle-thumb"></span>
+                </button>
+            </div>
+        </div>
+        `;
+
+        el.querySelectorAll('.toggle-switch').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const pnum = btn.dataset.pnum;
+                const field = btn.dataset.field;
+                const relType = field === 'src' ? 'composition' : 'receipt';
+                const isOn = btn.classList.contains('on');
+                const nextVerified = !isOn;
+
+                // optimistic UI update
+                btn.classList.toggle('on');
+                btn.setAttribute('aria-checked', String(nextVerified));
+                btn.disabled = true;
+
+                try {
+                    const res = await fetch(`../api/neo4j_driver/${pnum}/status`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ relType, verified: nextVerified }),
+                    });
+                    if (!res.ok) throw new Error('Update failed');
+                } catch (err) {
+                    // revert on failure
+                    btn.classList.toggle('on');
+                    btn.setAttribute('aria-checked', String(isOn));
+                    console.error(err);
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+        });
+        const ch = document.getElementById('chapter-display')
+        ch.innerHTML = (`CHAPTER: ${src.chapter}` || '')
+
+        const pn = document.getElementById('poemnum-display')
+        pn.innerHTML = (`POEM: ${src.poem}` || '')
+
+        const mess = document.getElementById('messenger-display')
+        if (mess) mess.innerHTML = (`MESSENGER: ${src.messenger}` || '');
+
+        const sp = document.getElementById('speaker-display')
+        if (sp) sp.innerHTML = (`SPEAKER: ${src.speaker}` || '');
+
+        const ad = document.getElementById('addressee-display')
+        if (ad) ad.innerHTML = (`ADDRESSEE: ${tgt.addressee}` || '');
+        document.getElementById('translation-display').classList.add('place-description');
+        document.getElementById('chapter-poem').classList.add('place-active');
+        document.getElementById('translation-outer').classList.add('place-active');
+
+    };
+
+    const handleRMouseOut = () => {
+        hoveredRRef.current = null;
+        
+        const el = document.getElementById('translation-display')
+        const ch = document.getElementById('chapter-display')
+        const pn = document.getElementById('poemnum-display')
+        const ad = document.getElementById('addressee-display')
+        const sp = document.getElementById('speaker-display')
+        const mess = document.getElementById('messenger-display')
+
+        document.getElementById('translation-display').classList.remove('place-description');
+        document.getElementById('chapter-poem').classList.remove('place-active');
+        document.getElementById('translation-outer').classList.remove('place-active');
+
 
         if (el) el.textContent = '';
         if (ch) ch.textContent = '';
@@ -216,7 +336,7 @@ export default function CharacterMap({ initialData }) {
             const compY = currentCompPos ? currentCompPos.y : (poem.composition?.lat != null ? Number(poem.composition.lat) : NaN);
             const recX = currentRecPos ? currentRecPos.x : (poem.receipt?.lng != null ? Number(poem.receipt.lng) : NaN);
             const recY = currentRecPos ? currentRecPos.y : (poem.receipt?.lat != null ? Number(poem.receipt.lat) : NaN);
-            
+
             const speaker = poem.composition?.speaker ?? "Unknown Sender";
             const addressee = poem.receipt?.addressee ?? "Unknown Recipient";
             const speakerGender = poem.composition?.speakerGender ?? "Unknown Gender";
@@ -240,6 +360,8 @@ export default function CharacterMap({ initialData }) {
                     speaker: poem.composition?.speaker ?? "Unknown Sender",
                     addressee: poem.receipt?.addressee ?? "Unknown Recipient",
                     messenger: poem.relationships?.messenger || "none",
+                    evidence: poem.composition?.evidence ?? "No evidence",
+                    verified: poem.composition?.verified ?? "Not written with AI",
                     x: compX, y: compY, homeX: compX, homeY: compY + 6
                 });
             }
@@ -256,6 +378,8 @@ export default function CharacterMap({ initialData }) {
                     speaker: poem.composition?.speaker ?? "Unknown Sender",
                     addressee: poem.receipt?.addressee ?? "Unknown Recipient",
                     messenger: poem.relationships?.messenger || "none",
+                    evidence: poem.receipt?.evidence ?? "No evidence",
+                    verified: poem.receipt?.verified ?? "Not written with AI",
                     x: recX, y: recY, homeX: recX, homeY: recY + 6
                 });
             }
@@ -392,9 +516,10 @@ export default function CharacterMap({ initialData }) {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
+                onClick={handleBackgroundClick}
             >
                 <defs>
-                    <marker id="arrow" viewBox="0 0 10 10" refX="21" refY="5" markerWidth={6} markerHeight={6} orient="auto-start-reverse">
+                    <marker id="arrow" viewBox="0 0 10 10" refX="15" refY="5" markerWidth={6} markerHeight={6} orient="auto-start-reverse">
                         <path d="M 0 1 L 10 5 L 0 9 z" fill="#fff" />
                     </marker>
                 </defs>
@@ -576,25 +701,49 @@ export default function CharacterMap({ initialData }) {
                         const src = simulatedNodes.find(n => n.id === link.sourceId);
                         const tgt = simulatedNodes.find(n => n.id === link.targetId);
                         if (!src || !tgt) return null;
-                        return (
-                            <line
-                                key={`link-${idx}`}
-                                x1={src.x} y1={src.y}
-                                x2={tgt.x} y2={tgt.y}
-                                stroke="#ffffff"
-                                strokeWidth={1.5}
-                                markerEnd="url(#arrow)"
-                                className="connection-line"
-                            />
+                        const isPinned = pinnedLinkId === idx;
+                        const isHovered = hoveredLinkId === idx;
+                            return (
+                                <g
+                                    key={`link-${idx}`}
+                                    onMouseOver={() => {
+                                    setHoveredLinkId(idx);
+                                    if (!pinnedLinkId) {
+                                        handleRMouseOver(link, src, tgt);
+                                    }
+                                    }}
+                                    onClick={(e) => {
+                                    e.stopPropagation(); // prevents the svg's onClick from immediately clearing it
+                                    setPinnedLinkId(isPinned ? null : idx);
+                                    handleRMouseOver(link, src, tgt); // make sure tooltip shows the clicked link's data
+                                    }}
+                                    onMouseOut={() => {
+                                    if (!pinnedLinkId) {
+                                        handleRMouseOut();
+                                        handleMouseOut(false);
+                                    }
+                                    }}
+                                >
+                                <line
+                                    key={`link-line-${idx}`}
+                                    x1={src.x} y1={src.y}
+                                    x2={tgt.x} y2={tgt.y}
+                                    stroke="#ffffff"
+                                    strokeWidth={isHovered || isPinned ? 5 : 2}
+                                    markerEnd="url(#arrow)"
+                                    className="connection-line"
+                                />
+                            </g>
                         );
                     })}
 
                     {/* Text labels */}
                     {simulatedNodes.map((node, idx) => (
-                        <foreignObject key={`label-${idx}`} x={node.x - 23} y={node.y - 46} width={46} height={40}>
+                        <foreignObject key={`label-${idx}`} x={node.x - 23} y={node.y - 46} width={46} height={40} pointerEvents={'none'}>
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'flex-end',
+                                pointerEvents: 'none',
                                 justifyContent: 'center',
                                 width: '100%',
                                 height: '100%',
@@ -604,6 +753,7 @@ export default function CharacterMap({ initialData }) {
                                 <span className="poem-node-text" style={{
                                     color: '#fff',
                                     fontSize: '7.5px',
+                                    pointerEvents: 'none',
                                     wordBreak: 'break-word',
                                     overflowWrap: 'anywhere'
                                 }}>

@@ -16,7 +16,19 @@ export async function GET(request) {
 
         const placeQuery = `
             MATCH (p:Place {name: $placeName})
+            OPTIONAL MATCH (c:Claim)-[:CLAIM_OF]->(p)
+
+            WITH p, collect({
+                chapter: c.chapter,
+                page:    c.page,
+                verified: c.verified,
+                quote:   c.quote,
+                notes:   c.notes,
+                site:    c.site
+            }) AS cleanClaims
+
             RETURN
+                cleanClaims,
                 p.name        AS name,
                 p.type        AS type,
                 p.description AS description,
@@ -43,6 +55,22 @@ export async function GET(request) {
             lat:         pr.get('lat')  != null ? toNativeTypes(pr.get('lat'))  : null,
             lng:         pr.get('lng')  != null ? toNativeTypes(pr.get('lng'))  : null,
         };
+        function toNum(v) {
+            if (v == null) return null;
+            if (typeof v === 'object' && typeof v.low === 'number' && typeof v.high === 'number') {
+                return v.high === 0 ? v.low : v.low + v.high * Math.pow(2, 32);
+            }
+            return v;
+        }
+
+        const claims = pr.get('cleanClaims').map(claim => ({
+            chapter: toNum(claim.chapter),
+            page:    toNum(claim.page),
+            verified: claim.verified ?? null,
+            quote:   claim.quote ?? null,
+            notes:   claim.notes ?? null,
+            site:    claim.site ?? null,
+        }));
 
         // ── 2. POEMS ──────────────────────────────────────────────────────────
         // TODO: confirm relationship names match your schema
@@ -129,7 +157,7 @@ export async function GET(request) {
 
 
         // ── RESPONSE ──────────────────────────────────────────────────────────
-        return new Response(JSON.stringify({ place, poems }), {
+        return new Response(JSON.stringify({ place, poems, claims }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
         });
