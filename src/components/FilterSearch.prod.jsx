@@ -28,6 +28,7 @@ const STORAGE_KEYS = {
 };
 
 const TAG_FIELD_BY_LABEL = {
+  'Included in a Run of Poems': 'in_run',
   'My Favorites': 'isFavorite',
   'Omitted By Waley': 'omitted_by_waley',
   'Omitted By Seidensticker': 'omitted_by_seidensticker',
@@ -106,7 +107,15 @@ const PoemSearch = () => {
       const stored = sessionStorage.getItem(STORAGE_KEYS.SEARCH_FILTERS);
       if (stored) {
         try {
-          return JSON.parse(stored);
+          const parsed = JSON.parse(stored);
+          delete parsed.poem_runs;
+          if (parsed?.other_tags?.options && !parsed.other_tags.options['Included in a Run of Poems']) {
+            parsed.other_tags.options = {
+              'Included in a Run of Poems': { checked: false },
+              ...parsed.other_tags.options,
+            };
+          }
+          return parsed;
         } catch (e) {
           console.error('Failed to parse stored filters:', e);
         }
@@ -230,6 +239,7 @@ const PoemSearch = () => {
       other_tags: {
         label: "Other Tags",
         options: {
+          'Included in a Run of Poems': { checked: false },
           'My Favorites': { checked: false },
           'Omitted By Waley': { checked: false },
           'Omitted By Seidensticker': { checked: false },
@@ -496,6 +506,7 @@ const PoemSearch = () => {
               chapter_title_poem: !!result.chapter_title_poem,
               morning_after_poem: !!result.morning_after_poem,
               proxy_poem: !!result.proxy_poem,
+              in_run: !!result.in_run,
               poetic_tech: Object.values(result.peotic_tech).join(""),
               genji_age: Object.values(result.genji_age).join(""),
               waley_translation: Object.values(result.waley_translation).join(""),
@@ -1115,6 +1126,21 @@ const PoemSearch = () => {
       .filter(([_, { checked }]) => checked)
       .map(([ch]) => ch);
 
+    const onlyRunPoems = !!filters.other_tags?.options?.['Included in a Run of Poems']?.checked;
+    const runPoemResults = onlyRunPoems ? results.filter(r => r.in_run) : null;
+
+    const chaptersInRunPoems = runPoemResults
+      ? new Set(runPoemResults.map(r => r.chapterNum))
+      : null;
+
+    const speakersInRunPoems = runPoemResults
+      ? new Set(runPoemResults.map(r => r.speaker_name))
+      : null;
+
+    const addresseesInRunPoems = runPoemResults
+      ? new Set(runPoemResults.map(r => r.addressee_name))
+      : null;
+
     const speakersInSelectedChapters = selectedChapters.length > 0
       ? new Set(results.filter(r => selectedChapters.includes(r.chapterNum)).map(r => r.speaker_name))
       : null;
@@ -1128,6 +1154,7 @@ const PoemSearch = () => {
     ).filter(([name, { gender }]) => {
       if (!selectedSpeakerGenders.includes(gender)) return false;
       if (speakersInSelectedChapters && !speakersInSelectedChapters.has(name)) return false;
+      if (speakersInRunPoems && !speakersInRunPoems.has(name)) return false;
       return true;
     });
 
@@ -1136,6 +1163,7 @@ const PoemSearch = () => {
     ).filter(([name, { gender }]) => {
       if (!selectedAddresseeGenders.includes(gender)) return false;
       if (addresseesInSelectedChapters && !addresseesInSelectedChapters.has(name)) return false;
+      if (addresseesInRunPoems && !addresseesInRunPoems.has(name)) return false;
       return true;
     });
 
@@ -1345,7 +1373,9 @@ const PoemSearch = () => {
             >
               <div className={styles.chapterGrid}>
                 {filterChapters(
-                  Object.keys(filters.chapterNum.options),
+                  Object.keys(filters.chapterNum.options).filter(
+                    key => !chaptersInRunPoems || chaptersInRunPoems.has(key)
+                  ),
                   searchChapter
                 ).sort((a, b) => removeLeadingZero(a) - removeLeadingZero(b)).map((key, index) => (
                   <Checkbox
