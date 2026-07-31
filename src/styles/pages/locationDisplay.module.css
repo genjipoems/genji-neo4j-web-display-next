@@ -1,0 +1,672 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sofia+Sans+Extra+Condensed:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Train+One:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Monomaniac+One:wght@400&display=swap');
+/* ── PAGE SHELL ─────────────────────────────────────────────────────────── */
+
+.locationPageContainer {
+  width: 1440px;
+  margin: 0 auto;
+  overflow-x: auto;
+  position: relative;
+  overflow-y: hidden;
+  background-color: #4B4B4B;
+  min-width: 1440px;
+}
+
+.loadingContainer,
+.errorContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  min-height: 300px;
+  font-size: 1rem;
+  margin-top: 30px;
+  color: rgb(255, 255, 255);
+  font-family: 'Lexend', sans-serif;
+}
+
+/* ── HEADER / IMAGE SECTION ─────────────────────────────────────────────── */
+
+.headerSection {
+  height: 500px;
+  width: 1440px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.fullBackgroundImage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1440px;
+  height: 500px;
+  object-fit: cover;
+  transform-origin: center bottom;
+}
+
+.locationChartContainer {
+  position: absolute;
+  top: 98px;
+  left: 53.7%;
+  width: 1253px;
+  height: 340px;
+  z-index: 2;
+  transform: translateX(-50%);
+  padding: 20px;
+  padding-top: 0;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+/* Place name — left side, mirrors where the Japanese poem sits */
+.headerContent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none; /* children opt back in */
+}
+
+.locationNameBlock {
+  display: flex;
+  flex-direction: row;
+  justify-content: left;
+  z-index: 5;
+  position: absolute;
+  top: 20px;
+  left: 35px;
+  width: 825px;
+  pointer-events: auto;
+}
+
+.backButton {
+  width: 100px;
+  font-family: 'Lexend';
+  font-weight: 700;
+  background-color: #4B4B4B;
+  color: #FFF;
+  z-index: 10;
+  margin: 10px 20px 0 0;
+  height: 50px;
+}
+
+.locationName {
+  font-family: 'Lexend';
+  font-weight: 700;
+  font-size: 64px;
+  line-height: 100%;
+  text-align: start;
+  letter-spacing: -0.02rem;
+  color: #ffffff;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+
+/* ── INFO GRID (right side, mirrors poemInfoGrid) ───────────────────────── */
+
+.locationInfoGrid {
+  position: absolute;
+  left: 950px;
+  top: 20px;
+  width: 455px;
+  height: 440px;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(20, 1fr);
+  grid-gap: 5px;
+  color: rgb(255, 255, 255);
+  pointer-events: auto;
+}
+
+.gridBox {
+  padding: 10px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Type box — top strip, full width */
+.typeBox {
+  grid-column: 1 / -1;
+  grid-row: 1 / 4;
+  background-color: #9D917E;
+  border-radius: 10px;
+  flex-direction: row;
+  gap: 12px;
+  justify-content: flex-start;
+  padding: 10px 20px;
+}
+
+.typeIndicator {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.typeLabel {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 300;
+  font-size: 10px;
+  letter-spacing: 0.1rem;
+  text-transform: uppercase;
+  color: #ffffff;
+  opacity: 0.6;
+  margin-right: 4px;
+}
+
+.typeValue {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.02rem;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+
+/* Poem count — big number like Genji's age */
+.poemCountBox {
+  grid-column: 1 / 5;
+  grid-row: 4 / 7;
+  background-color: #DBA18D;
+  border-radius: 10px;
+}
+
+.poemCountVal {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 100%;
+  letter-spacing: -0.01rem;
+  color: #ffffff;
+}
+
+.poemCountLabel {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 103%;
+  letter-spacing: 0rem;
+  text-align: center;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+/* Composed count */
+.composedCountBox {
+  grid-column: 5 / 8;
+  grid-row: 4 / 7;
+  background-color: #8CA887;
+  border-radius: 10px;
+}
+
+.composedCountVal {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 700;
+  font-size: 32px;
+  letter-spacing: -0.01rem;
+  color: #ffffff;
+}
+
+.composedCountLabel {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 600;
+  font-size: 9px;
+  letter-spacing: 0.1rem;
+  text-transform: uppercase;
+  color: #ffffff;
+  opacity: 0.7;
+  text-align: center;
+}
+
+/* Received count */
+.receivedCountBox {
+  grid-column: 8 / -1;
+  grid-row: 4 / 7;
+  background-color: #799994;
+  border-radius: 10px;
+}
+
+.receivedCountVal {
+  font-family: 'Lexend';
+  font-weight: 700;
+  font-size: 32px;
+  letter-spacing: -0.01rem;
+  color: #ffffff;
+}
+
+.receivedCountLabel {
+  font-family: 'Lexend';
+  font-weight: 600;
+  font-size: 9px;
+  letter-spacing: 0.1rem;
+  text-transform: uppercase;
+  color: #ffffff;
+  opacity: 0.7;
+  text-align: center;
+}
+
+.claimCountBox {
+  grid-column: 4 / -1;
+  grid-row: 7 / 11;
+  background-color: #436875;
+  border-radius: 20px;
+}
+
+.claimCountVal {
+  font-family: 'Train One', sans-serif;
+  font-weight: 500;
+  font-size: 56px;
+  line-height: 100%;
+  color: #ffffff;
+}
+
+.claimCountLabel {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 800;
+  font-size: 11px;
+  text-align: center;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+/* ── BODY SECTION ───────────────────────────────────────────────────────── */
+
+.bodySection {
+  width: 100%;
+  background-color: #4B4B4B;
+  padding: 0;
+  margin-top: 0;
+}
+
+.bodyContainer {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* ── LEFT: ANALYSIS PANELS ──────────────────────────────────────────────── */
+
+.analysisLeft {
+  width: 50%;
+  padding: 10px 20px 30px 20px;
+  background-color: #4B4B4B;
+  color: white;
+}
+
+.sectionHeader {
+  font-size: 12px;
+  color: #4B4B4B;
+  margin: 10px 0 20px 0;
+  text-transform: uppercase;
+  font-weight: 700;
+  line-height: 100%;
+  letter-spacing: 0.05rem;
+  font-family: 'Lexend', sans-serif;
+  text-align: left;
+}
+
+.analysisPanel {
+  margin-bottom: 5px;
+  position: relative;
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 1;
+  background-color: #4B4B4B;
+}
+
+.panelHeader h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #c0c0c0;
+  text-transform: uppercase;
+  margin: 0;
+  font-family: 'Lexend', sans-serif;
+  line-height: 10px;
+  letter-spacing: 0.05rem;
+}
+
+.panelHeaderEmpty {
+  opacity: 0.45;
+}
+
+.toggleArrow {
+  color: #888;
+  font-size: 0.8rem;
+  transition: transform 0.2s ease-out;
+}
+
+.arrowExpanded {
+  transform: rotate(180deg);
+}
+
+.arrowCollapsed {
+  transform: rotate(0);
+}
+
+.panelContent {
+  overflow: hidden;
+  visibility: visible;
+  opacity: 1;
+  height: auto;
+  max-height: 0;
+  transition: all 0.25s ease-out;
+  width: 100%;
+}
+
+.panelContent p {
+  font-family: 'Lexend', 'Noto Sans', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 130%;
+  color: #ffffff;
+  margin-bottom: 1em;
+  text-align: left;
+}
+
+.analysisLeft .panelContent a {
+  color: #ffffff;
+}
+
+.analysisLeft .panelContent a:hover,
+.analysisLeft .panelContent a:focus {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.expanded {
+  max-height: 1000px;
+  visibility: visible;
+  opacity: 1;
+  padding: 0;
+  overflow-y: auto;
+  transition:
+    max-height 0.35s ease-in,
+    opacity 0.25s ease-in,
+    padding 0.2s ease-in;
+}
+
+.expanded::-webkit-scrollbar { width: 8px; }
+.expanded::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius: 4px; }
+.expanded::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
+.expanded::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+.collapsed {
+  max-height: 0;
+  visibility: hidden;
+  opacity: 0;
+  padding: 0;
+  transition:
+    max-height 0.25s ease-out,
+    opacity 0.2s ease-out,
+    visibility 0s 0.25s,
+    padding 0.15s ease-out;
+}
+
+.detailItem {
+  margin-top: 25px;
+  padding-bottom: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detailItem h3 {
+  font-size: 16px;
+  font-family: 'Lexend', sans-serif;
+  color: #aaa;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  text-decoration: underline;
+  font-weight: 500;
+  text-align: left;
+}
+
+.detailItem p {
+  margin: 0 0 10px 0;
+}
+
+.emptyNote {
+  font-family: 'Lexend', sans-serif;
+  font-size: 14px;
+  color: rgba(255,255,255,0.4);
+  font-style: italic;
+  margin-top: 16px;
+}
+
+/* Characters */
+.claimItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.claimQuote {
+  font-family: 'Lexend', sans-serif;
+  width: 100%;
+  height: fit-content;
+  font-weight: 400;
+  font-size: 16px;
+  color: #ffffff;
+  text-align: left;
+  text-decoration: none;
+}
+
+.claimChapPage {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 400;
+  width: 100%;
+  height: fit-content;
+  font-size: 16px;
+  color: #ffffff;
+  text-align: left;
+  text-decoration: underline;
+}
+
+/* ── RIGHT: POEMS LIST ──────────────────────────────────────────────────── */
+
+.poemsRight {
+  width: 50%;
+  padding: 10px 20px 30px 20px;
+  background-color: #4B4B4B;
+}
+
+.poemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Each poem card mirrors the translation card shape */
+.poemCard {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background-color: #BFAE93;
+  border-radius: 16px;
+  overflow: hidden;
+  padding: 14px 18px;
+  text-decoration: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+
+.poemCard:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.poemCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.poemIdDisplay {
+  font-family: 'Martian Mono', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: #4B4B4B;
+  letter-spacing: 0.05rem;
+  flex-shrink: 0;
+}
+
+.poemSeason {
+  font-size: 16px;
+  margin-left: auto;
+}
+
+/* Role badges */
+.roleBadge {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.15rem;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.role_composed {
+  background-color: rgba(140, 168, 135, 0.85); /* muted green */
+}
+
+.role_received {
+  background-color: rgba(67, 104, 117, 0.85); /* teal */
+}
+
+.role_both {
+  background-color: rgba(204, 104, 61, 0.85); /* orange — stands out */
+}
+
+/* Speaker >> Addressee line */
+.poemCardMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.poemSpeaker,
+.poemAddressee {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: #4B4B4B;
+  text-transform: uppercase;
+  letter-spacing: -0.02rem;
+}
+
+.poemArrow {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: rgba(75, 75, 75, 0.5);
+}
+
+/* Japanese text on card */
+.poemJapanese {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #4B4B4B;
+  margin: 4px 0 0 0;
+  opacity: 0.8;
+}
+
+/* Translation preview on card */
+.poemTranslation {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4B4B4B;
+  margin: 2px 0 0 0;
+  opacity: 0.75;
+}
+
+.chartContainer {
+  position: absolute;
+  z-index: 20;
+  transform: translateX(-50%);
+  padding: 20px;
+  padding-top: 0px;
+  box-sizing: border-box;
+  height: 340px;
+}
+
+.AIVerified {
+  font-family: 'Lexend';
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 130%;
+  color: #ffffff;
+  margin-bottom: 1em;
+  text-align: left;
+
+}
+
+.chapterCountBar {
+  position: absolute;
+  top: 465px;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  left: 175px;
+  z-index: 3;
+}
+
+.chapterCell {
+  text-align: center;
+  font-size: 12.5px;
+  font-family: 'Monomaniac One';
+  color: white;
+  width: 20px;
+  margin-right: 2.33px;
+  line-height: 1;
+}
+
+.chapPageToggle {
+  min-height: 20px;
+  margin: 20px 0 0 0;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chapPageToggle > span:nth-child(2) {
+  white-space: nowrap;
+  flex-shrink: 0;
+}

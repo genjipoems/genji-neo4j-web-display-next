@@ -16,6 +16,9 @@ const PLURAL_TO_SING = {
   'Reply Poems': 'Reply Poem',
   'Group Poems': 'Group Poem',
   'Soliloquies': 'Soliloquy',
+  'Run Poems': 'Run',
+  'Replies to Soliloquy': 'Replies to Soliloquy',
+  'Unmatched': 'unmatched',
 };
 
 // Storage keys for sessionStorage to store the search query and filters
@@ -217,6 +220,9 @@ const PoemSearch = () => {
           'Reply Poems' : {checked: false},
           'Group Poems' : {checked: false},
           'Soliloquies' : {checked: false},
+          'Run Poems' : {checked: false},
+          'Replies to Soliloquy' : {checked: false},
+          'Unmatched' : {checked: false},
         },
       },
 
@@ -482,10 +488,9 @@ const PoemSearch = () => {
               speaker_name: Object.values(result.speaker_name).join(""),
               speaker_gender: Object.values(result.speaker_gender).join(""),
               season: Object.values(result.season).join(""),
-              poem_type:
-                typeof result.poem_type === "string"
-                  ? result.poem_type.trim()
-                  : Object.values(result.poem_type || {}).join("").trim(),
+              poem_types: Array.isArray(result.poem_types)
+                ? result.poem_types
+                : [],
               person_reference:
                 typeof result.person_reference === "string"
                   ? result.person_reference.trim().toLowerCase()
@@ -658,9 +663,10 @@ const PoemSearch = () => {
               return activeOptions.includes(result.poetic_tech);
             case "genji_age":
               return activeOptions.includes(result.genji_age);
-            case "poem_type":
+            case "poem_type": {
               const Singular = activeOptions.map(k => PLURAL_TO_SING[k] ?? k);
-              return Singular.includes(result.poem_type);
+              return Singular.some(type => result.poem_types.includes(type));
+            }
             case "human_reference": {
               return activeOptions.every((option) => {
                 if (option === 'All translators agree') {
