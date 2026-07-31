@@ -182,7 +182,8 @@ async function generalSearch(q, gender, translatorNames = [], includeRomanizatio
                 EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Character Name Poem"}) } AS character_name_poem,
                 EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Chapter Title Poem"}) } AS chapter_title_poem,
                 EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Morning After Poem"}) } AS morning_after_poem,
-                EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Proxy Poem"}) } AS proxy_poem
+                EXISTS { (p)-[:TAGGED_AS]->(:Tag {Type: "Proxy Poem"}) } AS proxy_poem,
+                EXISTS { (p)-[:IN_RUN]->(:Run) } AS in_run
             ORDER BY pnum
         `;
 
@@ -245,6 +246,7 @@ async function generalSearch(q, gender, translatorNames = [], includeRomanizatio
                     chapter_title_poem: !!record.get('chapter_title_poem'),
                     morning_after_poem: !!record.get('morning_after_poem'),
                     proxy_poem: !!record.get('proxy_poem'),
+                    in_run: !!record.get('in_run'),
                 };
             });
 
