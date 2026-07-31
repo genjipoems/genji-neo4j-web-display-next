@@ -21,6 +21,7 @@ export async function GET(request) {
             WITH p, collect({
                 chapter: c.chapter,
                 page:    c.page,
+                id: c.id,
                 verified: c.verified,
                 quote:   c.quote,
                 notes:   c.notes,
@@ -55,6 +56,7 @@ export async function GET(request) {
             lat:         pr.get('lat')  != null ? toNativeTypes(pr.get('lat'))  : null,
             lng:         pr.get('lng')  != null ? toNativeTypes(pr.get('lng'))  : null,
         };
+
         function toNum(v) {
             if (v == null) return null;
             if (typeof v === 'object' && typeof v.low === 'number' && typeof v.high === 'number') {
@@ -67,6 +69,7 @@ export async function GET(request) {
             chapter: toNum(claim.chapter),
             page:    toNum(claim.page),
             verified: claim.verified ?? null,
+            id: claim.id ?? null,
             quote:   claim.quote ?? null,
             notes:   claim.notes ?? null,
             site:    claim.site ?? null,

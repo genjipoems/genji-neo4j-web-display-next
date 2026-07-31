@@ -36,13 +36,6 @@ export default function ChapterDropdown({ value, onChange }) {
   const currentChapterName = CHAPTER_NAMES[value] ? `${value} ${CHAPTER_NAMES[value]}` : "";
   const selected = Array.isArray(value) ? value : [value].filter(Boolean);
   
-  const toggle = (num) => {
-    const next = selected.includes(num)
-      ? selected.filter(v => v !== num)
-      : [...selected, num];
-    onChange(next);
-  };
-  
   const currentDisplay = selected.length === 0
       ? "Select Chapters"
       : selected.length === 1
@@ -62,6 +55,21 @@ export default function ChapterDropdown({ value, onChange }) {
     chapter.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     chapter.number.includes(searchTerm)
   );
+  
+  const filteredNumbers = filteredChapters.map(c => c.number);
+  const allFilteredSelected = filteredNumbers.length > 0 &&
+    filteredNumbers.every(num => selected.includes(num));
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      // Deselect only the ones currently visible
+      onChange(selected.filter(num => !filteredNumbers.includes(num)));
+    } else {
+      // Select all currently visible, keeping existing selections outside the filter
+      const merged = new Set([...selected, ...filteredNumbers]);
+      onChange(Array.from(merged));
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -97,6 +105,19 @@ export default function ChapterDropdown({ value, onChange }) {
       </div>
 
       <div className={`${styles.panelContent} ${isDropdownOpen ? styles.expanded : ''}`}>
+        {filteredChapters.length > 0 && (
+          <div className={styles.characterItem}>
+            <button
+              type="button"
+              className={styles.characterButton}
+              onClick={toggleSelectAll}
+              style={{ fontWeight: 600, width: '100%', textAlign: 'left' }}
+            >
+              {allFilteredSelected ? 'Deselect All' : 'Select All'}
+              {searchTerm ? ` (${filteredNumbers.length} shown)` : ''}
+            </button>
+          </div>
+        )}
         <div className={styles.scrollableList}>
           {filteredChapters.length > 0 ? (
             filteredChapters.map((chapter) => (
@@ -105,7 +126,12 @@ export default function ChapterDropdown({ value, onChange }) {
                   <input
                     type="checkbox"
                     checked={selected.includes(chapter.number)}
-                    onChange={() => toggle(chapter.number)}
+                    onChange={() => {
+                        const next = selected.includes(chapter.number)
+                            ? selected.filter(v => v !== chapter.number)
+                            : [...selected, chapter.number];
+                        onChange(next);
+                    }}
                   />
                   {chapter.number}: {chapter.name} ({chapter.kanji})
                 </label>

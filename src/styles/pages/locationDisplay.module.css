@@ -77,11 +77,26 @@
 }
 
 .locationNameBlock {
+  display: flex;
+  flex-direction: row;
+  justify-content: left;
+  z-index: 5;
   position: absolute;
   top: 20px;
-  left: 110px;
+  left: 35px;
   width: 825px;
   pointer-events: auto;
+}
+
+.backButton {
+  width: 100px;
+  font-family: 'Lexend';
+  font-weight: 700;
+  background-color: #4B4B4B;
+  color: #FFF;
+  z-index: 10;
+  margin: 10px 20px 0 0;
+  height: 50px;
 }
 
 .locationName {
@@ -638,4 +653,20 @@
   width: 20px;
   margin-right: 2.33px;
   line-height: 1;
+}
+
+.chapPageToggle {
+  min-height: 20px;
+  margin: 20px 0 0 0;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chapPageToggle > span:nth-child(2) {
+  white-space: nowrap;
+  flex-shrink: 0;
 }

@@ -2,10 +2,18 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import '../styles/pages/locationMap.css';
+import { useAuth } from '../hooks/useAuth';
 
 export default function CharacterMap({ initialData }) {
+    const { isAdmin } = useAuth();
     const places = initialData?.places || [];
+    const dimPlaces = initialData?.dimPlaces || [];
     const rawPoems = initialData?.poems ? Object.values(initialData.poems) : [];
+    const rawDimPoems = initialData?.dimPoems ? Object.values(initialData.dimPoems) : [];
+    const allPlacesForRender = [
+        ...places.map(p => ({ ...p, dim: false })),
+        ...dimPlaces.map(p => ({ ...p, dim: true })),
+    ];
     const [lastDropInfo, setLastDropInfo] = useState(null); //devtool
     const [simulatedNodes, setSimulatedNodes] = useState([]);
     const [simulatedLinks, setSimulatedLinks] = useState([]);
@@ -25,14 +33,15 @@ export default function CharacterMap({ initialData }) {
 
     // Initialize place positions from database
     useEffect(() => {
-        if (places.length > 0) {
+        const allPlaces = [...places, ...dimPlaces];
+        if (allPlaces.length > 0) {
             const initial = {};
-            places.forEach(place => {
+            allPlaces.forEach(place => {
                 initial[place.name] = { x: Number(place.lng), y: Number(place.lat) };
             });
             setPlacePositions(initial);
         }
-    }, [initialData?.places]);
+    }, [initialData?.places, initialData?.dimPlaces]);
 
     const handleMouseOver = (node) => {
         if (pinnedLinkId !== null) return;
@@ -145,40 +154,51 @@ export default function CharacterMap({ initialData }) {
     const handleRMouseOver = (link, src, tgt) => {
         hoveredRRef.current = link.idx;
 
-        const el = document.getElementById('translation-display')
+        const el = document.getElementById('translation-display');
+
+        const srcToggleHtml = isAdmin ? `
+            <button
+                role="switch"
+                aria-checked="${src.verified === true}"
+                class="toggle-switch ${src.verified === true ? 'on' : ''}"
+                data-pnum="${src.pnum}"
+                data-field="src"
+            >
+                <span class="toggle-thumb"></span>
+            </button>
+        ` : '';
+
+        const tgtToggleHtml = isAdmin ? `
+            <button
+                role="switch"
+                aria-checked="${tgt.verified === true}"
+                class="toggle-switch ${tgt.verified === true ? 'on' : ''}"
+                data-pnum="${tgt.pnum}"
+                data-field="tgt"
+            >
+                <span class="toggle-thumb"></span>
+            </button>
+        ` : '';
+
         el.innerHTML = `
         <div class="evidence-block">
             <div class="comp-block">
                 <p>Composition evidence: ${src.evidence}</p>
                 <label class="switch-row">
                 AI verified?
-                <button
-                    role="switch"
-                    aria-checked="${src.verified === true}"
-                    class="toggle-switch ${src.verified === true ? 'on' : ''}"
-                    data-pnum="${src.pnum}"
-                    data-field="src"
-                >
-                    <span class="toggle-thumb"></span>
-                </button>
+                ${srcToggleHtml}
+                </label>
             </div>
             <div class="rec-block">
                 <p>Receipt evidence: ${tgt.evidence}</p>
                 <label class="switch-row">
                 AI verified?
-                <button
-                    role="switch"
-                    aria-checked="${tgt.verified === true}"
-                    class="toggle-switch ${tgt.verified === true ? 'on' : ''}"
-                    data-pnum="${tgt.pnum}"
-                    data-field="tgt"
-                >
-                    <span class="toggle-thumb"></span>
-                </button>
+                ${tgtToggleHtml}
+                </label>
             </div>
         </div>
         `;
-
+    
         el.querySelectorAll('.toggle-switch').forEach((btn) => {
             btn.addEventListener('click', async () => {
                 const pnum = btn.dataset.pnum;
@@ -318,13 +338,17 @@ export default function CharacterMap({ initialData }) {
 
     // Physics simulation
     useEffect(() => {
-        if (rawPoems.length === 0 || places.length === 0 || Object.keys(placePositions).length === 0) return;
+        if ((rawPoems.length === 0 && rawDimPoems.length === 0) || places.length === 0 || Object.keys(placePositions).length === 0) return;
 
         let nodes = [];
         let links = [];
 
-        rawPoems.forEach((poem, index) => {
-            // 1. Direct, lightning-fast key lookups using your new clean API fields
+        const poemsToProcess = [
+            ...rawPoems.map(poem => ({ poem, dim: false })),
+            ...rawDimPoems.map(poem => ({ poem, dim: true })),
+        ];
+
+        poemsToProcess.forEach(({poem, dim}, index) => {
             const compPlaceName = poem.composition?.placeName;
             const recPlaceName = poem.receipt?.placeName;
 
@@ -351,6 +375,7 @@ export default function CharacterMap({ initialData }) {
                 nodes.push({
                     id: compId, pnum: poem.pnum, type: 'sender',
                     gender: speakerGender, label: speaker,
+                    dim,
                     groupPoems: poem.relationships?.groupPoems || [],
                     replyPoems: poem.relationships?.replyPoems || [],
                     repliesToThis: poem.relationships?.repliesToThis || [],
@@ -369,6 +394,7 @@ export default function CharacterMap({ initialData }) {
                 nodes.push({
                     id: recId, pnum: poem.pnum, type: 'receiver',
                     gender: addresseeGender, label: addressee,
+                    dim,
                     groupPoems: poem.relationships?.groupPoems || [],
                     replyPoems: poem.relationships?.replyPoems || [],
                     repliesToThis: poem.relationships?.repliesToThis || [],
@@ -383,7 +409,7 @@ export default function CharacterMap({ initialData }) {
                     x: recX, y: recY, homeX: recX, homeY: recY + 6
                 });
             }
-            if (validComp && validRec) links.push({ sourceId: compId, targetId: recId });
+            if (validComp && validRec) links.push({ sourceId: compId, targetId: recId, dim });
         });
 
         const iterations = 300;
@@ -494,7 +520,7 @@ export default function CharacterMap({ initialData }) {
         }
         setSimulatedNodes(nodes);
         setSimulatedLinks(links);
-    }, [initialData?.poems, initialData?.places, placePositions]);
+    }, [initialData?.poems, initialData?.dimPoems, initialData?.places, initialData.dimPlaces, placePositions]);
 
     const placeColor = (type) => {
         if (type === "fictional with evidence") return "#BFAE93";
@@ -694,6 +720,23 @@ export default function CharacterMap({ initialData }) {
                                     </div>
                                 </div>
                             </foreignObject>
+                            <rect
+                                x={-400} y={1350}
+                                width={1200} height={200}
+                                fill="none"
+                                stroke="#DFD6C8"
+                                strokeWidth={2}
+                                rx={8}
+                                strokeDasharray={"8 6"}
+                                opacity={'50%'}
+                            />
+                            <foreignObject x={-400} y={1325} width={250} height={20}>
+                                <div style={{textAlign: "left"}}>
+                                    <div style={{color: "white", fontFamily: "Lexend"}}>
+                                        {"Kujō Avenue"}
+                                    </div>
+                                </div>
+                            </foreignObject>
                         </g>
                     }
                     {/* 1. LINKS */}
@@ -730,6 +773,7 @@ export default function CharacterMap({ initialData }) {
                                     x2={tgt.x} y2={tgt.y}
                                     stroke="#ffffff"
                                     strokeWidth={isHovered || isPinned ? 5 : 2}
+                                    opacity={link.dim ? 0.05 : .3}
                                     markerEnd="url(#arrow)"
                                     className="connection-line"
                                 />
@@ -753,6 +797,7 @@ export default function CharacterMap({ initialData }) {
                                 <span className="poem-node-text" style={{
                                     color: '#fff',
                                     fontSize: '7.5px',
+                                    opacity: node.dim ? 0.2 : 1,
                                     pointerEvents: 'none',
                                     wordBreak: 'break-word',
                                     overflowWrap: 'anywhere'
@@ -774,6 +819,7 @@ export default function CharacterMap({ initialData }) {
                             fill={node.gender === 'female' ? '#B03F2E' : '#9CBAB6'}
                             stroke='#252525'
                             strokeWidth={1.5}
+                            opacity={node.dim ? 0.3 : 1}
                             style={{ cursor: 'pointer' }}
                             onMouseOver={() => handleMouseOver(node)}
                             onMouseOut={handleMouseOut}
@@ -782,8 +828,7 @@ export default function CharacterMap({ initialData }) {
                     ))}
 
                     {/* 2. PLACE RECTANGLES */}
-                    {places.map((place, idx) => {
-                        console.log('place object:', place);
+                    {allPlacesForRender.map((place, idx) => {
                         const pos = placePositions[place.name];
                         if (!pos) return null;
                         return (
@@ -792,6 +837,7 @@ export default function CharacterMap({ initialData }) {
                                 id={`place-${place.name}`}
                                 transform={`translate(${pos.x}, ${pos.y})`}
                                 className='place-rect'
+                                opacity={place.dim ? 0.3 : 1}
                                 onMouseOver={() => handlePlaceMouseOver(place)}
                                 onMouseOut={handlePlaceMouseOut}
                                 onMouseDown={(e) => {
@@ -803,7 +849,7 @@ export default function CharacterMap({ initialData }) {
                                     if (hasDraggedRef.current) return;
                                     window.location.href = `/location-page/${encodeURIComponent(place.name)}`;
                                 }}
-                                >
+                            >
                                 <rect
                                     x={-65} y={-20}
                                     width={130} height={40}

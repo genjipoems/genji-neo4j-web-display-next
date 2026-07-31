@@ -3,7 +3,9 @@ import React, { useState, useEffect } from 'react';
 import styles from '../styles/pages/locationDisplay.module.css';
 import FormatContent from './FormatText.prod';
 import '../styles/pages/locationMap.css';
+import { useAuth } from '../hooks/useAuth';
 import { Bar } from 'react-chartjs-2';
+import { useRouter } from 'next/navigation';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -16,29 +18,14 @@ const placeTypeColor = (type) => {
     return '#9c9c9c';
 };
 
-const handleClaimVerifyToggle = async (claimId, currentlyVerified) => {
-    const nextVerified = !currentlyVerified;
-
-    setState(prev => ({
-        ...prev,
-        claims: prev.claims.map(c => c.id === claimId ? { ...c, verified: nextVerified } : c)
-    }));
-
-    try {
-        const res = await fetch(`/api/neo4j_driver/claims/${claimId}/status`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ verified: nextVerified }),
-        });
-        if (!res.ok) throw new Error('Update failed');
-    } catch (err) {
-        setState(prev => ({
-            ...prev,
-            claims: prev.claims.map(c => c.id === claimId ? { ...c, verified: currentlyVerified } : c)
-        }));
-        console.error(err);
-    }
-};
+export function BackButton() {
+    const router = useRouter();
+    return (
+        <button className={styles.backButton} onClick={() => router.push('/poem-map')}>
+            ← Back to Map
+        </button>
+    );
+}
 
 const RoleBadge = ({ role }) => {
     const labels = {
@@ -131,6 +118,7 @@ const LocationChapterGraph = ({ poems }) => {
     );
 };
 const LocationDisplay = ({ locationData }) => {
+    const { isAdmin } = useAuth();
     const { name } = locationData;
 
     const [state, setState] = useState({
@@ -140,6 +128,53 @@ const LocationDisplay = ({ locationData }) => {
         isLoading: true,
         error: null
     });
+    const handleClaimVerifyToggle = async (claimId, currentlyVerified) => {
+        const nextVerified = !currentlyVerified;
+
+        setState(prev => ({
+            ...prev,
+            claims: prev.claims.map(c => c.id === claimId ? { ...c, verified: nextVerified } : c)
+        }));
+
+        try {
+            const res = await fetch(`/api/neo4j_driver/claims/${claimId}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ verified: nextVerified }),
+            });
+            if (!res.ok) throw new Error('Update failed');
+        } catch (err) {
+            setState(prev => ({
+                ...prev,
+                claims: prev.claims.map(c => c.id === claimId ? { ...c, verified: currentlyVerified } : c)
+            }));
+            console.error(err);
+        }
+    };
+
+    const handleDescriptionVerifyToggle = async (placeName, currentlyVerified) => {
+        const nextVerified = !currentlyVerified;
+
+        setState(prev => ({
+            ...prev,
+            place: { ...prev.place, descriptionVerified: nextVerified }
+        }));
+
+        try {
+            const res = await fetch(`/api/neo4j_driver/place/${encodeURIComponent(placeName)}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ verified: nextVerified }),
+            });
+            if (!res.ok) throw new Error('Update failed');
+        } catch (err) {
+            setState(prev => ({
+                ...prev,
+                place: { ...prev.place, descriptionVerified: currentlyVerified }
+            }));
+            console.error(err);
+        }
+    };
 
     const [expandedPanels, setExpandedPanels] = useState({
         description: true,
@@ -255,6 +290,7 @@ const LocationDisplay = ({ locationData }) => {
                 </div>
                 <div className={styles.headerContent}>
                     <div className={styles.locationNameBlock}>
+                        {BackButton()}
                         <h1 className={styles.locationName}>{place.name}</h1>
                     </div>
 
@@ -320,13 +356,24 @@ const LocationDisplay = ({ locationData }) => {
                                     ▼
                                 </div>
                             </div>
-                            <div className={`${styles.AIVerified}`}>
-                                {place.descriptionVerified
-                                    ? <p className={styles.emptyNote}>AI generated and human verified</p>
-                                    : <p className={styles.emptyNote}>AI generated</p>
-                                }
-                            </div>
                             <div className={`${styles.panelContent} ${expandedPanels.description ? styles.expanded : styles.collapsed}`}>
+                                <div style={{display: 'flex', flexDirection: 'row', margin: '20px 0 0 0', justifyContent: 'flex-end', gap: '12px'}}>
+                                    <span>{place.descriptionVerified ? 'AI verified' : 'AI generated'}</span>
+                                    {isAdmin && (
+                                        <button
+                                            role="switch"
+                                            aria-checked={place.descriptionVerified === true}
+                                            className={`toggle-switch ${place.descriptionVerified === true ? 'on' : ''}`}
+                                            onClick={() => {
+                                                console.log('clicked description:', place);
+                                                handleDescriptionVerifyToggle(place.name, place.descriptionVerified);
+                                            }}
+                                            >
+                                            <span className="toggle-thumb"></span>
+                                        </button>
+                                    )}
+                                </div>
+
                                 {place.description
                                     ? <FormatContent content={place.description} />
                                     : <p className={styles.emptyNote}>No description yet.</p>
@@ -372,17 +419,25 @@ const LocationDisplay = ({ locationData }) => {
                                 <div className={`${styles.panelContent} ${expandedPanels.claims ? styles.expanded : styles.collapsed}`}>
                                     {claims.map((claim, idx) => (
                                         <div key={claim.id ?? idx} className={styles.claimItem}>
-                                            <span className={styles.claimChapPage}>
-                                                {`CHAPTER ${claim.chapter},  PAGE ${claim.page}`}
-                                            </span>
-                                            <button
-                                                role="switch"
-                                                aria-checked={claim.verified === true}
-                                                className={`toggle-switch ${claim.verified === true ? 'on' : ''}`}
-                                                onClick={() => handleClaimVerifyToggle(claim.id, claim.verified)}
-                                            >
-                                                <span className="toggle-thumb"></span>
-                                            </button>
+                                            <div className={styles.chapPageToggle}>
+                                                <span className={styles.claimChapPage}>
+                                                    {`CHAPTER ${claim.chapter},  PAGE ${claim.page}`}
+                                                </span>
+                                                <span>{claim.verified ? 'AI verified' : 'AI generated'}</span>
+                                                {isAdmin && (
+                                                    <button
+                                                        role="switch"
+                                                        aria-checked={claim.verified === true}
+                                                        className={`toggle-switch ${claim.verified === true ? 'on' : ''}`}
+                                                        onClick={() => {
+                                                            console.log('clicked claim:', claim.id, claim);
+                                                            handleClaimVerifyToggle(claim.id, claim.verified);
+                                                        }}
+                                                        >
+                                                        <span className="toggle-thumb"></span>
+                                                    </button>
+                                                )}
+                                            </div>
                                             <span className={styles.claimQuote}>
                                                 {claim.quote ?? 'Untitled claim'}
                                             </span>

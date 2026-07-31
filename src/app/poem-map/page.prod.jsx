@@ -7,10 +7,36 @@ import ChapterDropdown from '../../components/ChapterDropdown.prod.jsx';
 import LocationDropdown from '../../components/LocationDropdown.prod.jsx';
 
 export default function MapPage() {
-    const [selectedChapters, setSelectedChapters] = useState([]);
-    const [selectedLocations, setSelectedLocations] = useState([]);
     const [mapData, setMapData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    const [selectedLocations, setSelectedLocations] = useState(() => {
+        if (typeof window === 'undefined') return [];
+        try {
+            const saved = sessionStorage.getItem('locations_selected');
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
+
+    useEffect(() => {
+        sessionStorage.setItem('locations_selected', JSON.stringify(selectedLocations));
+    }, [selectedLocations]);
+
+    const [selectedChapters, setSelectedChapters] = useState(() => {
+        if (typeof window === 'undefined') return [];
+        try {
+            const saved = sessionStorage.getItem('chapters_selected');
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
+
+    useEffect(() => {
+        sessionStorage.setItem('chapters_selected', JSON.stringify(selectedChapters));
+    }, [selectedChapters]);
 
     const legendItems = [
         {color: '#CC683D', label: 'PROJECTED'},
@@ -34,7 +60,7 @@ export default function MapPage() {
                     )
                 );
 
-                const merged = { places: [], poems: {} };
+                const merged = { places: [], dimPlaces: [], poems: {}, dimPoems: {} };
                 const seenPlaces = new Set();
 
                 results.forEach(data => {
@@ -47,6 +73,8 @@ export default function MapPage() {
                                 locationsSet.has(poem.receipt?.placeName);
                             if (isMatch) {
                                 merged.poems[pnum] = poem;
+                            } else {
+                                merged.dimPoems[pnum] = poem;
                             }
                         });
                     }
@@ -54,7 +82,11 @@ export default function MapPage() {
                     data.places?.forEach(place => {
                         if (!seenPlaces.has(place.name)) {
                             seenPlaces.add(place.name);
-                            merged.places.push(place);
+                            if (locationsSet.size === 0 || locationsSet.has(place.name)) {
+                                merged.places.push(place);
+                            } else {
+                                merged.dimPlaces.push(place);
+                            }
                         }
                     });
                 });

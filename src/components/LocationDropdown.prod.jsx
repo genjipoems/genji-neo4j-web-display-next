@@ -192,7 +192,12 @@ export default function LocationDropdown({ value, onChange }) {
                   <input
                     type="checkbox"
                     checked={selected.includes(name)}
-                    onChange={() => toggle(name)}
+                    onChange={() => {
+                        const next = selected.includes(name)
+                            ? selected.filter(v => v !== name)
+                            : [...selected, name];
+                        onChange(next);
+                    }}
                   />
                   {name}
                 </label>

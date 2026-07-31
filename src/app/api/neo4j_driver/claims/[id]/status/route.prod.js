@@ -1,4 +1,4 @@
-const { getSession } = require('../../../route.prod');
+const { getSession } = require('../../../route.prod.js');
 const { NextResponse } = require('next/server');
 
 export async function PATCH(req, { params }) {
