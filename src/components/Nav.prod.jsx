@@ -79,6 +79,13 @@ const Navigation = () => {
                         >
                             chapters
                         </Link>
+                        {/* Poem Location Map */}
+                        <Link 
+                            href="/poem-map" 
+                            className={isActive('/poem-map') ? styles.active : ''}
+                        >
+                            poem map
+                        </Link>
 
                         {/* More Dropdown */}
                         <MoreDropDown />
