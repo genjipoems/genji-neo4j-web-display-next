@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import styles from '../styles/pages/chapterProfile.module.css'; // Reusing your existing CSS
+import styles from '../styles/pages/chapterProfile.module.css';
 
 const CHAPTER_NAMES = {
   '01': 'Kiritsubo', '02': 'Hahakigi', '03': 'Utsusemi', '04': 'Yūgao', '05': 'Wakamurasaki', 
@@ -27,12 +27,11 @@ const CHAPTER_KANJI = {
   '45': '橋姫', '46': '椎本', '47': '総角', '48': '早蕨', '49': '宿木', '50': '東屋', '51': '浮舟', '52': '蜻蛉', '53': '手習', '54': '夢浮橋'
 };
 
-export default function ChapterDropdown({ value, onChange }) {
+export default function ChapterDropdown({ value, onChange, allowedKeys = null }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const searchInputRef = useRef(null);
 
-  // Get current text display based on the active controlled value prop
   const currentChapterName = CHAPTER_NAMES[value] ? `${value} ${CHAPTER_NAMES[value]}` : "";
   const selected = Array.isArray(value) ? value : [value].filter(Boolean);
   
@@ -42,31 +41,42 @@ export default function ChapterDropdown({ value, onChange }) {
       ? `${selected[0]} ${CHAPTER_NAMES[selected[0]]}`
       : `${selected.length} chapters selected`;
 
-  // Map data schema
-  const allChapters = Object.keys(CHAPTER_NAMES)
-  .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
-  .map((num) => ({
-    number: num,
-    name: CHAPTER_NAMES[num],
-    kanji: CHAPTER_KANJI[num]
-  }));
+  const isAllowed = (chapterNum) => allowedKeys === null || allowedKeys.has(chapterNum);
 
-  const filteredChapters = allChapters.filter(chapter => 
-    chapter.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    chapter.number.includes(searchTerm)
-  );
-  
-  const filteredNumbers = filteredChapters.map(c => c.number);
-  const allFilteredSelected = filteredNumbers.length > 0 &&
-    filteredNumbers.every(num => selected.includes(num));
+  const allChapters = Object.keys(CHAPTER_NAMES)
+    .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
+    .map((num) => ({
+      number: num,
+      name: CHAPTER_NAMES[num],
+      kanji: CHAPTER_KANJI[num]
+    }));
+
+  const filteredChapters = allChapters
+    .filter(chapter => 
+      chapter.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      chapter.number.includes(searchTerm)
+    )
+    // allowed chapters float to the top; original chapter order preserved within each group
+    .sort((a, b) => {
+      const aAllowed = isAllowed(a.number);
+      const bAllowed = isAllowed(b.number);
+      if (aAllowed !== bAllowed) return aAllowed ? -1 : 1;
+      return parseInt(a.number, 10) - parseInt(b.number, 10);
+    });
+
+  // "Select All" only ever acts on allowed, currently-visible chapters —
+  // selecting a greyed-out chapter isn't something the button should do.
+  const selectableNumbers = filteredChapters
+    .filter(c => isAllowed(c.number))
+    .map(c => c.number);
+  const allSelectableSelected = selectableNumbers.length > 0 &&
+    selectableNumbers.every(num => selected.includes(num));
 
   const toggleSelectAll = () => {
-    if (allFilteredSelected) {
-      // Deselect only the ones currently visible
-      onChange(selected.filter(num => !filteredNumbers.includes(num)));
+    if (allSelectableSelected) {
+      onChange(selected.filter(num => !selectableNumbers.includes(num)));
     } else {
-      // Select all currently visible, keeping existing selections outside the filter
-      const merged = new Set([...selected, ...filteredNumbers]);
+      const merged = new Set([...selected, ...selectableNumbers]);
       onChange(Array.from(merged));
     }
   };
@@ -113,30 +123,43 @@ export default function ChapterDropdown({ value, onChange }) {
               onClick={toggleSelectAll}
               style={{ fontWeight: 600, width: '100%', textAlign: 'left' }}
             >
-              {allFilteredSelected ? 'Deselect All' : 'Select All'}
-              {searchTerm ? ` (${filteredNumbers.length} shown)` : ''}
+              {allSelectableSelected ? 'Deselect All' : 'Select All'}
+              {searchTerm ? ` (${selectableNumbers.length} shown)` : ''}
             </button>
           </div>
         )}
         <div className={styles.scrollableList}>
           {filteredChapters.length > 0 ? (
-            filteredChapters.map((chapter) => (
-              <div key={chapter.number} className={styles.characterItem}>
-                <label className={styles.characterButton} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(chapter.number)}
-                    onChange={() => {
-                        const next = selected.includes(chapter.number)
-                            ? selected.filter(v => v !== chapter.number)
-                            : [...selected, chapter.number];
-                        onChange(next);
+            filteredChapters.map((chapter) => {
+              const allowed = isAllowed(chapter.number);
+              return (
+                <div key={chapter.number} className={styles.characterItem}>
+                  <label
+                    className={styles.characterButton}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      opacity: allowed ? 1 : 0.4,
+                      cursor: allowed ? 'pointer' : 'not-allowed',
                     }}
-                  />
-                  {chapter.number}: {chapter.name} ({chapter.kanji})
-                </label>
-              </div>
-            ))
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(chapter.number)}
+                      disabled={!allowed}
+                      onChange={() => {
+                          const next = selected.includes(chapter.number)
+                              ? selected.filter(v => v !== chapter.number)
+                              : [...selected, chapter.number];
+                          onChange(next);
+                      }}
+                    />
+                    {chapter.number}: {chapter.name} ({chapter.kanji})
+                  </label>
+                </div>
+              );
+            })
           ) : (
             <div className={styles.noResults}>No Chapters Found</div>
           )}

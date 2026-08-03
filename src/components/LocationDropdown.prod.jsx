@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import styles from '../styles/pages/chapterProfile.module.css'; // Reusing your existing CSS
+import styles from '../styles/pages/chapterProfile.module.css';
 
 const LOCATION_NAMES = [
   'The Seiryōden',
@@ -120,25 +120,18 @@ const LOCATION_NAMES = [
   'Koremitsu\'s residence'
 ];
 
-export default function LocationDropdown({ value, onChange }) {
+export default function LocationDropdown({ value, onChange, allowedKeys = null }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const searchInputRef = useRef(null);
 
   const selected = Array.isArray(value) ? value : [value].filter(Boolean);
 
-  const toggle = (name) => {
-    const next = selected.includes(name)
-      ? selected.filter(v => v !== name)
-      : [...selected, name];
-    onChange(next);
-  };
-
-    const normalize = (str) =>
+  const normalize = (str) =>
     str
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
 
   const currentDisplay = selected.length === 0
       ? "Select Locations"
@@ -146,9 +139,31 @@ export default function LocationDropdown({ value, onChange }) {
       ? selected[0]
       : `${selected.length} places selected`;
 
-  const filteredLocations = LOCATION_NAMES.filter(name =>
-    normalize(name).toLowerCase().includes(normalize(searchTerm).toLowerCase())
-  );
+  const isAllowed = (name) => allowedKeys === null || allowedKeys.has(name);
+
+  const filteredLocations = LOCATION_NAMES
+    .filter(name => normalize(name).includes(normalize(searchTerm)))
+    // allowed locations float to the top; alphabetical within each group
+    .sort((a, b) => {
+      const aAllowed = isAllowed(a);
+      const bAllowed = isAllowed(b);
+      if (aAllowed !== bAllowed) return aAllowed ? -1 : 1;
+      return a.localeCompare(b);
+    });
+
+  // "Select All" only acts on allowed, currently-visible locations
+  const selectableNames = filteredLocations.filter(isAllowed);
+  const allSelectableSelected = selectableNames.length > 0 &&
+    selectableNames.every(name => selected.includes(name));
+
+  const toggleSelectAll = () => {
+    if (allSelectableSelected) {
+      onChange(selected.filter(name => !selectableNames.includes(name)));
+    } else {
+      const merged = new Set([...selected, ...selectableNames]);
+      onChange(Array.from(merged));
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -184,25 +199,51 @@ export default function LocationDropdown({ value, onChange }) {
       </div>
 
       <div className={`${styles.panelContent} ${isDropdownOpen ? styles.expanded : ''}`}>
+        {filteredLocations.length > 0 && (
+          <div className={styles.characterItem}>
+            <button
+              type="button"
+              className={styles.characterButton}
+              onClick={toggleSelectAll}
+              style={{ fontWeight: 600, width: '100%', textAlign: 'left' }}
+            >
+              {allSelectableSelected ? 'Deselect All' : 'Select All'}
+              {searchTerm ? ` (${selectableNames.length} shown)` : ''}
+            </button>
+          </div>
+        )}
         <div className={styles.scrollableList}>
           {filteredLocations.length > 0 ? (
-            filteredLocations.map((name) => (
-              <div key={name} className={styles.characterItem}>
-                <label className={styles.characterButton} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(name)}
-                    onChange={() => {
-                        const next = selected.includes(name)
-                            ? selected.filter(v => v !== name)
-                            : [...selected, name];
-                        onChange(next);
+            filteredLocations.map((name) => {
+              const allowed = isAllowed(name);
+              return (
+                <div key={name} className={styles.characterItem}>
+                  <label
+                    className={styles.characterButton}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      opacity: allowed ? 1 : 0.4,
+                      cursor: allowed ? 'pointer' : 'not-allowed',
                     }}
-                  />
-                  {name}
-                </label>
-              </div>
-            ))
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(name)}
+                      disabled={!allowed}
+                      onChange={() => {
+                          const next = selected.includes(name)
+                              ? selected.filter(v => v !== name)
+                              : [...selected, name];
+                          onChange(next);
+                      }}
+                    />
+                    {name}
+                  </label>
+                </div>
+              );
+            })
           ) : (
             <div className={styles.noResults}>No Locations Found</div>
           )}
