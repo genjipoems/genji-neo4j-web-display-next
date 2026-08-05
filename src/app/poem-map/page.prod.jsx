@@ -6,10 +6,7 @@ import ChapterDropdown from '../../components/ChapterDropdown.prod.jsx';
 import LocationDropdown from '../../components/LocationDropdown.prod.jsx';
 import SpeakerDropdown from '../../components/SpeakerDropdown.prod.jsx';
 import AddresseeDropdown from '../../components/AddresseeDropdown.prod.jsx';
-
-const ALL_CHAPTER_NUMS = Array.from({ length: 54 }, (_, i) =>
-    (i + 1).toString().padStart(2, '0')
-);
+import TranslatorDropdown from '../../components/TranslatorDropdown.prod.jsx';
 
 function useStoredArray(key) {
     const [value, setValue] = useState([]); // matches SSR; hydrate after mount
@@ -39,6 +36,7 @@ export default function MapPage() {
     const [selectedLocations, setSelectedLocations] = useStoredArray('locations_selected');
     const [selectedSpeakers, setSelectedSpeakers] = useStoredArray('speakers_selected');
     const [selectedAddressees, setSelectedAddressees] = useStoredArray('addressees_selected');
+    const [selectedTranslator, setSelectedTranslator] = useState('washburn');
     const [keyword, setKeyword] = useState('');
 
     // Fetch every chapter once via the existing per-chapter route, merge into
@@ -57,31 +55,23 @@ export default function MapPage() {
     
     useEffect(() => {
         setIsLoading(true);
-        Promise.all(
-            ALL_CHAPTER_NUMS.map(chapter =>
-                fetch(`/api/spaces-location?chapter=${chapter}`).then(r => r.json())
-            )
-        )
-            .then(results => {
+        fetch('/api/spaces-location/translators')
+            .then(r => r.json())
+            .then(data => {
                 const placesByName = new Map();
                 const poems = [];
 
-                results.forEach((data, idx) => {
-                    const chapterNum = ALL_CHAPTER_NUMS[idx];
+                (data.places || []).forEach(place => {
+                    if (place.name && !placesByName.has(place.name)) {
+                        placesByName.set(place.name, place);
+                    }
+                });
 
-                    (data.places || []).forEach(place => {
-                        if (place.name && !placesByName.has(place.name)) {
-                            placesByName.set(place.name, place);
-                        }
-                    });
-
-                    Object.values(data.poems || {}).forEach(poem => {
-                        poems.push({
-                            ...poem,
-                            chapterNum,
-                            speaker_name: poem.composition?.speaker || "",
-                            addressee_name: poem.receipt?.addressee || "",
-                        });
+                Object.values(data.poems || {}).forEach(poem => {
+                    poems.push({
+                        ...poem,
+                        speaker_name: poem.composition?.speaker || "",
+                        addressee_name: poem.receipt?.addressee || "",
                     });
                 });
 
@@ -92,7 +82,6 @@ export default function MapPage() {
             .finally(() => setIsLoading(false));
     }, []);
 
-    // --- per-dimension match helpers ---
     const matchesChapter = (poem) =>
         selectedChapters.length === 0 || selectedChapters.includes(poem.chapterNum);
 
@@ -112,7 +101,8 @@ export default function MapPage() {
     const matchesKeyword = (poem) => {
         if (!keyword.trim()) return true;
         const k = keyword.toLowerCase();
-        const text = (poem.composition?.washburn || poem.receipt?.washburn || '').toLowerCase();
+        console.log('selectedTranslator value + type:', selectedTranslator, typeof selectedTranslator);
+        const text = (poem.composition?.[selectedTranslator] || poem.receipt?.[selectedTranslator] || '').toLowerCase();
         return text.includes(k);
     };
 
@@ -218,7 +208,7 @@ export default function MapPage() {
             <aside style={{ width: '350px', flexShrink: 0 }}>
                 <input
                     type="text"
-                    placeholder="Search poem translation..."
+                    placeholder="Search selected poem translation..."
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
                 />
@@ -244,6 +234,10 @@ export default function MapPage() {
                     allowedKeys={allowedAddressees}
                     allPoems={allPoems || []}
                 />
+                <TranslatorDropdown
+                    value={selectedTranslator}
+                    onChange={setSelectedTranslator}
+                />
                 <div>
                     {legendItems.map((item, idx) => (
                         <div key={idx} className="legend-item">
@@ -257,7 +251,10 @@ export default function MapPage() {
             {isLoading ? (
                 <div>Loading...</div>
             ) : mapData ? (
-                <LocationMap initialData={mapData} />
+                <LocationMap
+                    initialData={mapData}
+                    selectedTranslator={selectedTranslator}
+                    />
             ) : (
                 <p>No poems match the current filters</p>
             )}

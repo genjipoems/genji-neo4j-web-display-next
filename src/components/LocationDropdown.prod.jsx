@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import styles from '../styles/pages/chapterProfile.module.css';
+import MultiSelectDropdown from './MultiSelectDropdown.prod.jsx';
 
 const LOCATION_NAMES = [
   'The Seiryōden',
@@ -120,135 +119,23 @@ const LOCATION_NAMES = [
   'Koremitsu\'s residence'
 ];
 
+const normalize = (str) =>
+  str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+const locationItems = LOCATION_NAMES
+  .slice()
+  .sort((a, b) => a.localeCompare(b))
+  .map((name) => ({ key: name, label: name }));
+
 export default function LocationDropdown({ value, onChange, allowedKeys = null }) {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const searchInputRef = useRef(null);
-
-  const selected = Array.isArray(value) ? value : [value].filter(Boolean);
-
-  const normalize = (str) =>
-    str
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
-
-  const currentDisplay = selected.length === 0
-      ? "Select Locations"
-      : selected.length === 1
-      ? selected[0]
-      : `${selected.length} places selected`;
-
-  const isAllowed = (name) => allowedKeys === null || allowedKeys.has(name);
-
-  const filteredLocations = LOCATION_NAMES
-    .filter(name => normalize(name).includes(normalize(searchTerm)))
-    // allowed locations float to the top; alphabetical within each group
-    .sort((a, b) => {
-      const aAllowed = isAllowed(a);
-      const bAllowed = isAllowed(b);
-      if (aAllowed !== bAllowed) return aAllowed ? -1 : 1;
-      return a.localeCompare(b);
-    });
-
-  // "Select All" only acts on allowed, currently-visible locations
-  const selectableNames = filteredLocations.filter(isAllowed);
-  const allSelectableSelected = selectableNames.length > 0 &&
-    selectableNames.every(name => selected.includes(name));
-
-  const toggleSelectAll = () => {
-    if (allSelectableSelected) {
-      onChange(selected.filter(name => !selectableNames.includes(name)));
-    } else {
-      const merged = new Set([...selected, ...selectableNames]);
-      onChange(Array.from(merged));
-    }
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isDropdownOpen && !event.target.closest(`.${styles.analysisPanel}`)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isDropdownOpen]);
-
   return (
-    <div className={styles.analysisPanel}>
-      <div className={styles.panelHeader}>
-        <input
-          ref={searchInputRef}
-          type="text"
-          className={styles.panelHeaderSearch}
-          placeholder={currentDisplay}
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            if (!isDropdownOpen) setIsDropdownOpen(true);
-          }}
-        />
-        <div className={styles.panelMedium} onClick={() => setIsDropdownOpen(!isDropdownOpen)}></div>
-        <div
-          className={`${styles.toggleArrow} ${isDropdownOpen ? styles.arrowExpanded : styles.arrowCollapsed}`}
-          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        >
-          ▼
-        </div>
-      </div>
-
-      <div className={`${styles.panelContent} ${isDropdownOpen ? styles.expanded : ''}`}>
-        {filteredLocations.length > 0 && (
-          <div className={styles.characterItem}>
-            <button
-              type="button"
-              className={styles.characterButton}
-              onClick={toggleSelectAll}
-              style={{ fontWeight: 600, width: '100%', textAlign: 'left' }}
-            >
-              {allSelectableSelected ? 'Deselect All' : 'Select All'}
-              {searchTerm ? ` (${selectableNames.length} shown)` : ''}
-            </button>
-          </div>
-        )}
-        <div className={styles.scrollableList}>
-          {filteredLocations.length > 0 ? (
-            filteredLocations.map((name) => {
-              const allowed = isAllowed(name);
-              return (
-                <div key={name} className={styles.characterItem}>
-                  <label
-                    className={styles.characterButton}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      opacity: allowed ? 1 : 0.4,
-                      cursor: allowed ? 'pointer' : 'not-allowed',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(name)}
-                      disabled={!allowed}
-                      onChange={() => {
-                          const next = selected.includes(name)
-                              ? selected.filter(v => v !== name)
-                              : [...selected, name];
-                          onChange(next);
-                      }}
-                    />
-                    {name}
-                  </label>
-                </div>
-              );
-            })
-          ) : (
-            <div className={styles.noResults}>No Locations Found</div>
-          )}
-        </div>
-      </div>
-    </div>
+    <MultiSelectDropdown
+      items={locationItems}
+      value={value}
+      onChange={onChange}
+      allowedKeys={allowedKeys}
+      placeholder="Select Locations"
+      searchNormalizer={normalize}
+    />
   );
 }
