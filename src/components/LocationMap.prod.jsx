@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import '../styles/pages/locationMap.css';
 import { useAuth } from '../hooks/useAuth';
 
-export default function CharacterMap({ initialData }) {
+export default function CharacterMap({ initialData, selectedTranslator = 'washburn'}) {
     const { isAdmin } = useAuth();
     const places = initialData?.places || [];
     const dimPlaces = initialData?.dimPlaces || [];
@@ -60,7 +60,6 @@ export default function CharacterMap({ initialData }) {
         const el = document.getElementById('translation-display')
         el.innerHTML = (node.translation || '')
         .replace(/(?!^)([A-Z])/g, '<br>$1');
-        if (el) el.textContent = node.translation || '';
 
         const ch = document.getElementById('chapter-display')
         ch.innerHTML = (`CHAPTER: ${node.chapter}` || '')
@@ -107,29 +106,24 @@ export default function CharacterMap({ initialData }) {
 
     const handlePlaceMouseOver = (place) => {
         if (pinnedLinkId !== null) return;
-        console.log(place);
         hoveredPlaceRef.current = place.name;
 
-        const el = document.getElementById('translation-display')
-        el.innerHTML = (place.description || '')
-        document.getElementById('translation-display').classList.add('place-description');
+        const el = document.getElementById('translation-display');
+        el.innerHTML = place.description || '';
+        el.classList.add('place-description');
 
-        const ch = document.getElementById('poemnum-display')
-        ch.innerHTML = (`TYPE: ${place.type}` || '')
-
-        const pn = document.getElementById('chapter-display')
-        pn.innerHTML = (`LOCATION: ${place.name}` || '')
-
+        document.getElementById('poemnum-display').innerHTML = `TYPE: ${place.type}`;
+        document.getElementById('chapter-display').innerHTML = `LOCATION: ${place.name}`;
         document.getElementById('chapter-poem').classList.add('place-active');
         document.getElementById('speaker-addressee-mess').style.display = 'none';
         document.getElementById('translation-outer').classList.add('place-active');
+
+        document.getElementById(`place-${place.name}`)?.classList.add('hovered');
     };
 
-    const handlePlaceMouseOut = () => {
+    const handlePlaceMouseOut = (place) => {
         if (pinnedLinkId !== null) return;
-
         hoveredPlaceRef.current = null;
-        
         const el = document.getElementById('translation-display')
         const ch = document.getElementById('chapter-display')
         const pn = document.getElementById('poemnum-display')
@@ -142,6 +136,7 @@ export default function CharacterMap({ initialData }) {
         document.getElementById('chapter-poem').classList.remove('place-active');
         document.getElementById('speaker-addressee-mess').style.display = '';
         document.getElementById('translation-outer').classList.remove('place-active');
+        document.getElementById(`place-${place.name}`).classList.remove('hovered');
 
         if (el) el.textContent = '';
         if (ch) ch.textContent = '';
@@ -149,6 +144,7 @@ export default function CharacterMap({ initialData }) {
         if (ad) ad.textContent = '';
         if (sp) sp.textContent = '';
         if (mess) mess.textContent = '';
+        document.getElementById(`place-${place.name}`)?.classList.remove('hovered');
     };
 
     const handleRMouseOver = (link, src, tgt) => {
@@ -179,55 +175,59 @@ export default function CharacterMap({ initialData }) {
                 <span class="toggle-thumb"></span>
             </button>
         ` : '';
-
         el.innerHTML = `
         <div class="evidence-block">
             <div class="comp-block">
                 <p>Composition evidence: ${src.evidence}</p>
                 <label class="switch-row">
-                AI verified?
-                ${srcToggleHtml}
+                    <span class="verify-status">${src.verified === true ? 'AI Generated, Human Verified' : 'AI Generated'}"</span>
+                    ${srcToggleHtml}
                 </label>
             </div>
             <div class="rec-block">
                 <p>Receipt evidence: ${tgt.evidence}</p>
                 <label class="switch-row">
-                AI verified?
-                ${tgtToggleHtml}
+                    <span class="verify-status">${tgt.verified === true ? 'AI Generated, Human Verified' : 'AI Generated'}</span>
+                    ${tgtToggleHtml}
                 </label>
             </div>
         </div>
         `;
     
         el.querySelectorAll('.toggle-switch').forEach((btn) => {
-            btn.addEventListener('click', async () => {
-                const pnum = btn.dataset.pnum;
-                const field = btn.dataset.field;
-                const relType = field === 'src' ? 'composition' : 'receipt';
-                const isOn = btn.classList.contains('on');
-                const nextVerified = !isOn;
+btn.addEventListener('click', async () => {
+    const pnum = btn.dataset.pnum;
+    const field = btn.dataset.field;
+    const relType = field === 'src' ? 'composition' : 'receipt';
+    const isOn = btn.classList.contains('on');
+    const nextVerified = !isOn;
 
-                // optimistic UI update
-                btn.classList.toggle('on');
-                btn.setAttribute('aria-checked', String(nextVerified));
-                btn.disabled = true;
+    const label = btn.closest('.switch-row');
+    const statusSpan = label.querySelector('.verify-status');
 
-                try {
-                    const res = await fetch(`../api/neo4j_driver/${pnum}/status`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ relType, verified: nextVerified }),
-                    });
-                    if (!res.ok) throw new Error('Update failed');
-                } catch (err) {
-                    // revert on failure
-                    btn.classList.toggle('on');
-                    btn.setAttribute('aria-checked', String(isOn));
-                    console.error(err);
-                } finally {
-                    btn.disabled = false;
-                }
-            });
+    // optimistic UI update
+    btn.classList.toggle('on');
+    btn.setAttribute('aria-checked', String(nextVerified));
+    statusSpan.textContent = nextVerified ? 'AI Generated, Human Verified' : 'AI Generated';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`../api/neo4j_driver/${pnum}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ relType, verified: nextVerified }),
+        });
+        if (!res.ok) throw new Error('Update failed');
+    } catch (err) {
+        // revert both switch AND text on failure
+        btn.classList.toggle('on');
+        btn.setAttribute('aria-checked', String(isOn));
+        statusSpan.textContent = isOn ? 'AI Generated, Human Verified' : 'AI Generated';
+        console.error(err);
+    } finally {
+        btn.disabled = false;
+    }
+});
         });
         const ch = document.getElementById('chapter-display')
         ch.innerHTML = (`CHAPTER: ${src.chapter}` || '')
@@ -279,7 +279,19 @@ export default function CharacterMap({ initialData }) {
         const y = (clientY - svg.top - transform.y) / transform.scale;
         return { x, y };
     };
-
+    const zoomToCenter = (factor) => {
+        const svg = svgRef.current.getBoundingClientRect();
+        const centerX = svg.width/2;
+        const centerY = svg.height/2;
+        setTransform(prev => {
+            const newScale = Math.max(0.1, Math.min(10, prev.scale * factor));
+            return {
+            scale: newScale,
+            x: centerX - (centerX - prev.x) * (newScale / prev.scale),
+            y: centerY - (centerY - prev.y) * (newScale / prev.scale),
+            };
+        });
+    }
     const handleWheel = (e) => {
         e.preventDefault();
         const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
@@ -381,7 +393,7 @@ export default function CharacterMap({ initialData }) {
                     repliesToThis: poem.relationships?.repliesToThis || [],
                     chapter: parseInt(poem.pnum.substring(0, 2)),
                     poem: parseInt(poem.pnum.slice(-2)),
-                    translation: poem.composition?.washburn || null,
+                    translation: poem.composition?.[selectedTranslator] || null,
                     speaker: poem.composition?.speaker ?? "Unknown Sender",
                     addressee: poem.receipt?.addressee ?? "Unknown Recipient",
                     messenger: poem.relationships?.messenger || "none",
@@ -400,7 +412,7 @@ export default function CharacterMap({ initialData }) {
                     repliesToThis: poem.relationships?.repliesToThis || [],
                     chapter: parseInt(poem.pnum.substring(0, 2)),
                     poem: parseInt(poem.pnum.slice(-2)),
-                    translation: poem.receipt?.washburn || null,
+                    translation: poem.receipt?.[selectedTranslator] || null,
                     speaker: poem.composition?.speaker ?? "Unknown Sender",
                     addressee: poem.receipt?.addressee ?? "Unknown Recipient",
                     messenger: poem.relationships?.messenger || "none",
@@ -411,8 +423,7 @@ export default function CharacterMap({ initialData }) {
             }
             if (validComp && validRec) links.push({ sourceId: compId, targetId: recId, dim });
         });
-
-        const iterations = 300;
+        const iterations = 100;
         const idealNodeDistance = 48;
         const gravityStrength = 0.2;
         const boxWidthBuffer = 85;
@@ -424,7 +435,7 @@ export default function CharacterMap({ initialData }) {
         const nonRecNodes = [];
 
         function snapToPerim(nodeSet) {
-            for (let i = 0; i < 100; i++) {
+            for (let i = 0; i < 50; i++) {
                 for (let node of nodeSet) {
                     let dx = node.x - node.homeX;
                     let dy = node.y - node.homeY;
@@ -520,7 +531,7 @@ export default function CharacterMap({ initialData }) {
         }
         setSimulatedNodes(nodes);
         setSimulatedLinks(links);
-    }, [initialData?.poems, initialData?.dimPoems, initialData?.places, initialData.dimPlaces, placePositions]);
+    }, [initialData?.poems, initialData?.dimPoems, initialData?.places, initialData.dimPlaces, placePositions, selectedTranslator]);
 
     const placeColor = (type) => {
         if (type === "fictional with evidence") return "#BFAE93";
@@ -532,6 +543,14 @@ export default function CharacterMap({ initialData }) {
 
     return (
         <div className="map-container">
+            <div className="zoombuttons">
+                <button className="zoomIn" onClick={() => zoomToCenter(1.3)}>
+                    +
+                </button>
+                <button className="zoomOut" onClick={() => zoomToCenter(0.7)}>
+                    -
+                </button>
+            </div>
             <svg
                 ref={svgRef}
                 width="100%"
@@ -545,7 +564,7 @@ export default function CharacterMap({ initialData }) {
                 onClick={handleBackgroundClick}
             >
                 <defs>
-                    <marker id="arrow" viewBox="0 0 10 10" refX="15" refY="5" markerWidth={6} markerHeight={6} orient="auto-start-reverse">
+                    <marker id="arrow" viewBox="0 0 10 10" refX="13" refY="5" markerWidth={6} markerHeight={6} orient="auto-start-reverse">
                         <path d="M 0 1 L 10 5 L 0 9 z" fill="#fff" />
                     </marker>
                 </defs>
@@ -756,9 +775,9 @@ export default function CharacterMap({ initialData }) {
                                     }
                                     }}
                                     onClick={(e) => {
-                                    e.stopPropagation(); // prevents the svg's onClick from immediately clearing it
+                                    e.stopPropagation();
                                     setPinnedLinkId(isPinned ? null : idx);
-                                    handleRMouseOver(link, src, tgt); // make sure tooltip shows the clicked link's data
+                                    handleRMouseOver(link, src, tgt);
                                     }}
                                     onMouseOut={() => {
                                     if (!pinnedLinkId) {
@@ -772,7 +791,7 @@ export default function CharacterMap({ initialData }) {
                                     x1={src.x} y1={src.y}
                                     x2={tgt.x} y2={tgt.y}
                                     stroke="#ffffff"
-                                    strokeWidth={isHovered || isPinned ? 5 : 2}
+                                    strokeWidth={isHovered || isPinned ? 4 : 2}
                                     opacity={link.dim ? 0.05 : .3}
                                     markerEnd="url(#arrow)"
                                     className="connection-line"
@@ -838,8 +857,8 @@ export default function CharacterMap({ initialData }) {
                                 transform={`translate(${pos.x}, ${pos.y})`}
                                 className='place-rect'
                                 opacity={place.dim ? 0.3 : 1}
-                                onMouseOver={() => handlePlaceMouseOver(place)}
-                                onMouseOut={handlePlaceMouseOut}
+                                onMouseEnter={() => handlePlaceMouseOver(place)}
+                                onMouseLeave={() => handlePlaceMouseOut(place)}
                                 onMouseDown={(e) => {
                                     draggingPlaceRef.current = place.name;
                                     isPanningRef.current = false;
@@ -850,21 +869,24 @@ export default function CharacterMap({ initialData }) {
                                     window.location.href = `/location-page/${encodeURIComponent(place.name)}`;
                                 }}
                             >
-                                <rect
-                                    x={-65} y={-20}
-                                    width={130} height={40}
-                                    fill={placeColor(place.type)}
-                                    stroke="#DFD6C8"
-                                    strokeWidth={2}
-                                    rx={8}
-                                />
-                                <foreignObject x={-65} y={-10} width={130} height={20}>
-                                    <div xmlns="http://www.w3.org/1999/xhtml" className="location-container">
-                                        <div className="location-text">
-                                            {place.name.toUpperCase()}
+                                <g className="place-content">
+                                    <rect
+                                        className="location-box"
+                                        x={-65} y={-20}
+                                        width={130} height={40}
+                                        fill={placeColor(place.type)}
+                                        stroke="#DFD6C8"
+                                        strokeWidth={2}
+                                        rx={8}
+                                    />
+                                    <foreignObject x={-65} y={-10} width={130} height={20}>
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <div className="location-text">
+                                                {place.name.toUpperCase()}
+                                            </div>
                                         </div>
-                                    </div>
-                                </foreignObject>
+                                    </foreignObject>
+                                </g>
                             </g>
                         );
                     })}

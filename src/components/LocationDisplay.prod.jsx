@@ -358,7 +358,7 @@ const LocationDisplay = ({ locationData }) => {
                             </div>
                             <div className={`${styles.panelContent} ${expandedPanels.description ? styles.expanded : styles.collapsed}`}>
                                 <div style={{display: 'flex', flexDirection: 'row', margin: '20px 0 0 0', justifyContent: 'flex-end', gap: '12px'}}>
-                                    <span>{place.descriptionVerified ? 'AI verified' : 'AI generated'}</span>
+                                    <span>{place.descriptionVerified ? 'AI Generated, Human Verified' : 'AI Generated'}</span>
                                     {isAdmin && (
                                         <button
                                             role="switch"
@@ -423,7 +423,7 @@ const LocationDisplay = ({ locationData }) => {
                                                 <span className={styles.claimChapPage}>
                                                     {`CHAPTER ${claim.chapter},  PAGE ${claim.page}`}
                                                 </span>
-                                                <span>{claim.verified ? 'AI verified' : 'AI generated'}</span>
+                                                <span>{claim.verified ? 'AI Generated, Human Verified' : 'AI Generated'}</span>
                                                 {isAdmin && (
                                                     <button
                                                         role="switch"
