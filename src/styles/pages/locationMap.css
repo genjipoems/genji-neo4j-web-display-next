@@ -123,6 +123,7 @@
 .translation-outer {
     display: flex;
     position: absolute;
+    background: transparent;
     bottom: 0;
     left: 0;
     width: 100%;

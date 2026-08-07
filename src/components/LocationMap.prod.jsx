@@ -423,7 +423,7 @@ btn.addEventListener('click', async () => {
             }
             if (validComp && validRec) links.push({ sourceId: compId, targetId: recId, dim });
         });
-        const iterations = 300;
+        const iterations = 100;
         const idealNodeDistance = 48;
         const gravityStrength = 0.2;
         const boxWidthBuffer = 85;
@@ -435,7 +435,7 @@ btn.addEventListener('click', async () => {
         const nonRecNodes = [];
 
         function snapToPerim(nodeSet) {
-            for (let i = 0; i < 100; i++) {
+            for (let i = 0; i < 50; i++) {
                 for (let node of nodeSet) {
                     let dx = node.x - node.homeX;
                     let dy = node.y - node.homeY;
@@ -564,7 +564,7 @@ btn.addEventListener('click', async () => {
                 onClick={handleBackgroundClick}
             >
                 <defs>
-                    <marker id="arrow" viewBox="0 0 10 10" refX="15" refY="5" markerWidth={6} markerHeight={6} orient="auto-start-reverse">
+                    <marker id="arrow" viewBox="0 0 10 10" refX="13" refY="5" markerWidth={6} markerHeight={6} orient="auto-start-reverse">
                         <path d="M 0 1 L 10 5 L 0 9 z" fill="#fff" />
                     </marker>
                 </defs>
@@ -775,9 +775,9 @@ btn.addEventListener('click', async () => {
                                     }
                                     }}
                                     onClick={(e) => {
-                                    e.stopPropagation(); // prevents the svg's onClick from immediately clearing it
+                                    e.stopPropagation();
                                     setPinnedLinkId(isPinned ? null : idx);
-                                    handleRMouseOver(link, src, tgt); // make sure tooltip shows the clicked link's data
+                                    handleRMouseOver(link, src, tgt);
                                     }}
                                     onMouseOut={() => {
                                     if (!pinnedLinkId) {
@@ -791,7 +791,7 @@ btn.addEventListener('click', async () => {
                                     x1={src.x} y1={src.y}
                                     x2={tgt.x} y2={tgt.y}
                                     stroke="#ffffff"
-                                    strokeWidth={isHovered || isPinned ? 5 : 2}
+                                    strokeWidth={isHovered || isPinned ? 4 : 2}
                                     opacity={link.dim ? 0.05 : .3}
                                     markerEnd="url(#arrow)"
                                     className="connection-line"
