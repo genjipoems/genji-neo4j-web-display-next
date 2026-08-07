@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import styles from '../styles/pages/chapterProfile.module.css'; // Reusing your existing CSS
+import MultiSelectDropdown from './MultiSelectDropdown.prod.jsx';
 
 const LOCATION_NAMES = [
   'The Seiryōden',
@@ -120,94 +119,23 @@ const LOCATION_NAMES = [
   'Koremitsu\'s residence'
 ];
 
-export default function LocationDropdown({ value, onChange }) {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const searchInputRef = useRef(null);
+const normalize = (str) =>
+  str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-  const selected = Array.isArray(value) ? value : [value].filter(Boolean);
+const locationItems = LOCATION_NAMES
+  .slice()
+  .sort((a, b) => a.localeCompare(b))
+  .map((name) => ({ key: name, label: name }));
 
-  const toggle = (name) => {
-    const next = selected.includes(name)
-      ? selected.filter(v => v !== name)
-      : [...selected, name];
-    onChange(next);
-  };
-
-    const normalize = (str) =>
-    str
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
-
-  const currentDisplay = selected.length === 0
-      ? "Select Locations"
-      : selected.length === 1
-      ? selected[0]
-      : `${selected.length} places selected`;
-
-  const filteredLocations = LOCATION_NAMES.filter(name =>
-    normalize(name).toLowerCase().includes(normalize(searchTerm).toLowerCase())
-  );
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isDropdownOpen && !event.target.closest(`.${styles.analysisPanel}`)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isDropdownOpen]);
-
+export default function LocationDropdown({ value, onChange, allowedKeys = null }) {
   return (
-    <div className={styles.analysisPanel}>
-      <div className={styles.panelHeader}>
-        <input
-          ref={searchInputRef}
-          type="text"
-          className={styles.panelHeaderSearch}
-          placeholder={currentDisplay}
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            if (!isDropdownOpen) setIsDropdownOpen(true);
-          }}
-        />
-        <div className={styles.panelMedium} onClick={() => setIsDropdownOpen(!isDropdownOpen)}></div>
-        <div
-          className={`${styles.toggleArrow} ${isDropdownOpen ? styles.arrowExpanded : styles.arrowCollapsed}`}
-          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        >
-          ▼
-        </div>
-      </div>
-
-      <div className={`${styles.panelContent} ${isDropdownOpen ? styles.expanded : ''}`}>
-        <div className={styles.scrollableList}>
-          {filteredLocations.length > 0 ? (
-            filteredLocations.map((name) => (
-              <div key={name} className={styles.characterItem}>
-                <label className={styles.characterButton} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(name)}
-                    onChange={() => {
-                        const next = selected.includes(name)
-                            ? selected.filter(v => v !== name)
-                            : [...selected, name];
-                        onChange(next);
-                    }}
-                  />
-                  {name}
-                </label>
-              </div>
-            ))
-          ) : (
-            <div className={styles.noResults}>No Locations Found</div>
-          )}
-        </div>
-      </div>
-    </div>
+    <MultiSelectDropdown
+      items={locationItems}
+      value={value}
+      onChange={onChange}
+      allowedKeys={allowedKeys}
+      placeholder="Select Locations"
+      searchNormalizer={normalize}
+    />
   );
 }

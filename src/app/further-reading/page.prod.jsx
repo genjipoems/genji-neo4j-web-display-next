@@ -2,8 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import FormatContent from "../../components/FormatText.prod"
 import styles from "../../styles/pages/blogTemplate.module.css"
+import { SourceEditButton, AddSourceButton } from '../../components/SourceEditor.prod.jsx';
 
 const BlogPage = () => {
+    const refreshSources = async () => {
+        const res = await fetch(`/api/source/getSources`);
+        const data = await res.json();
+        setSources(data);
+    };
+
     const [content, setContent] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [sources, setSources] = useState([]);
@@ -60,21 +67,19 @@ const BlogPage = () => {
                 <div className={styles.rightSideSources}>
                     {/* sources section */}
                     <h2 className={styles.translationsHeader}>BOOKS AND ARTICLES ON GENJI POETRY</h2>
+                    <AddSourceButton onSaved={refreshSources} />
 
-                    {isLoading ? (
-                        <div className={styles.loading}>Loading...</div>
-                    ) : (
-                        <div className={styles.sourcesScrollContainer}>
-                            {sources.map((source, index) => (
-                                <div key={index} className={styles.translationCard}>
-                                    <div className={styles.translationContent}>
-                                        <FormatContent content={source.title}/>
-                                    </div>
-                                    <span className={styles.translatorName} style={{backgroundColor: 'rgba(154, 152, 152, 0.66)'}}>{source.author}</span>
-                                </div>
-                            ))}
+                    {sources.map((source, index) => (
+                        <div key={index} className={styles.translationCard}>
+                            <div className={styles.translationContent}>
+                                <FormatContent content={source.title}/>
+                            </div>
+                            <span className={styles.translatorName} style={{backgroundColor: 'rgba(154, 152, 152, 0.66)'}}>
+                                {source.author}
+                                <SourceEditButton sourceId={source.source_id} onSaved={refreshSources} />
+                            </span>
                         </div>
-                    )}
+                    ))}
                 </div>
             </div>
         </div>

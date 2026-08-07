@@ -28,7 +28,7 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx"
-, "src/app/api/auth/[...nextauth]/route.js", "src/middleware.js", "src/lib/db.js", "src/auth.js"  ],
+, "src/app/api/auth/[...nextauth]/route.js", "src/middleware.js", "src/lib/db.js", "src/auth.js", "src/app/api/neo4j_driver/[nodeId]"  ],
   "exclude": [
     "node_modules"
   ]

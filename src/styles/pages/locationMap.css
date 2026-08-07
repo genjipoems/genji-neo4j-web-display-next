@@ -36,11 +36,22 @@
     align-items: center;
     margin: 0;
     padding: 0;
-    height: 100%;
 }
-
 .place-rect {
+    transition: transform 0.2s ease;
     cursor: grab;
+    height: fit-content;
+}
+.place-rect.hovered .place-content {
+    transform: scale(1.4);
+}
+.place-content {
+    transform-origin: 0 0;
+    transition: transform 0.2s ease;
+}
+.place-rect.hovered .location-text {
+    font-weight: bold;
+    font-size: 11px;
 }
 
 .place-rect:active {
@@ -112,6 +123,7 @@
 .translation-outer {
     display: flex;
     position: absolute;
+    background: transparent;
     bottom: 0;
     left: 0;
     width: 100%;
@@ -253,4 +265,25 @@
     justify-content: space-between;
     display: flex;
     flex-direction: row;
+}
+
+.zoombuttons{
+    background: transparent;
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    justify-content: center;
+}
+
+.zoomOut {
+    margin: 0 20px;
+    width: 25px;
+    height: 25px;
+}
+
+.zoomIn {
+    width: 25px;
+    height: 25px;
 }
