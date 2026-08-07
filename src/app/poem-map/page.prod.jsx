@@ -38,7 +38,9 @@ export default function MapPage() {
     const [selectedAddressees, setSelectedAddressees] = useStoredArray('addressees_selected');
     const [selectedTranslator, setSelectedTranslator] = useState('washburn');
     const [keyword, setKeyword] = useState('');
-
+    const ALL_CHAPTER_NUMS = Array.from({ length: 54 }, (_, i) =>
+        (i + 1).toString().padStart(2, '0')
+    );
     // Fetch every chapter once via the existing per-chapter route, merge into
     // one in-memory dataset. 54 parallel requests on mount, then everything
     // downstream is pure client-side filtering — no more fetches on filter change.
@@ -101,7 +103,6 @@ export default function MapPage() {
     const matchesKeyword = (poem) => {
         if (!keyword.trim()) return true;
         const k = keyword.toLowerCase();
-        console.log('selectedTranslator value + type:', selectedTranslator, typeof selectedTranslator);
         const text = (poem.composition?.[selectedTranslator] || poem.receipt?.[selectedTranslator] || '').toLowerCase();
         return text.includes(k);
     };
@@ -206,45 +207,47 @@ export default function MapPage() {
     return (
         <div style={{ display: 'flex', gap: '30px', padding: '20px', height: '81vh' }}>
             <aside style={{ width: '350px', flexShrink: 0 }}>
-                <input
-                    type="text"
-                    placeholder="Search selected poem translation..."
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                />
-                <ChapterDropdown
-                    value={selectedChapters}
-                    onChange={setSelectedChapters}
-                    allowedKeys={allowedChapters}
-                />
-                <LocationDropdown
-                    value={selectedLocations}
-                    onChange={setSelectedLocations}
-                    allowedKeys={allowedLocations}
-                />
-                <SpeakerDropdown
-                    value={selectedSpeakers}
-                    onChange={setSelectedSpeakers}
-                    allowedKeys={allowedSpeakers}
-                    allPoems={allPoems || []}
-                />
-                <AddresseeDropdown
-                    value={selectedAddressees}
-                    onChange={setSelectedAddressees}
-                    allowedKeys={allowedAddressees}
-                    allPoems={allPoems || []}
-                />
-                <TranslatorDropdown
-                    value={selectedTranslator}
-                    onChange={setSelectedTranslator}
-                />
-                <div>
-                    {legendItems.map((item, idx) => (
-                        <div key={idx} className="legend-item">
-                            <div className="legend-color" style={{ background: item.color }}></div>
-                            <p className="legend-text">{item.label}</p>
-                        </div>
-                    ))}
+                <div className='sidewaysPanel'>
+                    <input
+                        type="text"
+                        placeholder="Search selected poem translation..."
+                        value={keyword}
+                        onChange={(e) => setKeyword(e.target.value)}
+                    />
+                    <ChapterDropdown
+                        value={selectedChapters}
+                        onChange={setSelectedChapters}
+                        allowedKeys={allowedChapters}
+                    />
+                    <LocationDropdown
+                        value={selectedLocations}
+                        onChange={setSelectedLocations}
+                        allowedKeys={allowedLocations}
+                    />
+                    <SpeakerDropdown
+                        value={selectedSpeakers}
+                        onChange={setSelectedSpeakers}
+                        allowedKeys={allowedSpeakers}
+                        allPoems={allPoems || []}
+                    />
+                    <AddresseeDropdown
+                        value={selectedAddressees}
+                        onChange={setSelectedAddressees}
+                        allowedKeys={allowedAddressees}
+                        allPoems={allPoems || []}
+                    />
+                    <TranslatorDropdown
+                        value={selectedTranslator}
+                        onChange={setSelectedTranslator}
+                    />
+                    <div>
+                        {legendItems.map((item, idx) => (
+                            <div key={idx} className="legend-item">
+                                <div className="legend-color" style={{ background: item.color }}></div>
+                                <p className="legend-text">{item.label}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </aside>
 
