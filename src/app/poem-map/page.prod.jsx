@@ -64,6 +64,23 @@ export default function MapPage() {
     selectedAddressees.length > 0 ||
     debouncedKeyword.trim().length > 0;
 
+    const ALL_CHAPTER_NUMS = Array.from({ length: 54 }, (_, i) =>
+        (i + 1).toString().padStart(2, '0')
+    );
+    // Fetch every chapter once via the existing per-chapter route, merge into
+    // one in-memory dataset. 54 parallel requests on mount, then everything
+    // downstream is pure client-side filtering — no more fetches on filter change.
+    useEffect(() => {
+        if (!allPoems || !keyword.trim()) return;
+        const matches = allPoems.filter(matchesKeyword);
+        console.log(`"${keyword}" matched ${matches.length} poems:`, matches.map(p => ({
+            pnum: p.pnum,
+            washburn: p.composition?.washburn || p.receipt?.washburn,
+            compPlace: p.composition?.placeName,
+            recPlace: p.receipt?.placeName,
+        })));
+    }, [keyword, allPoems]);
+    
     useEffect(() => {
         setIsLoading(true);
         fetch('/api/spaces-location/translators')
