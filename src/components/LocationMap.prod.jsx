@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import '../styles/pages/locationMap.css';
 import { useAuth } from '../hooks/useAuth';
+import styles from '../styles/pages/characterProfile.module.css';
 
 export default function CharacterMap({ initialData, selectedTranslator = 'washburn'}) {
     const { isAdmin } = useAuth();
@@ -28,10 +29,14 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
     const svgRef = useRef(null);
     const dragPositionRef = useRef(null);
     const hasDraggedRef = useRef(false);
-    const [pinnedLinkId, setPinnedLinkId] = useState(null);
     const [hoveredLinkId, setHoveredLinkId] = useState(null);
+    const [selectedNodeId, setSelectedNodeId] = useState(null);
+    const [selectedPlaceName, setSelectedPlaceName] = useState(null);
+    const [selectedLinkIdx, setSelectedLinkIdx] = useState(null);
+    const sortedLinks = [...simulatedLinks].sort((a, b) => (a.dim === b.dim ? 0 : a.dim ? -1 : 1));
+    const sortedNodes = [...simulatedNodes].sort((a, b) => (a.dim === b.dim ? 0 : a.dim ? -1 : 1));
+    const sortedPlaces = [...allPlacesForRender].sort((a, b) => (a.dim === b.dim ? 0 : a.dim ? -1 : 1));
 
-    // Initialize place positions from database
     useEffect(() => {
         const allPlaces = [...places, ...dimPlaces];
         if (allPlaces.length > 0) {
@@ -43,8 +48,25 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
         }
     }, [initialData?.places, initialData?.dimPlaces]);
 
-    const handleMouseOver = (node) => {
-        if (pinnedLinkId !== null) return;
+    const getPageUrl = () => {
+        if (selectedPlaceName) {
+            return `/location-page/${encodeURIComponent(selectedPlaceName)}`;
+        }
+        if (selectedNodeId) {
+            const node = simulatedNodes.find(n => n.id === selectedNodeId);
+            if (node) return `/characters/${encodeURIComponent(node.label)}`;
+        }
+        if (selectedLinkIdx) {
+            const link = sortedLinks[selectedLinkIdx]
+            if (link) {
+            return `/poems/${link.pnum.substring(0, 2).replace(/^0+/, '')}/${link.pnum.slice(-2).replace(/^0+/, '')}`;
+            }
+        }
+        return null;
+    };
+    const pageUrl = getPageUrl();
+
+    const handleNodeMouseOver = (node) => {
         hoveredPnumRef.current = node.pnum;
 
         simulatedNodes.forEach(n => {
@@ -57,28 +79,72 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
             el.setAttribute('fill', highlighted && n.gender === 'female' ? '#ff7d69' : highlighted ? '#c8fdf6' : n.gender === 'female' ? '#B03F2E' : '#9CBAB6');
             el.setAttribute('stroke', highlighted ? '#FFF' : '#252525');
         });
-        const el = document.getElementById('translation-display')
-        el.innerHTML = (node.translation || '')
-        .replace(/(?!^)([A-Z])/g, '<br>$1');
 
-        const ch = document.getElementById('chapter-display')
-        ch.innerHTML = (`CHAPTER: ${node.chapter}` || '')
+        const el = document.getElementById('translation-display');
+        el.innerHTML = (node.translation || '').replace(/\n/g, '<br>');
+        document.getElementById('chapter-display').innerHTML = `CHAPTER: ${node.chapter}`;
+        document.getElementById('poemnum-display').innerHTML = `POEM: ${node.poem}`;
 
-        const pn = document.getElementById('poemnum-display')
-        pn.innerHTML = (`POEM: ${node.poem}` || '')
+        const mess = document.getElementById('messenger-display');
+        if (mess) mess.innerHTML = `MESSENGER: ${node.messenger}`;
+        const sp = document.getElementById('speaker-display');
+        if (sp) sp.innerHTML = `SPEAKER: ${node.speaker}`;
+        const ad = document.getElementById('addressee-display');
+        if (ad) ad.innerHTML = `ADDRESSEE: ${node.addressee}`;
 
-        const mess = document.getElementById('messenger-display')
-        if (mess) mess.innerHTML = (`MESSENGER: ${node.messenger}` || '');
-
-        const sp = document.getElementById('speaker-display')
-        if (sp) sp.innerHTML = (`SPEAKER: ${node.speaker}` || '');
-
-        const ad = document.getElementById('addressee-display')
-        if (ad) ad.innerHTML = (`ADDRESSEE: ${node.addressee}` || '');
+        document.getElementById('translation-outer')?.classList.add('poem-active');
     };
 
-    const handleMouseOut = () => {
-        if (pinnedLinkId !== null) return;
+    const handleNodeMouseOut = () => {
+        hoveredPnumRef.current = null;
+
+        simulatedNodes.forEach(n => {
+            const el = document.getElementById(`node-${n.id}`);
+            if (!el) return;
+            el.setAttribute('fill', n.gender === 'female' ? '#B03F2E' : '#9CBAB6');
+            el.setAttribute('stroke', '#252525');
+        });
+
+        ['translation-display', 'chapter-display', 'poemnum-display', 'addressee-display', 'speaker-display', 'messenger-display']
+            .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+
+        document.getElementById('translation-outer')?.classList.remove('poem-active');
+    };
+
+    const handleMergedMouseOver = (node) => {
+        hoveredPnumRef.current = node.pnum;
+        const totalCount = node.poems.length;                          // how many poems total
+        const nonDimCount = node.poems.filter(p => !p.dim).length;      // how many are NOT dim
+        const pnumList = node.poems.map(p => p.pnum);                   // just an array of pnums, e.g. ['12-03','15-01']
+
+        simulatedNodes.forEach(n => {
+            const el = document.getElementById(`node-${n.id}`);
+            if (!el) return;
+            const highlighted = n.pnum === node.pnum ||
+                n.groupPoems.includes(node.pnum) ||
+                n.replyPoems.includes(node.pnum) ||
+                n.repliesToThis.includes(node.pnum);
+            el.setAttribute('fill', highlighted && n.gender === 'female' ? '#ff7d69' : highlighted ? '#c8fdf6' : n.gender === 'female' ? '#B03F2E' : '#9CBAB6');
+            el.setAttribute('stroke', highlighted ? '#FFF' : '#252525');
+        });
+        const el = document.getElementById('translation-display')
+        el.innerHTML = (`LIST OF POEM CODES COMPOSED OR RECEIVED HERE: ${pnumList}` || '')
+        .replace(/\n/g, '<br>');
+        const ch = document.getElementById('chapter-display')
+        ch.innerHTML = (`TOTAL POEMS: ${totalCount}` || '')
+
+        const pn = document.getElementById('poemnum-display')
+        pn.innerHTML = (`ACTIVE POEMS: ${nonDimCount}` || '')
+
+        const sp = document.getElementById('speaker-display')
+        if (sp) sp.innerHTML = (`SPEAKER: ${node.label}` || '');
+
+
+
+        document.getElementById(`translation-outer`)?.classList.add('poem-active');
+    };
+
+    const handleMergedMouseOut = () => {
 
         hoveredPnumRef.current = null;
         
@@ -91,21 +157,38 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
         const el = document.getElementById('translation-display')
         const ch = document.getElementById('chapter-display')
         const pn = document.getElementById('poemnum-display')
-        const ad = document.getElementById('addressee-display')
         const sp = document.getElementById('speaker-display')
-        const mess = document.getElementById('messenger-display')
+        document.getElementById(`translation-outer`)?.classList.remove('poem-active');
 
         if (el) el.textContent = '';
         if (ch) ch.textContent = '';
         if (pn) pn.textContent = '';
-        if (ad) ad.textContent = '';
         if (sp) sp.textContent = '';
-        if (mess) mess.textContent = '';
     };
-    const handleBackgroundClick = () => setPinnedLinkId(null);
+
+    const clearAllSelections = () => {
+        if (selectedNodeId) {
+            handleMergedMouseOut();
+            handleNodeMouseOut();
+        }
+        if (selectedPlaceName) handlePlaceMouseOut();
+        if (selectedLinkIdx !== null) handleRMouseOut();
+        setSelectedNodeId(null);
+        setSelectedPlaceName(null);
+        setSelectedLinkIdx(null);
+    };
+
+    const handleBackgroundClick = () => {
+        setSelectedNodeId(null);
+        setSelectedPlaceName(null);
+        setSelectedLinkIdx(null);
+        handleNodeMouseOut();
+        handleMergedMouseOut();
+        handlePlaceMouseOut();
+        handleRMouseOut();
+    };
 
     const handlePlaceMouseOver = (place) => {
-        if (pinnedLinkId !== null) return;
         hoveredPlaceRef.current = place.name;
 
         const el = document.getElementById('translation-display');
@@ -117,12 +200,13 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
         document.getElementById('chapter-poem').classList.add('place-active');
         document.getElementById('speaker-addressee-mess').style.display = 'none';
         document.getElementById('translation-outer').classList.add('place-active');
-
-        document.getElementById(`place-${place.name}`)?.classList.add('hovered');
     };
 
-    const handlePlaceMouseOut = (place) => {
-        if (pinnedLinkId !== null) return;
+    const handlePlaceHover = (place) => {
+        document.getElementById(`place-${place.name}`)?.classList.add('hovered');
+    }
+
+    const handlePlaceMouseOut = () => {
         hoveredPlaceRef.current = null;
         const el = document.getElementById('translation-display')
         const ch = document.getElementById('chapter-display')
@@ -136,7 +220,6 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
         document.getElementById('chapter-poem').classList.remove('place-active');
         document.getElementById('speaker-addressee-mess').style.display = '';
         document.getElementById('translation-outer').classList.remove('place-active');
-        document.getElementById(`place-${place.name}`).classList.remove('hovered');
 
         if (el) el.textContent = '';
         if (ch) ch.textContent = '';
@@ -144,9 +227,11 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
         if (ad) ad.textContent = '';
         if (sp) sp.textContent = '';
         if (mess) mess.textContent = '';
-        document.getElementById(`place-${place.name}`)?.classList.remove('hovered');
     };
 
+    const handlePlaceUnhover = (place) => {
+        document.getElementById(`place-${place.name}`)?.classList.remove('hovered');
+    }
     const handleRMouseOver = (link, src, tgt) => {
         hoveredRRef.current = link.idx;
 
@@ -175,12 +260,12 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
                 <span class="toggle-thumb"></span>
             </button>
         ` : '';
-        el.innerHTML = `
+        el.innerHTML = `<div>${ src.translation.replace(/\n/g, '<br   >') }</div>
         <div class="evidence-block">
             <div class="comp-block">
                 <p>Composition evidence: ${src.evidence}</p>
                 <label class="switch-row">
-                    <span class="verify-status">${src.verified === true ? 'AI Generated, Human Verified' : 'AI Generated'}"</span>
+                    <span class="verify-status">${src.verified === true ? 'AI Generated, Human Verified' : 'AI Generated'}</span>
                     ${srcToggleHtml}
                 </label>
             </div>
@@ -347,11 +432,105 @@ btn.addEventListener('click', async () => {
         // Reset AFTER click fires (click follows mouseup synchronously but after a tick)
         setTimeout(() => { hasDraggedRef.current = false; }, 0);
     };
+    const personPlaceKey = (placeName, personName) => `${placeName}::${personName}`;
 
+    const mergedNodeId = (placeName, personName) =>
+        `person-${placeName}::${personName}`.replace(/[^a-zA-Z0-9:_-]/g, '_');
+
+    const getAnchor = (node, towardX, towardY, radius, angleOffset = 0) => {
+        const dx = towardX - node.x;
+        const dy = towardY - node.y;
+        const baseAngle = Math.atan2(dy, dx) + angleOffset;
+        return {
+            x: node.x + Math.cos(baseAngle) * radius,
+            y: node.y + Math.sin(baseAngle) * radius,
+        };
+    };
+    const distancePointToSegment = (px, py, x1, y1, x2, y2) => {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+        let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+        const projX = x1 + t * dx;
+        const projY = y1 + t * dy;
+        return Math.hypot(px - projX, py - projY);
+    };
+    const getBowPath = (x1, y1, x2, y2, bow = 0, awayFrom = null) => {
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.hypot(dx, dy) || 1;
+        let nx = -dy / len;
+        let ny = dx / len;
+
+        if (awayFrom) {
+            // test both perpendicular directions, keep whichever bulges further from the place center
+            const d1 = Math.hypot((mx + nx * bow) - awayFrom.x, (my + ny * bow) - awayFrom.y);
+            const d2 = Math.hypot((mx - nx * bow) - awayFrom.x, (my - ny * bow) - awayFrom.y);
+            if (d2 > d1) { nx = -nx; ny = -ny; }
+        }
+
+        const cx = mx + nx * bow;
+        const cy = my + ny * bow;
+        return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+    };
+
+    const assignLinkBows = (links) => {
+        const personPairGroups = new Map();
+
+        links.forEach((link) => {
+            const speaker = link.srcPoem?.speaker ?? '';
+            const addressee = link.tgtPoem?.addressee ?? '';
+            const key = [speaker, addressee].sort().join('::');
+            if (!personPairGroups.has(key)) personPairGroups.set(key, []);
+            personPairGroups.get(key).push(link);
+        });
+
+        personPairGroups.forEach((group) => {
+            group.sort((a, b) => (a.pnum || '').localeCompare(b.pnum || ''));
+            const n = group.length;
+            group.forEach((link, i) => {
+                // wider, evenly spaced bows — same pair always gets same ordering
+                link.bow = n === 1 ? 0 : (i - (n - 1) / 2) * 30;
+            });
+        });
+    };
+
+    const assignFanAnchors = (nodes, links) => {
+        const byNode = new Map();
+        links.forEach((link) => {
+            [link.sourceId, link.targetId].forEach((nodeId) => {
+                if (!byNode.has(nodeId)) byNode.set(nodeId, []);
+                byNode.get(nodeId).push(link);
+            });
+        });
+
+        byNode.forEach((nodeLinks, nodeId) => {
+            const node = nodes.find((n) => n.id === nodeId);
+            if (!node?.merged) return;
+
+            nodeLinks.sort((a, b) => {
+                const otherA = nodes.find((n) => n.id === (a.sourceId === nodeId ? a.targetId : a.sourceId));
+                const otherB = nodes.find((n) => n.id === (b.sourceId === nodeId ? b.targetId : b.sourceId));
+                const angleA = Math.atan2(otherA.y - node.y, otherA.x - node.x);
+                const angleB = Math.atan2(otherB.y - node.y, otherB.x - node.x);
+                return angleA - angleB;
+            });
+
+            const spread = Math.min(Math.PI * 0.8, nodeLinks.length * 0.25);
+            nodeLinks.forEach((link, i) => {
+                const offset = nodeLinks.length === 1 ? 0 : (i / (nodeLinks.length - 1) - 0.5) * spread;
+                if (link.sourceId === nodeId) link.sourceAngleOffset = offset;
+                else link.targetAngleOffset = offset;
+            });
+        });
+    };
     // Physics simulation
     useEffect(() => {
-        if ((rawPoems.length === 0 && rawDimPoems.length === 0) || places.length === 0 || Object.keys(placePositions).length === 0) return;
-
+        if ((rawPoems.length === 0 && rawDimPoems.length === 0) || (places.length === 0 && dimPlaces.length === 0) || Object.keys(placePositions).length === 0) return;
         let nodes = [];
         let links = [];
 
@@ -360,74 +539,184 @@ btn.addEventListener('click', async () => {
             ...rawDimPoems.map(poem => ({ poem, dim: true })),
         ];
 
-        poemsToProcess.forEach(({poem, dim}, index) => {
+        // PASS 1: count appearances per (place, person)
+        const appearanceCounts = new Map();
+        poemsToProcess.forEach(({ poem }) => {
+            const compPlace = poem.composition?.placeName;
+            const recPlace = poem.receipt?.placeName;
+            const speaker = poem.composition?.speaker ?? 'Unknown Sender';
+            const addressee = poem.receipt?.addressee ?? 'Unknown Recipient';
+
+            if (compPlace && poem.composition?.lng != null && poem.composition?.lat != null) {
+                const key = personPlaceKey(compPlace, speaker);
+                appearanceCounts.set(key, (appearanceCounts.get(key) || 0) + 1);
+            }
+            if (recPlace && poem.receipt?.lng != null && poem.receipt?.lat != null) {
+                const key = personPlaceKey(recPlace, addressee);
+                appearanceCounts.set(key, (appearanceCounts.get(key) || 0) + 1);
+            }
+        });
+
+        const mergedNodesMap = new Map();
+
+        poemsToProcess.forEach(({ poem, dim }, index) => {
             const compPlaceName = poem.composition?.placeName;
             const recPlaceName = poem.receipt?.placeName;
-
             const currentCompPos = compPlaceName ? placePositions[compPlaceName] : null;
             const currentRecPos = recPlaceName ? placePositions[recPlaceName] : null;
 
-            // 2. Derive active coordinates: Use live state position if dragged, fall back to base DB coords if not
             const compX = currentCompPos ? currentCompPos.x : (poem.composition?.lng != null ? Number(poem.composition.lng) : NaN);
             const compY = currentCompPos ? currentCompPos.y : (poem.composition?.lat != null ? Number(poem.composition.lat) : NaN);
             const recX = currentRecPos ? currentRecPos.x : (poem.receipt?.lng != null ? Number(poem.receipt.lng) : NaN);
             const recY = currentRecPos ? currentRecPos.y : (poem.receipt?.lat != null ? Number(poem.receipt.lat) : NaN);
 
-            const speaker = poem.composition?.speaker ?? "Unknown Sender";
-            const addressee = poem.receipt?.addressee ?? "Unknown Recipient";
-            const speakerGender = poem.composition?.speakerGender ?? "Unknown Gender";
-            const addresseeGender = poem.receipt?.addresseeGender ?? "Unknown Gender";
-            const compId = `${poem.pnum || index}-comp`;
-            const recId = `${poem.pnum || index}-rec`;
+            const speaker = poem.composition?.speaker ?? 'Unknown Sender';
+            const addressee = poem.receipt?.addressee ?? 'Unknown Recipient';
+            const speakerGender = poem.composition?.speakerGender ?? 'Unknown Gender';
+            const addresseeGender = poem.receipt?.addresseeGender ?? 'Unknown Gender';
+
             const validComp = !isNaN(compX) && !isNaN(compY);
             const validRec = !isNaN(recX) && !isNaN(recY);
-            
+
+            const mergeComp = validComp && appearanceCounts.get(personPlaceKey(compPlaceName, speaker)) > 1;
+            const mergeRec = validRec && appearanceCounts.get(personPlaceKey(recPlaceName, addressee)) > 1;
+
+            const compId = mergeComp ? mergedNodeId(compPlaceName, speaker) : `${poem.pnum || index}-comp`;
+            const recId = mergeRec ? mergedNodeId(recPlaceName, addressee) : `${poem.pnum || index}-rec`;
+
+            const srcPoem = {
+                pnum: poem.pnum,
+                translation: poem.composition?.[selectedTranslator] || null,
+                evidence: poem.composition?.evidence ?? 'No evidence',
+                verified: poem.composition?.verified ?? false,
+                chapter: parseInt(poem.pnum.substring(0, 2)),
+                poem: parseInt(poem.pnum.slice(-2)),
+                speaker,
+                addressee,
+                messenger: poem.relationships?.messenger || 'none',
+            };
+            const tgtPoem = {
+                pnum: poem.pnum,
+                translation: poem.receipt?.[selectedTranslator] || null,
+                evidence: poem.receipt?.evidence ?? 'No evidence',
+                verified: poem.receipt?.verified ?? false,
+                chapter: parseInt(poem.pnum.substring(0, 2)),
+                poem: parseInt(poem.pnum.slice(-2)),
+                speaker,
+                addressee,
+                messenger: poem.relationships?.messenger || 'none',
+            };
 
             if (validComp) {
-                nodes.push({
-                    id: compId, pnum: poem.pnum, type: 'sender',
-                    gender: speakerGender, label: speaker,
-                    dim,
-                    groupPoems: poem.relationships?.groupPoems || [],
-                    replyPoems: poem.relationships?.replyPoems || [],
-                    repliesToThis: poem.relationships?.repliesToThis || [],
-                    chapter: parseInt(poem.pnum.substring(0, 2)),
-                    poem: parseInt(poem.pnum.slice(-2)),
-                    translation: poem.composition?.[selectedTranslator] || null,
-                    speaker: poem.composition?.speaker ?? "Unknown Sender",
-                    addressee: poem.receipt?.addressee ?? "Unknown Recipient",
-                    messenger: poem.relationships?.messenger || "none",
-                    evidence: poem.composition?.evidence ?? "No evidence",
-                    verified: poem.composition?.verified ?? "Not written with AI",
-                    x: compX, y: compY, homeX: compX, homeY: compY + 6
-                });
+                if (mergeComp) {
+                    if (!mergedNodesMap.has(compId)) {
+                        mergedNodesMap.set(compId, {
+                            id: compId,
+                            merged: true,
+                            pnum: null,
+                            type: 'person',
+                            gender: speakerGender,
+                            label: speaker,
+                            placeName: compPlaceName,
+                            dim,
+                            groupPoems: [], replyPoems: [], repliesToThis: [],
+                            poems: [],
+                            x: compX, y: compY, homeX: compX, homeY: compY + 6,
+                        });
+                    }
+                    const mn = mergedNodesMap.get(compId);
+                    if (!dim) mn.dim = false;
+                    mn.groupPoems = [...new Set([...mn.groupPoems, ...(poem.relationships?.groupPoems || [])])];
+                    mn.replyPoems = [...new Set([...mn.replyPoems, ...(poem.relationships?.replyPoems || [])])];
+                    mn.repliesToThis = [...new Set([...mn.repliesToThis, ...(poem.relationships?.repliesToThis || [])])];
+                    mn.poems.push({                         // <-- add this
+                        pnum: poem.pnum,
+                        dim,
+                        role: 'sender',
+                        translation: poem.composition?.[selectedTranslator] || null,
+                    });
+                } else {
+                    nodes.push({
+                        id: compId, pnum: poem.pnum, type: 'sender', merged: false,
+                        gender: speakerGender, label: speaker, dim,
+                        placeName: compPlaceName,
+                        groupPoems: poem.relationships?.groupPoems || [],
+                        replyPoems: poem.relationships?.replyPoems || [],
+                        repliesToThis: poem.relationships?.repliesToThis || [],
+                        chapter: srcPoem.chapter, poem: srcPoem.poem,
+                        translation: srcPoem.translation,
+                        speaker, addressee,
+                        messenger: srcPoem.messenger,
+                        evidence: srcPoem.evidence, verified: srcPoem.verified,
+                        x: compX, y: compY, homeX: compX, homeY: compY + 6,
+                    });
+                }
             }
+
             if (validRec) {
-                nodes.push({
-                    id: recId, pnum: poem.pnum, type: 'receiver',
-                    gender: addresseeGender, label: addressee,
+                if (mergeRec) {
+                    if (!mergedNodesMap.has(recId)) {
+                        mergedNodesMap.set(recId, {
+                            id: recId,
+                            merged: true,
+                            pnum: null,
+                            type: 'person',
+                            gender: addresseeGender,
+                            label: addressee,
+                            placeName: recPlaceName,
+                            dim,
+                            groupPoems: [], replyPoems: [], repliesToThis: [],
+                            poems: [],
+                            x: recX, y: recY, homeX: recX, homeY: recY + 6,
+                        });
+                    }
+                    const mn = mergedNodesMap.get(recId);
+                    if (!dim) mn.dim = false;
+                    mn.groupPoems = [...new Set([...mn.groupPoems, ...(poem.relationships?.groupPoems || [])])];
+                    mn.replyPoems = [...new Set([...mn.replyPoems, ...(poem.relationships?.replyPoems || [])])];
+                    mn.repliesToThis = [...new Set([...mn.repliesToThis, ...(poem.relationships?.repliesToThis || [])])];
+                    mn.poems.push({                         // <-- add this
+                        pnum: poem.pnum,
+                        dim,
+                        role: 'receiver',
+                        translation: poem.composition?.[selectedTranslator] || null,
+                    });
+                } else {
+                    nodes.push({
+                        id: recId, pnum: poem.pnum, type: 'receiver', merged: false,
+                        gender: addresseeGender, label: addressee, dim,
+                        placeName: recPlaceName,
+                        groupPoems: poem.relationships?.groupPoems || [],
+                        replyPoems: poem.relationships?.replyPoems || [],
+                        repliesToThis: poem.relationships?.repliesToThis || [],
+                        chapter: tgtPoem.chapter, poem: tgtPoem.poem,
+                        translation: tgtPoem.translation,
+                        speaker, addressee,
+                        messenger: tgtPoem.messenger,
+                        evidence: tgtPoem.evidence, verified: tgtPoem.verified,
+                        x: recX, y: recY, homeX: recX, homeY: recY + 6,
+                    });
+                }
+            }
+
+            if (validComp && validRec) {
+                links.push({
+                    sourceId: compId,
+                    targetId: recId,
                     dim,
-                    groupPoems: poem.relationships?.groupPoems || [],
-                    replyPoems: poem.relationships?.replyPoems || [],
-                    repliesToThis: poem.relationships?.repliesToThis || [],
-                    chapter: parseInt(poem.pnum.substring(0, 2)),
-                    poem: parseInt(poem.pnum.slice(-2)),
-                    translation: poem.receipt?.[selectedTranslator] || null,
-                    speaker: poem.composition?.speaker ?? "Unknown Sender",
-                    addressee: poem.receipt?.addressee ?? "Unknown Recipient",
-                    messenger: poem.relationships?.messenger || "none",
-                    evidence: poem.receipt?.evidence ?? "No evidence",
-                    verified: poem.receipt?.verified ?? "Not written with AI",
-                    x: recX, y: recY, homeX: recX, homeY: recY + 6
+                    pnum: poem.pnum,
+                    srcPoem,
+                    tgtPoem,
                 });
             }
-            if (validComp && validRec) links.push({ sourceId: compId, targetId: recId, dim });
         });
+
+        nodes = [...nodes, ...mergedNodesMap.values()];
+        const boxWidthBuffer = 100;         // was 85 — closer to place edge
+        const boxHeightBuffer = 50;        // was 40
         const iterations = 100;
-        const idealNodeDistance = 48;
-        const gravityStrength = 0.2;
-        const boxWidthBuffer = 85;
-        const boxHeightBuffer = 40;
+        const gravityStrength = 0.2;      // was 0.2
+        const idealNodeDistance = 48;      // was 48 — less repulsion drift
         const linkStrength = 0.1;
         const linkNodes = new Set();
         const nonLinkNodes = new Set();
@@ -458,6 +747,46 @@ btn.addEventListener('click', async () => {
             }
         }
 
+        function snapAllToPerim(allNodes) {
+            for (let i = 0; i < 80; i++) {
+                for (let node of allNodes) {
+                    let dx = node.x - node.homeX;
+                    let dy = node.y - node.homeY;
+                    if (dx === 0 && dy === 0) dy = -1;
+                    const angle = Math.atan2(dy, dx);
+                    const absCos = Math.abs(Math.cos(angle));
+                    const absSin = Math.abs(Math.sin(angle));
+                    let targetX = node.homeX;
+                    let targetY = node.homeY;
+                    if (boxWidthBuffer * absSin > boxHeightBuffer * absCos) {
+                        targetY += Math.sign(dy) * boxHeightBuffer;
+                        targetX += (Math.sign(dy) * boxHeightBuffer) / Math.tan(angle);
+                    } else {
+                        targetX += Math.sign(dx) * boxWidthBuffer;
+                        targetY += (Math.sign(dx) * boxWidthBuffer) * Math.tan(angle);
+                    }
+                    node.x += (targetX - node.x) * 0.55;
+                    node.y += (targetY - node.y) * 0.55;
+                }
+            }
+        }
+
+        const mergedByPlace = new Map();
+        nodes.filter(n => n.merged).forEach(n => {
+            if (!mergedByPlace.has(n.placeName)) mergedByPlace.set(n.placeName, []);
+            mergedByPlace.get(n.placeName).push(n);
+        });
+
+        mergedByPlace.forEach((placeNodes) => {
+            placeNodes.forEach((node, i) => {
+                const angle = (i / placeNodes.length) * Math.PI * 2 - Math.PI / 2;
+                node.x = node.homeX + Math.cos(angle) * boxWidthBuffer * 0.85;
+                node.y = node.homeY + Math.sin(angle) * boxHeightBuffer * 0.85;
+                node.pinX = node.x;   // ← add these
+                node.pinY = node.y;
+            });
+        });
+
         for (let link of links) {
             const sourceNode = nodes.find(n => n.id === link.sourceId);
             const targetNode = nodes.find(n => n.id === link.targetId);
@@ -467,25 +796,38 @@ btn.addEventListener('click', async () => {
             const dx = targetNode.x - sourceNode.x;
             const dy = targetNode.y - sourceNode.y;
             if (dx === 0 && dy === 0) {
-                sourceNode.x += (Math.random() - 0.5) * 10;
-                sourceNode.y += (Math.random() - 0.5) * 10;
+                if (!sourceNode.merged) {
+                    sourceNode.x += (Math.random() - 0.5) * 10;
+                    sourceNode.y += (Math.random() - 0.5) * 10;
+                }
                 matchLink.push(link);
                 nonLinkNodes.add(sourceNode);
             } else {
-                const Xoff = (Math.random()-0.5) * 50;
-                const Yoff = (Math.random()-0.5) * 50;
+                const Xoff = (Math.random() - 0.5) * 50;
+                const Yoff = (Math.random() - 0.5) * 50;
                 nonRecNodes.push(targetNode);
-                nonRecNodes.push(sourceNode);
                 linkNodes.add(sourceNode);
                 linkNodes.add(targetNode);
-                sourceNode.x += Xoff;
-                targetNode.y += Yoff;
-                sourceNode.y += Yoff;
-                targetNode.x += Xoff;
-                sourceNode.x += dx * linkStrength;
-                sourceNode.y += dy * linkStrength;
-                targetNode.x -= dx * linkStrength;
-                targetNode.y -= dy * linkStrength;
+
+                // Jitter only non-merged nodes
+                if (!sourceNode.merged) {
+                    sourceNode.x += Xoff;
+                    sourceNode.y += Yoff;
+                }
+                if (!targetNode.merged) {
+                    targetNode.x += Xoff;
+                    targetNode.y += Yoff;
+                }
+
+                // Link pull only moves NON-merged nodes
+                if (!sourceNode.merged) {
+                    sourceNode.x += dx * linkStrength;
+                    sourceNode.y += dy * linkStrength;
+                }
+                if (!targetNode.merged) {
+                    targetNode.x -= dx * linkStrength;
+                    targetNode.y -= dy * linkStrength;
+                }
             }
         }
 
@@ -529,8 +871,18 @@ btn.addEventListener('click', async () => {
             targetNode.x = sourceNode.x + (dx / dist) * 45;
             targetNode.y = sourceNode.y + (dy / dist) * 45;
         }
+
+        snapAllToPerim(nodes);   
+        nodes.filter(n => n.merged).forEach(n => {
+            n.x = n.pinX;
+            n.y = n.pinY;
+        });
+
+        assignLinkBows(links);
+        assignFanAnchors(nodes, links);
         setSimulatedNodes(nodes);
         setSimulatedLinks(links);
+
     }, [initialData?.poems, initialData?.dimPoems, initialData?.places, initialData.dimPlaces, placePositions, selectedTranslator]);
 
     const placeColor = (type) => {
@@ -554,7 +906,7 @@ btn.addEventListener('click', async () => {
             <svg
                 ref={svgRef}
                 width="100%"
-                height="625"
+                height="100%"
                 //style={{ cursor: isPanningRef.current ? 'grabbing' : 'grab', display: 'block' }}
                 onWheel={handleWheel}
                 onMouseDown={handleMouseDown}
@@ -759,49 +1111,70 @@ btn.addEventListener('click', async () => {
                         </g>
                     }
                     {/* 1. LINKS */}
-                    {simulatedLinks.map((link, idx) => {
+                    {sortedLinks.map((link, idx) => {
                         const src = simulatedNodes.find(n => n.id === link.sourceId);
                         const tgt = simulatedNodes.find(n => n.id === link.targetId);
                         if (!src || !tgt) return null;
-                        const isPinned = pinnedLinkId === idx;
-                        const isHovered = hoveredLinkId === idx;
-                            return (
-                                <g
-                                    key={`link-${idx}`}
-                                    onMouseOver={() => {
-                                    setHoveredLinkId(idx);
-                                    if (!pinnedLinkId) {
-                                        handleRMouseOver(link, src, tgt);
-                                    }
-                                    }}
-                                    onClick={(e) => {
-                                    e.stopPropagation();
-                                    setPinnedLinkId(isPinned ? null : idx);
-                                    handleRMouseOver(link, src, tgt);
-                                    }}
-                                    onMouseOut={() => {
-                                    if (!pinnedLinkId) {
-                                        handleRMouseOut();
-                                        handleMouseOut(false);
-                                    }
-                                    }}
-                                >
-                                <line
-                                    key={`link-line-${idx}`}
-                                    x1={src.x} y1={src.y}
-                                    x2={tgt.x} y2={tgt.y}
-                                    stroke="#ffffff"
-                                    strokeWidth={isHovered || isPinned ? 4 : 2}
-                                    opacity={link.dim ? 0.05 : .3}
-                                    markerEnd="url(#arrow)"
-                                    className="connection-line"
-                                />
-                            </g>
-                        );
-                    })}
 
+                        const srcRadius = src.merged ? 9 : 6;
+                        const tgtRadius = tgt.merged ? 9 : 6;
+                        const srcAnchor = getAnchor(src, tgt.x, tgt.y, srcRadius, link.sourceAngleOffset || 0);
+                        const tgtAnchor = getAnchor(tgt, src.x, src.y, tgtRadius, link.targetAngleOffset || 0);
+                        const isHovered = hoveredLinkId === idx;
+
+                        // NEW: detect same-place link and force outward arc
+                        const samePlace = src.placeName && src.placeName === tgt.placeName;
+                        const placeCenter = samePlace ? { x: src.homeX, y: src.homeY - 6 } : null;
+                        const minBow = 90;
+                        let bow = link.bow || 0;
+                        if (samePlace) {
+                            const clearanceRadius = 90; // desired min distance from center to the curve
+                            const distToCenter = distancePointToSegment(
+                                placeCenter.x, placeCenter.y,
+                                srcAnchor.x, srcAnchor.y,
+                                tgtAnchor.x, tgtAnchor.y
+                            );
+                            if (distToCenter < clearanceRadius) {
+                                // bezier sag is ~half of bow magnitude, so double what's needed
+                                const neededBow = (clearanceRadius - distToCenter) * 2;
+                                bow = bow >= 0 ? Math.max(bow, neededBow) : -Math.max(Math.abs(bow), neededBow);
+                            }
+                        }
+                        if (samePlace && Math.abs(bow) < minBow) {
+                            bow = bow >= 0 ? minBow : -minBow;
+                        }
+
+                        return (
+                            <g
+                                key={`link-${idx}`}
+                                onMouseEnter={() => setHoveredLinkId(idx)}
+                                onMouseLeave={() => setHoveredLinkId(null)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (selectedLinkIdx === idx) {
+                                        clearAllSelections();
+                                    } else {
+                                        clearAllSelections();
+                                        handleRMouseOver(link, link.srcPoem, link.tgtPoem);
+                                        setSelectedLinkIdx(idx);
+                                    }
+                                }}
+                            >
+                            <path
+                                d={getBowPath(srcAnchor.x, srcAnchor.y, tgtAnchor.x, tgtAnchor.y, bow, placeCenter)}
+                                fill="none"
+                                pointerEvents={link.dim ? 'none' : 'stroke'}
+                                stroke="#ffffff"
+                                strokeWidth={isHovered ? 4 : 2}
+                                opacity={link.dim ? 0.05 : 0.3}
+                                markerEnd="url(#arrow)"
+                                className="connection-line"
+                            />
+                        </g>
+                    );
+                })}
                     {/* Text labels */}
-                    {simulatedNodes.map((node, idx) => (
+                    {sortedNodes.map((node, idx) => (
                         <foreignObject key={`label-${idx}`} x={node.x - 23} y={node.y - 46} width={46} height={40} pointerEvents={'none'}>
                             <div style={{
                                 display: 'flex',
@@ -816,6 +1189,7 @@ btn.addEventListener('click', async () => {
                                 <span className="poem-node-text" style={{
                                     color: '#fff',
                                     fontSize: '7.5px',
+                                    visibility: node.dim ? 'hidden' : 'visible',
                                     opacity: node.dim ? 0.2 : 1,
                                     pointerEvents: 'none',
                                     wordBreak: 'break-word',
@@ -828,7 +1202,7 @@ btn.addEventListener('click', async () => {
                     ))}
 
                     {/* Circles */}
-                    {simulatedNodes.map((node, idx) => (
+                    {sortedNodes.map((node, idx) => (
                         <circle
                             key={`circle-${idx}`}
                             id={`node-${node.id}`}
@@ -838,16 +1212,27 @@ btn.addEventListener('click', async () => {
                             fill={node.gender === 'female' ? '#B03F2E' : '#9CBAB6'}
                             stroke='#252525'
                             strokeWidth={1.5}
+                            pointerEvents={node.dim ? 'none' : 'auto'}
                             opacity={node.dim ? 0.3 : 1}
                             style={{ cursor: 'pointer' }}
-                            onMouseOver={() => handleMouseOver(node)}
-                            onMouseOut={handleMouseOut}
-                            onClick={() => window.location.href = `/poems/${node.chapter}/${node.poem}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (selectedNodeId === node.id) {
+                                    clearAllSelections();
+                                } else {
+                                    clearAllSelections();
+                                    if (node.merged) {
+                                        handleMergedMouseOver(node);
+                                    } else {
+                                        handleNodeMouseOver(node);
+                                    }
+                                    setSelectedNodeId(node.id);
+                                }
+                            }}
                         />
                     ))}
-
                     {/* 2. PLACE RECTANGLES */}
-                    {allPlacesForRender.map((place, idx) => {
+                    {sortedPlaces.map((place, idx) => {
                         const pos = placePositions[place.name];
                         if (!pos) return null;
                         return (
@@ -855,19 +1240,30 @@ btn.addEventListener('click', async () => {
                                 key={`place-${idx}`}
                                 id={`place-${place.name}`}
                                 transform={`translate(${pos.x}, ${pos.y})`}
-                                className='place-rect'
+                                className={'place-rect'}
                                 opacity={place.dim ? 0.3 : 1}
-                                onMouseEnter={() => handlePlaceMouseOver(place)}
-                                onMouseLeave={() => handlePlaceMouseOut(place)}
-                                onMouseDown={(e) => {
-                                    draggingPlaceRef.current = place.name;
-                                    isPanningRef.current = false;
+                                pointerEvents={place.dim ? 'none': 'auto'}
+                                onClick={(e) => {
                                     e.stopPropagation();
+                                    if (selectedPlaceName === place.name) {
+                                        clearAllSelections();
+                                    } else {
+                                        clearAllSelections();
+                                        handlePlaceMouseOver(place);
+                                        setSelectedPlaceName(place.name);
+                                    }
                                 }}
-                                onClick={() => {
-                                    if (hasDraggedRef.current) return;
-                                    window.location.href = `/location-page/${encodeURIComponent(place.name)}`;
-                                }}
+                                onMouseEnter={() => handlePlaceHover(place)}
+                                onMouseLeave={() => handlePlaceUnhover(place)}
+//                                onMouseDown={(e) => {
+//                                    draggingPlaceRef.current = place.name;
+//                                    isPanningRef.current = false;
+//                                    e.stopPropagation();
+//                                }}
+//                                onClick={() => {
+//                                    if (hasDraggedRef.current) return;
+//                                    window.location.href = `/location-page/${encodeURIComponent(place.name)}`;
+//                                }}
                             >
                                 <g className="place-content">
                                     <rect
@@ -913,6 +1309,16 @@ btn.addEventListener('click', async () => {
                         className="poem"
                         id="poemnum-display"    
                     ></div>
+                    {pageUrl && selectedPlaceName && (
+                        <button
+                            className={styles.characterButton}
+                            id="page-button"
+                            onClick={() => { window.location.href = pageUrl; }}
+                        >
+                            View Page
+                        </button>
+                    )}
+
                 </div>
                 <div
                     id="translation-display"
@@ -931,6 +1337,18 @@ btn.addEventListener('click', async () => {
                         className="messenger-hover"
                         id="messenger-display"
                     ></div>
+                    {pageUrl && (selectedLinkIdx || selectedNodeId) && (
+                        <button
+                            className={styles.characterButton}
+                            style={{
+                                width: '50px'
+                            }}
+                            id="page-button"
+                            onClick={() => { window.location.href = pageUrl; }}
+                        >
+                            View Page
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
