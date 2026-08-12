@@ -65,7 +65,9 @@ export async function GET() {
             const pnum = record.get('pnum');
             if (!pnum) return;
 
-            const chapterNum = record.get('chapterNum');
+            const chapterNumRaw = record.get('chapterNum');
+            const chapterNum = String(chapterNumRaw).padStart(2, '0');
+
             const speaker = record.get('speaker');
             const addressee = record.get('addressee');
             const speakerGender = record.get('speakerGender');

@@ -50,18 +50,23 @@ export default function MultiSelectDropdown({
       return sortComparator(a, b);
     });
 
-  const selectableKeys = filteredItems
-    .filter(item => isAllowed(item.key))
-    .map(item => item.key);
+  const selectableKeys = filteredItems.map(item => item.key);
+
   const allSelectableSelected = selectableKeys.length > 0 &&
     selectableKeys.every(key => selected.includes(key));
 
-  const toggleSelectAll = () => {
-    if (allSelectableSelected) {
-      onChange(selected.filter(key => !selectableKeys.includes(key)));
-    } else {
+  const anySelectableSelected = selectableKeys.some(key => selected.includes(key));
+
+  const selectAll = () => {
+    if (!allSelectableSelected) {
       const merged = new Set([...selected, ...selectableKeys]);
       onChange(Array.from(merged));
+    }
+  };
+
+  const deSelectAll = () => {
+    if (anySelectableSelected) {
+      onChange(selected.filter(key => !selectableKeys.includes(key)));
     }
   };
 
@@ -89,6 +94,9 @@ export default function MultiSelectDropdown({
           }}
         />
         <div className={styles.panelMedium} onClick={() => setIsDropdownOpen(!isDropdownOpen)}></div>
+        <div style={{textAlign:'right', color: '#9A9898', padding:'0 5px 0 0'}}>
+          {allowedKeys == null ? items.length : allowedKeys.size}
+        </div>
         <div
           className={`${styles.toggleArrow} ${isDropdownOpen ? styles.arrowExpanded : styles.arrowCollapsed}`}
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -103,11 +111,20 @@ export default function MultiSelectDropdown({
             <button
               type="button"
               className={styles.characterButton}
-              onClick={toggleSelectAll}
-              style={{ fontWeight: 600, width: '100%', textAlign: 'left' }}
+              disabled={allSelectableSelected}
+              onClick={selectAll}
+              style={{ pointerEvents: (allSelectableSelected ? 'none' : 'auto'), fontWeight: 600, width: '50%', textAlign: 'left', opacity:(allSelectableSelected ? 0.4 : 1)}}
             >
-              {allSelectableSelected ? 'Deselect All' : 'Select All'}
-              {searchTerm ? ` (${selectableKeys.length} shown)` : ''}
+              {'Select All'}
+            </button>
+            <button
+              type="button"
+              className={styles.characterButton}
+              disabled={!anySelectableSelected}
+              onClick={deSelectAll}
+              style={{ pointerEvents: (!anySelectableSelected ? 'none' : 'auto'), fontWeight: 600, width: '50%', textAlign: 'left', opacity:(!anySelectableSelected ? 0.4 : 1)}}
+            >
+              {'Deselect All'}
             </button>
           </div>
         )}

@@ -737,6 +737,8 @@
     font-family: 'Lexend', sans-serif;
     line-height: 10px;
     letter-spacing: 0.05rem;
+    width: fit-content;
+    max-width: 400px;
     vertical-align: bottom;
     background-color: transparent;
     border: none;
@@ -788,7 +790,7 @@
     transition: max-height 0.25s ease-out;
   
 /* Firefox scrollbar */
-    scrollbar-width: 8px;
+    scrollbar-width: thin;
     scrollbar-color: #9A9898 transparent;
 }
 
@@ -806,11 +808,32 @@
     border-radius: 8px;
 }
 
-.scrollableList {
-    max-height: 500px;
+
+.lgScrollableList {
+    max-height: 800px;
     overflow-y: auto;
     overflow-x: hidden;
     transition: max-height 0.25s ease-out;
+    box-sizing: border-box;
+    scrollbar-gutter: stable;
+    padding-right:15px;
+    flex-shrink: 0;
+    width: fit-content;
+/* Firefox scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: #9A9898 transparent;
+}
+.lgScrollableList::-webkit-scrollbar {
+    width: 8px;
+}
+
+.lgScrollableList::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.lgScrollableList::-webkit-scrollbar-thumb {
+    background-color: #9A9898;
+    border-radius: 8px;
 }
 
 .expanded {
