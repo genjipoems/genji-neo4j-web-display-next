@@ -5,7 +5,8 @@
     border-radius: 4px;
     background-color: #252525; 
     width: 100%;
-    height: 80vh;
+    height: 78.5vh;
+    overflow: hidden;
     position: relative;  /* ← add this */
     -webkit-user-select: none; /* Safari */
     -moz-user-select: none;    /* Firefox */
@@ -86,26 +87,73 @@
     font-family: 'Lexend';
     color: #FFF;
 }
-
 .translation-text {
     font-family: 'Lexend';
     color: #ffffff;
-    margin:20px;
-    width: 500px;
+    margin: 20px;
+    flex: 1 1 auto;
+    max-width: 500px;
     min-height: 80px;
+    min-width: 0;
     height: fit-content;
     white-space: pre-line;
 }
 
-.chapter-poem {
+.translation-text.place-description {
+    font-family: 'Lexend';
+    color: #ffffff;
+    margin: 20px;
+    flex: 1 1 auto;
+    max-width: 900px;
+    min-height: 80px;
+    min-width: 0;
+    height: fit-content;
+    white-space: pre-line;
+}
+
+.evidence-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    gap: 10px;
+    max-width: 900px;
+    min-width: 0;
+}
+
+.evidence-block p {
+    font-family: 'Lexend';
+    color: #ffffff;
+    margin: 0;
+    font-size: 12px;
+    min-width: 0;
+    max-width: 700px;
+}
+
+.speaker-addressee-mess {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    margin: 20px;
+    min-height: 80px;
+    height: fit-content;
+    width: fit-content;
+    max-width: 200px;
+    flex-shrink: 1;
+}
+
+.chapter-poem, .chapter-poem.place-active {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     justify-content: flex-start;
     gap: 10px;
-    margin:20px;
+    margin: 20px;
     height: fit-content;
-    width:200px;
+    width: fit-content;
+    max-width: 200px;
+    flex-shrink: 0;
 }
 
 .chapter {
@@ -128,11 +176,15 @@
     left: 0;
     width: 100%;
     max-height: 80%;
+    overflow-y: auto;
+    pointer-events: none;
+    flex-wrap: wrap;
     flex-direction: row;
     text-align: left;
+    align-items: flex-start;
     justify-content: space-between;
     height: fit-content;
-    background-color: #252525;
+    background-color: transparent;
     transition: max-height 0.3s ease, padding 0.3s ease;
     padding: 0;
 }
@@ -142,11 +194,17 @@
     flex-direction: row;
     font-size: 12px;
     align-items: flex-start;
+    pointer-events: auto;
     justify-content: flex-start;
     background-color: #252525;
     width: 100%;
     height: fit-content;
-    padding: 10px 0;
+}
+
+.translation-outer.poem-active {
+    justify-content: space-between;
+    background-color: #252525;
+    pointer-events: auto;
 }
 
 .speaker-hover {
@@ -168,39 +226,6 @@
     color: #ffffff;
     white-space: pre-line;
     word-wrap: break-word;
-}
-
-.speaker-addressee-mess {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: flex-start;
-    margin:20px;
-    min-height:80px;
-    height: fit-content;
-    width:300px;
-}
-
-.translation-text.place-description {
-    font-family: 'Lexend';
-    color: #ffffff;
-    margin:20px;
-    width: 900px;
-    min-height: 80px;
-    height: fit-content;
-    white-space: pre-line;
-}
-
-.chapter-poem.place-active {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-start;
-    gap: 10px;
-    margin:20px;
-    height:fit-content;
-    width:200px;
-    text-align: left;
 }
 
 .toggle-switch {
@@ -234,42 +259,28 @@
   cursor: default;
 }
 
-.evidence-block p {
-    font-family: 'Lexend';
-    color: #ffffff;
-    font-size: 12px;
-    width: 500px;
-    padding: 0 50px 0 0;
-    margin-top: -10px;
-}
-
-.evidence-block {
-    margin: 0px;
-    padding: 5px 0;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-start;
-    width: 800px;
-}
-
 .comp-block {
+    flex-direction: row;
+    display: flex;
+    width:100%;
     align-items: flex-start;
     justify-content: space-between;
-    display: flex;
-    flex-direction: row;
+    min-width: 0;
 }
 
 .rec-block {
-    align-items: space-between;
+    align-items: flex-start;
     justify-content: space-between;
     display: flex;
+    width:100%;
     flex-direction: row;
+    min-width: 0;
 }
 
 .zoombuttons{
     background: transparent;
     position: absolute;
+    pointer-events: none;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -278,12 +289,22 @@
 }
 
 .zoomOut {
+    pointer-events: auto;
     margin: 0 20px;
     width: 25px;
     height: 25px;
 }
 
 .zoomIn {
+    pointer-events: auto;
     width: 25px;
     height: 25px;
+}
+
+.switch-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: fit-content;
+    flex-shrink: 0;
 }

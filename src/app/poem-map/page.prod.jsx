@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import LocationMap from '../../components/LocationMap.prod.jsx';
 import ChapterDropdown from '../../components/ChapterDropdown.prod.jsx';
 import LocationDropdown from '../../components/LocationDropdown.prod.jsx';
 import SpeakerDropdown from '../../components/SpeakerDropdown.prod.jsx';
 import AddresseeDropdown from '../../components/AddresseeDropdown.prod.jsx';
 import TranslatorDropdown from '../../components/TranslatorDropdown.prod.jsx';
+import styles from '../../styles/pages/chapterProfile.module.css';
 
 function useStoredArray(key) {
-    const [value, setValue] = useState([]); // matches SSR; hydrate after mount
+    const [value, setValue] = useState([]);
+    const isFirstRun = useRef(true);
 
     useEffect(() => {
         try {
@@ -21,10 +23,25 @@ function useStoredArray(key) {
     }, [key]);
 
     useEffect(() => {
+        if (isFirstRun.current) {
+            isFirstRun.current = false;
+            return; // skip writing on mount — value here is still the pre-hydration []
+        }
         sessionStorage.setItem(key, JSON.stringify(value));
     }, [key, value]);
 
     return [value, setValue];
+}
+
+function useDebouncedValue(value, delay) {
+    const [debounced, setDebounced] = useState(value);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(timer);
+    }, [value, delay]);
+
+    return debounced;
 }
 
 export default function MapPage() {
@@ -38,6 +55,15 @@ export default function MapPage() {
     const [selectedAddressees, setSelectedAddressees] = useStoredArray('addressees_selected');
     const [selectedTranslator, setSelectedTranslator] = useState('washburn');
     const [keyword, setKeyword] = useState('');
+    const debouncedKeyword = useDebouncedValue(keyword, 300);
+
+    const anyFilterActive =
+    selectedChapters.length > 0 ||
+    selectedLocations.length > 0 ||
+    selectedSpeakers.length > 0 ||
+    selectedAddressees.length > 0 ||
+    debouncedKeyword.trim().length > 0;
+
     const ALL_CHAPTER_NUMS = Array.from({ length: 54 }, (_, i) =>
         (i + 1).toString().padStart(2, '0')
     );
@@ -98,20 +124,24 @@ export default function MapPage() {
     const matchesAddressee = (poem) =>
         selectedAddressees.length === 0 || selectedAddressees.includes(poem.addressee_name);
 
-    // NOTE: only "washburn" translation text is available from this route —
-    // no japanese/romaji fields. Search matches against that.
     const matchesKeyword = (poem) => {
-        if (!keyword.trim()) return true;
-        const k = keyword.toLowerCase();
+        if (!debouncedKeyword.trim()) return true;
+        const k = debouncedKeyword.toLowerCase();
         const text = (poem.composition?.[selectedTranslator] || poem.receipt?.[selectedTranslator] || '').toLowerCase();
         return text.includes(k);
     };
 
+    const handleClearAllFilters = () => {
+        setSelectedChapters([]);
+        setSelectedLocations([]);
+        setSelectedSpeakers([]);
+        setSelectedAddressees([]);
+        setKeyword('');
+    };
     // --- allowed sets per dropdown: every filter EXCEPT that dropdown's own ---
     const allowedChapters = useMemo(() => {
         if (!allPoems) return null;
-        const active = selectedLocations.length || selectedSpeakers.length || selectedAddressees.length || keyword.trim();
-        if (!active) return null;
+        if (!anyFilterActive) return null; // nothing picked anywhere -> dim all
         const set = new Set();
         allPoems.forEach(p => {
             if (matchesLocation(p) && matchesSpeaker(p) && matchesAddressee(p) && matchesKeyword(p)) {
@@ -119,12 +149,11 @@ export default function MapPage() {
             }
         });
         return set;
-    }, [allPoems, selectedLocations, selectedSpeakers, selectedAddressees, keyword]);
+    }, [allPoems, anyFilterActive, selectedLocations, selectedSpeakers, selectedAddressees, debouncedKeyword]);
 
     const allowedLocations = useMemo(() => {
         if (!allPoems) return null;
-        const active = selectedChapters.length || selectedSpeakers.length || selectedAddressees.length || keyword.trim();
-        if (!active) return null;
+        if (!anyFilterActive) return null; // nothing picked anywhere -> dim all
         const set = new Set();
         allPoems.forEach(p => {
             if (matchesChapter(p) && matchesSpeaker(p) && matchesAddressee(p) && matchesKeyword(p)) {
@@ -133,12 +162,11 @@ export default function MapPage() {
             }
         });
         return set;
-    }, [allPoems, selectedChapters, selectedSpeakers, selectedAddressees, keyword]);
+    }, [allPoems, selectedChapters, selectedSpeakers, selectedAddressees, debouncedKeyword]);
 
     const allowedSpeakers = useMemo(() => {
         if (!allPoems) return null;
-        const active = selectedChapters.length || selectedLocations.length || selectedAddressees.length || keyword.trim();
-        if (!active) return null;
+        if (!anyFilterActive) return null; // nothing picked anywhere -> dim all
         const set = new Set();
         allPoems.forEach(p => {
             if (matchesChapter(p) && matchesLocation(p) && matchesAddressee(p) && matchesKeyword(p)) {
@@ -146,12 +174,11 @@ export default function MapPage() {
             }
         });
         return set;
-    }, [allPoems, selectedChapters, selectedLocations, selectedAddressees, keyword]);
+    }, [allPoems, selectedChapters, selectedLocations, selectedAddressees, debouncedKeyword]);
 
     const allowedAddressees = useMemo(() => {
         if (!allPoems) return null;
-        const active = selectedChapters.length || selectedLocations.length || selectedSpeakers.length || keyword.trim();
-        if (!active) return null;
+        if (!anyFilterActive) return null; // nothing picked anywhere -> dim all
         const set = new Set();
         allPoems.forEach(p => {
             if (matchesChapter(p) && matchesLocation(p) && matchesSpeaker(p) && matchesKeyword(p)) {
@@ -159,7 +186,7 @@ export default function MapPage() {
             }
         });
         return set;
-    }, [allPoems, selectedChapters, selectedLocations, selectedSpeakers, keyword]);
+    }, [allPoems, selectedChapters, selectedLocations, selectedSpeakers, debouncedKeyword]);
 
     // --- shape into places / dimPlaces / poems / dimPoems, using the merged
     // place metadata (type, description, lat, lng) rather than reconstructing
@@ -172,9 +199,8 @@ export default function MapPage() {
         const seenDimPlaces = new Set();
 
         allPoems.forEach(poem => {
-            const passes = matchesChapter(poem) && matchesLocation(poem) &&
+            const passes = anyFilterActive && matchesChapter(poem) && matchesLocation(poem) &&
                             matchesSpeaker(poem) && matchesAddressee(poem) && matchesKeyword(poem);
-            if (!matchesChapter(poem)) return;
             const target = passes ? merged.poems : merged.dimPoems;
 
             target[poem.pnum] = poem;
@@ -184,10 +210,16 @@ export default function MapPage() {
                 const placeMeta = allPlaces.get(name);
                 if (!placeMeta) return;
 
-                if (passes && !seenPlaces.has(name)) {
-                    seenPlaces.add(name);
-                    merged.places.push(placeMeta);
-                } else if (!passes && !seenPlaces.has(name) && !seenDimPlaces.has(name) && matchesChapter(poem)) {
+                if (passes) {
+                    if (!seenPlaces.has(name)) {
+                        seenPlaces.add(name);
+                        merged.places.push(placeMeta);
+                    }
+                    if (seenDimPlaces.has(name)) {
+                        seenDimPlaces.delete(name);
+                        merged.dimPlaces = merged.dimPlaces.filter(p => p.name !== name);
+                    }
+                } else if (!seenPlaces.has(name) && !seenDimPlaces.has(name)) {
                     seenDimPlaces.add(name);
                     merged.dimPlaces.push(placeMeta);
                 }
@@ -195,7 +227,7 @@ export default function MapPage() {
         });
 
         return merged;
-    }, [allPoems, allPlaces, selectedChapters, selectedLocations, selectedSpeakers, selectedAddressees, keyword]);
+    }, [allPoems, allPlaces, selectedChapters, selectedLocations, selectedSpeakers, selectedAddressees, debouncedKeyword, selectedTranslator]);
 
     const legendItems = [
         {color: '#CC683D', label: 'PROJECTED'},
@@ -205,51 +237,71 @@ export default function MapPage() {
     ];
 
     return (
-        <div style={{ display: 'flex', gap: '30px', padding: '20px', height: '81vh' }}>
-            <aside style={{ width: '350px', flexShrink: 0 }}>
-                <div className='sidewaysPanel'>
-                    <input
-                        type="text"
-                        placeholder="Search selected poem translation..."
-                        value={keyword}
-                        onChange={(e) => setKeyword(e.target.value)}
-                    />
-                    <ChapterDropdown
-                        value={selectedChapters}
-                        onChange={setSelectedChapters}
-                        allowedKeys={allowedChapters}
-                    />
-                    <LocationDropdown
-                        value={selectedLocations}
-                        onChange={setSelectedLocations}
-                        allowedKeys={allowedLocations}
-                    />
-                    <SpeakerDropdown
-                        value={selectedSpeakers}
-                        onChange={setSelectedSpeakers}
-                        allowedKeys={allowedSpeakers}
-                        allPoems={allPoems || []}
-                    />
-                    <AddresseeDropdown
-                        value={selectedAddressees}
-                        onChange={setSelectedAddressees}
-                        allowedKeys={allowedAddressees}
-                        allPoems={allPoems || []}
-                    />
-                    <TranslatorDropdown
-                        value={selectedTranslator}
-                        onChange={setSelectedTranslator}
-                    />
-                    <div>
-                        {legendItems.map((item, idx) => (
-                            <div key={idx} className="legend-item">
-                                <div className="legend-color" style={{ background: item.color }}></div>
-                                <p className="legend-text">{item.label}</p>
+        <div style={{ display: 'flex', gap: '10px', padding: '20px', height: '81vh' }}>
+            <div className={styles.lgScrollableList} >
+                <aside style={{ width: '350px', flexShrink: 0 }}>
+                        <div style={{display: 'flex', justifyContent: 'flex-start'}}>
+                            <div className={styles.characterButton} style={{pointerEvents: 'none'}}>
+                                Poems Found: {mapData ? Object.keys(mapData.poems).length : 0}
                             </div>
-                        ))}
-                    </div>
-                </div>
-            </aside>
+                            <div className={styles.characterButton} style={{pointerEvents: 'none'}}>
+                                Places Found: {mapData ? mapData.places.length : 0}
+                            </div>
+                        </div>
+                        <button 
+                            className={styles.characterButton}
+                            style={{
+                                width: '100%'
+                            }}
+                            onClick={handleClearAllFilters}
+                        >
+                            Clear all filters
+                        </button>
+                        <ChapterDropdown
+                            value={selectedChapters}
+                            onChange={setSelectedChapters}
+                            allowedKeys={allowedChapters}
+                        />
+                        <LocationDropdown
+                            value={selectedLocations}
+                            onChange={setSelectedLocations}
+                            allowedKeys={allowedLocations}
+                        />
+                        <SpeakerDropdown
+                            value={selectedSpeakers}
+                            onChange={setSelectedSpeakers}
+                            allowedKeys={allowedSpeakers}
+                            allPoems={allPoems || []}
+                        />
+                        <AddresseeDropdown
+                            value={selectedAddressees}
+                            onChange={setSelectedAddressees}
+                            allowedKeys={allowedAddressees}
+                            allPoems={allPoems || []}
+                        />
+                        <TranslatorDropdown
+                            value={selectedTranslator}
+                            onChange={setSelectedTranslator}
+                        />
+                        <div className={styles.panelHeader}>
+                            <input
+                                type="text"
+                                className={styles.panelHeaderSearch}
+                                placeholder="Search poem text"
+                                value={keyword}
+                                onChange={(e) => setKeyword(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            {legendItems.map((item, idx) => (
+                                <div key={idx} className="legend-item">
+                                    <div className="legend-color" style={{ background: item.color }}></div>
+                                    <p className="legend-text">{item.label}</p>
+                                </div>
+                            ))}
+                        </div>
+                </aside>
+            </div>
 
             {isLoading ? (
                 <div>Loading...</div>
