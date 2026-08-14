@@ -5,6 +5,7 @@
     border-radius: 4px;
     background-color: #252525; 
     width: 100%;
+    touch-action: none;
     height: 78.5vh;
     overflow: hidden;
     position: relative;  /* ← add this */
@@ -44,7 +45,7 @@
     height: fit-content;
 }
 .place-rect.hovered .place-content {
-    transform: scale(1.4);
+    transform: scale(3);
 }
 .place-content {
     transform-origin: 0 0;
@@ -178,7 +179,7 @@
     max-height: 80%;
     overflow-y: auto;
     pointer-events: none;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     flex-direction: row;
     text-align: left;
     align-items: flex-start;

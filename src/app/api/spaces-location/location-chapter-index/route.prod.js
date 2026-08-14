@@ -45,13 +45,15 @@ export async function GET() {
                 composition.description AS compositionDescription,
                 compositionRelation.evidence AS compositionEvidence,
                 compositionRelation.verified AS compositionVerified,
+                compositionRelation.verifiedByName AS compositionVerifiedByName,
                 receipt.name AS receiptName,
                 receipt.lat AS receiptLat,
                 receipt.lng AS receiptLng,
                 receipt.type AS receiptType,
                 receipt.description AS receiptDescription,
                 receiptRelation.evidence AS receiptEvidence,
-                receiptRelation.verified AS receiptVerified
+                receiptRelation.verified AS receiptVerified,
+                receiptRelation.verifiedByName AS receiptVerifiedByName
             ORDER BY chapterNum, pnum
         `;
 
@@ -79,7 +81,8 @@ export async function GET() {
                     speakerGender: speaker.gender || null,
                     washburn,
                     evidence: record.get('compositionEvidence') || null,
-                    verified: record.get('compositionVerified') ?? null,
+                    verified: record.get('compositionVerified') || null,
+                    verifiedName: record.get('compositionVerifiedByName') ?? null,
                 },
                 receipt: {
                     placeName: record.get('receiptName') || null,
@@ -91,7 +94,8 @@ export async function GET() {
                     addresseeGender: addressee.gender || null,
                     washburn,
                     evidence: record.get('receiptEvidence') || null,
-                    verified: record.get('receiptVerified') ?? null,
+                    verified: record.get('receiptVerified') || null,
+                    verifiedName: record.get('receiptVerifiedByName') || null,
                 },
                 relationships: {
                     messenger: record.get('messenger') || null,
