@@ -208,7 +208,7 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
         ch.innerHTML = (`TOTAL POEMS: ${totalCount}` || '')
 
         const pn = document.getElementById('poemnum-display')
-        pn.innerHTML = (`ACTIVE POEMS: ${nonDimCount}` || '')
+        pn.innerHTML = (`FILTERED POEMS: ${nonDimCount}` || '')
 
         const sp = document.getElementById('speaker-display')
         if (sp) sp.innerHTML = (`${node.label} at ${node.placeName}` || '');
