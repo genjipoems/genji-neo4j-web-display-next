@@ -8,7 +8,9 @@ const TRANSLATORS = [
     "cranston",
     "tyler",
     "seidensticker",
-    "waley"
+    "waley",
+    "japanese",
+    "romaji",
 ];
 
 const translatorItems = TRANSLATORS.map((name) => ({ key: name, label: name }));

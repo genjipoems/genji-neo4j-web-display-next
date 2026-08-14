@@ -44,6 +44,8 @@ export async function GET() {
                 g.pnum as pnum,
                 cleanPlaces,
                 translations,
+                g.Japanese AS japanese,
+                g.Romaji AS romaji,
                 rComp.evidence as compevidence, rComp.verified as compevverified,
                 rRec.evidence as recevidence, rRec.verified as recevverified,
                 s.name as speaker, s.gender as speakerGender,
@@ -78,7 +80,8 @@ export async function GET() {
             const repliesToThis = record.get('repliesToThisList') || [];
             const compName = record.get('compName');
             const recName = record.get('recName');
-
+            const japanese = record.get('japanese');
+            const romaji = record.get('romaji');
             const rawTranslations = record.get('translations') || [];
             const translationsByKey = {};
             rawTranslations.forEach(t => {
@@ -87,6 +90,8 @@ export async function GET() {
                 const key = TRANSLATOR_SUFFIX[suffix];
                 if (key) translationsByKey[key] = t.translation;
             });
+            translationsByKey['japanese'] = japanese;
+            translationsByKey['romaji'] = romaji;
 
             (record.get('cleanPlaces') || []).forEach(p => {
                 if (p.name && !placesByName.has(p.name)) {
@@ -121,8 +126,8 @@ export async function GET() {
             poemsData[pnum] = {
                 pnum,
                 chapterNum,
-                composition: { placeName: compName, ...translationsByKey, speaker, speakerGender, evidence: compEv, verified: compEvVerified, lat: compLat, lng: compLng },
-                receipt: { placeName: recName, ...translationsByKey, addressee, addresseeGender, evidence: recEv, verified: recEvVerified, lat: receiptLat, lng: receiptLng },
+                composition: { placeName: compName, ...translationsByKey, japanese, romaji, speaker, speakerGender, evidence: compEv, verified: compEvVerified, lat: compLat, lng: compLng },
+                receipt: { placeName: recName, ...translationsByKey, japanese, romaji, addressee, addresseeGender, evidence: recEv, verified: recEvVerified, lat: receiptLat, lng: receiptLng },
                 relationships: { groupPoems, replyPoems, repliesToThis, messenger },
             };
         });

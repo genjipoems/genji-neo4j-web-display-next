@@ -15,6 +15,12 @@ import styles from '../styles/pages/chapterProfile.module.css';
  * allowedKeys: Set<string> | null   (null = no constraint, everything allowed)
  * placeholder: string
  */
+
+function stripMacrons(str) {
+  if (!str) return str;
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 export default function MultiSelectDropdown({
   items,
   value,
@@ -39,8 +45,8 @@ export default function MultiSelectDropdown({
 
   const filteredItems = items
     .filter(item =>
-      item.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.key.toLowerCase().includes(searchTerm.toLowerCase())
+      stripMacrons(item.label.toLowerCase()).includes(stripMacrons(searchTerm.toLowerCase())) ||
+      stripMacrons(item.key.toLowerCase()).includes(stripMacrons(searchTerm.toLowerCase()))
     )
     // allowed items float to the top; caller's comparator decides order within each group
     .sort((a, b) => {

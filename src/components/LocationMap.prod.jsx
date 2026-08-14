@@ -1,9 +1,73 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import '../styles/pages/locationMap.css';
 import { useAuth } from '../hooks/useAuth';
 import styles from '../styles/pages/characterProfile.module.css';
+
+const CityGrid = React.memo(function CityGrid() {
+    return (
+        <g>
+            <rect x={-850} y={-600} width={400} height={200} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <rect x={850} y={-600} width={400} height={200} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <foreignObject x={-850} y={-625} width={250} height={20}>
+                <div style={{textAlign: "left"}}>
+                    <div style={{color: "white", fontFamily: "Lexend"}}>{"Hokuhen Avenue"}</div>
+                </div>
+            </foreignObject>
+            <rect x={-850} y={-300} width={400} height={200} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <rect x={850} y={-300} width={400} height={200} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <foreignObject x={-850} y={-325} width={250} height={20}>
+                <div style={{textAlign: "left"}}>
+                    <div style={{color: "white", fontFamily: "Lexend"}}>{"Ichijō Avenue"}</div>
+                </div>
+            </foreignObject>
+            <rect x={-850} y={0} width={400} height={200} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <rect x={850} y={0} width={400} height={200} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <foreignObject x={-850} y={-25} width={250} height={20}>
+                <div style={{textAlign: "left"}}>
+                    <div style={{color: "white", fontFamily: "Lexend"}}>{"Nijō Avenue"}</div>
+                </div>
+            </foreignObject>
+            <rect x={-400} y={-600} width={1200} height={900} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <foreignObject x={-400} y={-625} width={250} height={20}>
+                <div style={{textAlign: "left"}}>
+                    <div style={{color: "white", fontFamily: "Lexend"}}>{"The Greater Imperial Palace"}</div>
+                </div>
+            </foreignObject>
+            <rect x={-400} y={350} width={1200} height={200} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <foreignObject x={-400} y={325} width={250} height={20}>
+                <div style={{textAlign: "left"}}>
+                    <div style={{color: "white", fontFamily: "Lexend"}}>{"Sanjō Avenue"}</div>
+                </div>
+            </foreignObject>
+            <rect x={-400} y={600} width={1200} height={200} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <foreignObject x={-400} y={575} width={250} height={20}>
+                <div style={{textAlign: "left"}}>
+                    <div style={{color: "white", fontFamily: "Lexend"}}>{"Shijō Avenue"}</div>
+                </div>
+            </foreignObject>
+            <rect x={-400} y={850} width={1200} height={200} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <foreignObject x={-400} y={825} width={250} height={20}>
+                <div style={{textAlign: "left"}}>
+                    <div style={{color: "white", fontFamily: "Lexend"}}>{"Gojō Avenue"}</div>
+                </div>
+            </foreignObject>
+            <rect x={-400} y={1100} width={1200} height={200} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <foreignObject x={-400} y={1075} width={250} height={20}>
+                <div style={{textAlign: "left"}}>
+                    <div style={{color: "white", fontFamily: "Lexend"}}>{"Rokujō Avenue"}</div>
+                </div>
+            </foreignObject>
+            <rect x={-400} y={1350} width={1200} height={200} fill="none" stroke="#DFD6C8" strokeWidth={2} rx={8} strokeDasharray={"8 6"} opacity={'50%'} />
+            <foreignObject x={-400} y={1325} width={250} height={20}>
+                <div style={{textAlign: "left"}}>
+                    <div style={{color: "white", fontFamily: "Lexend"}}>{"Kujō Avenue"}</div>
+                </div>
+            </foreignObject>
+        </g>
+    );
+});
 
 export default function CharacterMap({ initialData, selectedTranslator = 'washburn'}) {
     const { isAdmin } = useAuth();
@@ -33,10 +97,20 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
     const [selectedNodeId, setSelectedNodeId] = useState(null);
     const [selectedPlaceName, setSelectedPlaceName] = useState(null);
     const [selectedLinkIdx, setSelectedLinkIdx] = useState(null);
-    const sortedLinks = [...simulatedLinks].sort((a, b) => (a.dim === b.dim ? 0 : a.dim ? -1 : 1));
-    const sortedNodes = [...simulatedNodes].sort((a, b) => (a.dim === b.dim ? 0 : a.dim ? -1 : 1));
-    const sortedPlaces = [...allPlacesForRender].sort((a, b) => (a.dim === b.dim ? 0 : a.dim ? -1 : 1));
-
+    const groupRef = useRef(null);
+    const liveTransformRef = useRef(transform);
+    const sortedLinks = useMemo(
+        () => [...simulatedLinks].sort((a, b) => (a.dim === b.dim ? 0 : a.dim ? -1 : 1)),
+        [simulatedLinks]
+    );
+    const sortedNodes = useMemo(
+        () => [...simulatedNodes].sort((a, b) => (a.dim === b.dim ? 0 : a.dim ? -1 : 1)),
+        [simulatedNodes]
+    );
+    const sortedPlaces = useMemo(
+        () => [...allPlacesForRender].sort((a, b) => (a.dim === b.dim ? 0 : a.dim ? -1 : 1)),
+        [places, dimPlaces]
+    );
     useEffect(() => {
         const allPlaces = [...places, ...dimPlaces];
         if (allPlaces.length > 0) {
@@ -88,9 +162,9 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
         const mess = document.getElementById('messenger-display');
         if (mess) mess.innerHTML = `MESSENGER: ${node.messenger}`;
         const sp = document.getElementById('speaker-display');
-        if (sp) sp.innerHTML = `SPEAKER: ${node.speaker}`;
+        (sp && node.type == 'sender') ? sp.innerHTML = `${node.speaker} composed this poem at ${node.placeName}` : sp.innerHTML = `SPEAKER: ${node.speaker}`;
         const ad = document.getElementById('addressee-display');
-        if (ad) ad.innerHTML = `ADDRESSEE: ${node.addressee}`;
+        (ad && node.type == 'receiver') ? ad.innerHTML = `${node.addressee} received this poem at ${node.placeName}` : ad.innerHTML = `ADDRESSEE: ${node.speaker}`;
 
         document.getElementById('translation-outer')?.classList.add('poem-active');
     };
@@ -137,7 +211,7 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
         pn.innerHTML = (`ACTIVE POEMS: ${nonDimCount}` || '')
 
         const sp = document.getElementById('speaker-display')
-        if (sp) sp.innerHTML = (`SPEAKER: ${node.label}` || '');
+        if (sp) sp.innerHTML = (`${node.label} at ${node.placeName}` || '');
 
 
 
@@ -265,14 +339,14 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
             <div class="comp-block">
                 <p>Composition evidence: ${src.evidence}</p>
                 <label class="switch-row">
-                    <span class="verify-status">${src.verified === true ? 'AI Generated, Human Verified' : 'AI Generated'}</span>
+                    <span class="verify-status">${src.verified === true ? `AI verified by ${src.verifiedName}` : 'AI Generated'}</span>
                     ${srcToggleHtml}
                 </label>
             </div>
             <div class="rec-block">
                 <p>Receipt evidence: ${tgt.evidence}</p>
                 <label class="switch-row">
-                    <span class="verify-status">${tgt.verified === true ? 'AI Generated, Human Verified' : 'AI Generated'}</span>
+                    <span class="verify-status">${tgt.verified === true ? `AI verified by ${tgt.verifiedName}` : 'AI Generated'}</span>
                     ${tgtToggleHtml}
                 </label>
             </div>
@@ -293,21 +367,26 @@ btn.addEventListener('click', async () => {
     // optimistic UI update
     btn.classList.toggle('on');
     btn.setAttribute('aria-checked', String(nextVerified));
-    statusSpan.textContent = nextVerified ? 'AI Generated, Human Verified' : 'AI Generated';
+    statusSpan.textContent = nextVerified ? `AI verified by ${src.verifiedName}` : 'AI Generated';
     btn.disabled = true;
 
-    try {
-        const res = await fetch(`../api/neo4j_driver/${pnum}/status`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ relType, verified: nextVerified }),
-        });
-        if (!res.ok) throw new Error('Update failed');
-    } catch (err) {
-        // revert both switch AND text on failure
+        try {
+            const res = await fetch(`../api/neo4j_driver/${pnum}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ relType, verified: nextVerified }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error('Update failed');
+
+            // Correct the optimistic guess with the real name from the server,
+            // since src.verifiedName may be stale/undefined on first verify.
+            statusSpan.textContent = nextVerified ? `AI verified by ${data.verifiedByName}` : 'AI Generated';
+        } catch (err) {
+        // revert both switch AND text on failu re
         btn.classList.toggle('on');
         btn.setAttribute('aria-checked', String(isOn));
-        statusSpan.textContent = isOn ? 'AI Generated, Human Verified' : 'AI Generated';
+        statusSpan.textContent = isOn ? `AI verified by ${tgt.verifiedName}` : 'AI Generated';
         console.error(err);
     } finally {
         btn.disabled = false;
@@ -377,22 +456,76 @@ btn.addEventListener('click', async () => {
             };
         });
     }
-    const handleWheel = (e) => {
-        e.preventDefault();
-        const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
-        const newScale = Math.max(0.1, Math.min(10, transform.scale * scaleFactor));
+//browser wheel handler
+    useEffect(() => {
+        const svgEl = svgRef.current;
+        if (!svgEl) return;
 
-        // Zoom toward mouse position
-        const svg = svgRef.current.getBoundingClientRect();
-        const mouseX = e.clientX - svg.left;
-        const mouseY = e.clientY - svg.top;
+        let rafId = null;
+        let pendingTransform = null;
 
-        setTransform(prev => ({
-            scale: newScale,
-            x: mouseX - (mouseX - prev.x) * (newScale / prev.scale),
-            y: mouseY - (mouseY - prev.y) * (newScale / prev.scale),
-        }));
-    };
+        const commitTransform = () => {
+            rafId = null;
+            if (pendingTransform) {
+                setTransform(pendingTransform);
+            }
+        };
+
+        const wheelHandler = (e) => {
+            e.preventDefault();
+            const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            const prev = liveTransformRef.current;
+            const newScale = Math.max(0.1, Math.min(10, prev.scale * scaleFactor));
+            const svgRect = svgEl.getBoundingClientRect();
+            const mouseX = e.clientX - svgRect.left;
+            const mouseY = e.clientY - svgRect.top;
+
+            const next = {
+                scale: newScale,
+                x: mouseX - (mouseX - prev.x) * (newScale / prev.scale),
+                y: mouseY - (mouseY - prev.y) * (newScale / prev.scale),
+            };
+
+            liveTransformRef.current = next;
+            if (groupRef.current) {
+                groupRef.current.setAttribute('transform', `translate(${next.x}, ${next.y}) scale(${next.scale})`);
+            }
+
+            // throttle the React state commit to once per animation frame
+            pendingTransform = next;
+            if (rafId === null) {
+                rafId = requestAnimationFrame(commitTransform);
+            }
+        };
+
+        svgEl.addEventListener('wheel', wheelHandler, { passive: false });
+        return () => {
+            svgEl.removeEventListener('wheel', wheelHandler);
+            if (rafId !== null) cancelAnimationFrame(rafId);
+        };
+    }, []);
+
+    useEffect(() => {
+        liveTransformRef.current = transform;
+    }, [transform]);
+
+    //safari gesture handler
+    useEffect(() => {
+        const svgEl = svgRef.current;
+        if (!svgEl) return;
+
+        const preventGesture = (e) => e.preventDefault();
+
+        svgEl.addEventListener('gesturestart', preventGesture);
+        svgEl.addEventListener('gesturechange', preventGesture);
+        svgEl.addEventListener('gestureend', preventGesture);
+
+        return () => {
+            svgEl.removeEventListener('gesturestart', preventGesture);
+            svgEl.removeEventListener('gesturechange', preventGesture);
+            svgEl.removeEventListener('gestureend', preventGesture);
+        };
+    }, []);
 
     const handleMouseDown = (e) => {
         if (draggingPlaceRef.current) return;
@@ -410,17 +543,25 @@ btn.addEventListener('click', async () => {
             if (el) el.setAttribute('transform', `translate(${x}, ${y})`);
             return;
         }
-
         if (isPanningRef.current) {
             const dx = e.clientX - lastMouseRef.current.x;
             const dy = e.clientY - lastMouseRef.current.y;
             lastMouseRef.current = { x: e.clientX, y: e.clientY };
-            setTransform(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
+            liveTransformRef.current = {
+                ...liveTransformRef.current,
+                x: liveTransformRef.current.x + dx,
+                y: liveTransformRef.current.y + dy,
+            };
+            if (groupRef.current) {
+                const t = liveTransformRef.current;
+                groupRef.current.setAttribute('transform', `translate(${t.x}, ${t.y}) scale(${t.scale})`);
+            }
         }
     };
 
     const handleMouseUp = () => {
         isPanningRef.current = false;
+        setTransform(liveTransformRef.current);
         if (draggingPlaceRef.current && dragPositionRef.current) {
             const name = draggingPlaceRef.current;
             const { x, y } = dragPositionRef.current;
@@ -589,6 +730,7 @@ btn.addEventListener('click', async () => {
                 translation: poem.composition?.[selectedTranslator] || null,
                 evidence: poem.composition?.evidence ?? 'No evidence',
                 verified: poem.composition?.verified ?? false,
+                verifiedName: poem.composition?.verifiedName ?? null,
                 chapter: parseInt(poem.pnum.substring(0, 2)),
                 poem: parseInt(poem.pnum.slice(-2)),
                 speaker,
@@ -600,6 +742,7 @@ btn.addEventListener('click', async () => {
                 translation: poem.receipt?.[selectedTranslator] || null,
                 evidence: poem.receipt?.evidence ?? 'No evidence',
                 verified: poem.receipt?.verified ?? false,
+                verifiedName: poem.receipt?.verifiedName ?? null,
                 chapter: parseInt(poem.pnum.substring(0, 2)),
                 poem: parseInt(poem.pnum.slice(-2)),
                 speaker,
@@ -908,7 +1051,6 @@ btn.addEventListener('click', async () => {
                 width="100%"
                 height="100%"
                 //style={{ cursor: isPanningRef.current ? 'grabbing' : 'grab', display: 'block' }}
-                onWheel={handleWheel}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -921,194 +1063,10 @@ btn.addEventListener('click', async () => {
                     </marker>
                 </defs>
 
-                <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
-                    {/* 3. MAJOR SECTIONS */}
+                <g ref={groupRef} transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
+                {/* 3. MAJOR SECTIONS */}
                     {
-                        <g>
-                            <rect
-                                x={-850} y={-600}
-                                width={400} height={200}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <rect
-                                x={850} y={-600}
-                                width={400} height={200}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <foreignObject x={-850} y={-625} width={250} height={20}>
-                                <div style={{textAlign: "left"}}>
-                                    <div style={{color: "white", fontFamily: "Lexend"}}>
-                                        {"Hokuhen Avenue"}
-                                    </div>
-                                </div>
-                            </foreignObject>
-                            <rect
-                                x={-850} y={-300}
-                                width={400} height={200}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <rect
-                                x={850} y={-300}
-                                width={400} height={200}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <foreignObject x={-850} y={-325} width={250} height={20}>
-                                <div style={{textAlign: "left"}}>
-                                    <div style={{color: "white", fontFamily: "Lexend"}}>
-                                        {"Ichijō Avenue"}
-                                    </div>
-                                </div>
-                            </foreignObject>
-                            <rect
-                                x={-850} y={0}
-                                width={400} height={200}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <rect
-                                x={850} y={0}
-                                width={400} height={200}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <foreignObject x={-850} y={-25} width={250} height={20}>
-                                <div style={{textAlign: "left"}}>
-                                    <div style={{color: "white", fontFamily: "Lexend"}}>
-                                        {"Nijō Avenue"}
-                                    </div>
-                                </div>
-                            </foreignObject>
-                            <rect
-                                x={-400} y={-600}
-                                width={1200} height={900}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <foreignObject x={-400} y={-625} width={250} height={20}>
-                                <div style={{textAlign: "left"}}>
-                                    <div style={{color: "white", fontFamily: "Lexend"}}>
-                                        {"The Greater Imperial Palace"}
-                                    </div>
-                                </div>
-                            </foreignObject>
-                            <rect
-                                x={-400} y={350}
-                                width={1200} height={200}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <foreignObject x={-400} y={325} width={250} height={20}>
-                                <div style={{textAlign: "left"}}>
-                                    <div style={{color: "white", fontFamily: "Lexend"}}>
-                                        {"Sanjō Avenue"}
-                                    </div>
-                                </div>
-                            </foreignObject>
-                            <rect
-                                x={-400} y={600}
-                                width={1200} height={200}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <foreignObject x={-400} y={575} width={250} height={20}>
-                                <div style={{textAlign: "left"}}>
-                                    <div style={{color: "white", fontFamily: "Lexend"}}>
-                                        {"Shijō Avenue"}
-                                    </div>
-                                </div>
-                            </foreignObject>
-                            <rect
-                                x={-400} y={850}
-                                width={1200} height={200}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <foreignObject x={-400} y={825} width={250} height={20}>
-                                <div style={{textAlign: "left"}}>
-                                    <div style={{color: "white", fontFamily: "Lexend"}}>
-                                        {"Gojō Avenue"}
-                                    </div>
-                                </div>
-                            </foreignObject>
-                            <rect
-                                x={-400} y={1100}
-                                width={1200} height={200}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <foreignObject x={-400} y={1075} width={250} height={20}>
-                                <div style={{textAlign: "left"}}>
-                                    <div style={{color: "white", fontFamily: "Lexend"}}>
-                                        {"Rokujō Avenue"}
-                                    </div>
-                                </div>
-                            </foreignObject>
-                            <rect
-                                x={-400} y={1350}
-                                width={1200} height={200}
-                                fill="none"
-                                stroke="#DFD6C8"
-                                strokeWidth={2}
-                                rx={8}
-                                strokeDasharray={"8 6"}
-                                opacity={'50%'}
-                            />
-                            <foreignObject x={-400} y={1325} width={250} height={20}>
-                                <div style={{textAlign: "left"}}>
-                                    <div style={{color: "white", fontFamily: "Lexend"}}>
-                                        {"Kujō Avenue"}
-                                    </div>
-                                </div>
-                            </foreignObject>
-                        </g>
+                        <CityGrid/>
                     }
                     {/* 1. LINKS */}
                     {sortedLinks.map((link, idx) => {
@@ -1174,31 +1132,21 @@ btn.addEventListener('click', async () => {
                     );
                 })}
                     {/* Text labels */}
-                    {sortedNodes.map((node, idx) => (
-                        <foreignObject key={`label-${idx}`} x={node.x - 23} y={node.y - 46} width={46} height={40} pointerEvents={'none'}>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'flex-end',
-                                pointerEvents: 'none',
-                                justifyContent: 'center',
-                                width: '100%',
-                                height: '100%',
-                                textAlign: 'center',
-                                lineHeight: '1.1'
-                            }}>
-                                <span className="poem-node-text" style={{
-                                    color: '#fff',
-                                    fontSize: '7.5px',
-                                    visibility: node.dim ? 'hidden' : 'visible',
-                                    opacity: node.dim ? 0.2 : 1,
-                                    pointerEvents: 'none',
-                                    wordBreak: 'break-word',
-                                    overflowWrap: 'anywhere'
-                                }}>
-                                    {node.label}
-                                </span>
-                            </div>
-                        </foreignObject>
+{sortedNodes.map((node, idx) => (
+    <text
+        key={`label-${idx}`}
+        x={node.x}
+        y={node.y - 10}
+        textAnchor="middle"
+        fontSize="7.5"
+        fill="#fff"
+        fontFamily="'Sofia Sans Extra Condensed'"
+        opacity={node.dim ? 0.2 : 1}
+        pointerEvents="none"
+        style={{ visibility: node.dim ? 'hidden' : 'visible' }}
+    >
+        {node.label}
+    </text>
                     ))}
 
                     {/* Circles */}
