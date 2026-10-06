@@ -1,7 +1,8 @@
-const { getSession } = require('../../../route.prod.js');
+const { getSession } = require('../../../route.prod');
 const { NextResponse } = require('next/server');
+import { withAdminAuth } from '../../../../../../lib/auth-utils';
 
-export async function PATCH(req, { params }) {
+export const PATCH = withAdminAuth(async (req, authSession, { params }) => {
   const { name } = params;
   const { verified } = await req.json();
 
@@ -9,21 +10,40 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
+  const actorId = authSession.user.id;
+  const actorName = authSession.user.name || authSession.user.email;
+
   const session = await getSession();
   try {
     const result = await session.run(
       `MATCH (p:Place {name: $name})
-       SET p.verified = $verified
+       SET p.descriptionVerified = $verified
+       FOREACH (_ IN CASE WHEN $verified THEN [1] ELSE [] END |
+        SET p.descriptionVerifiedById = $actorId,
+            p.descriptionVerifiedByName = $actorName,
+            p.descriptionVerifiedAt = datetime()
+       )
+       FOREACH (_ IN CASE WHEN NOT $verified THEN [1] ELSE [] END |
+        REMOVE p.descriptionVerifiedById,
+               p.descriptionVerifiedByName,
+               p.descriptionVerifiedAt
+       )
        RETURN p`,
-      { name, verified }
+      { name, verified, actorId, actorName }
     );
 
     if (result.records.length === 0) {
       return NextResponse.json({ error: 'Place not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true });
+    const place = result.records[0].get('p').properties;
+
+    return NextResponse.json({
+      ok: true,
+      verifiedByName: place.descriptionVerifiedByName ?? null,
+      actorName,
+    });
   } finally {
     await session.close();
   }
-}
+});

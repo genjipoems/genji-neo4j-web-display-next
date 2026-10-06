@@ -1,0 +1,98 @@
+.tt-wrapper {
+  background: #241f1b;
+  border: 1px solid #3a332c;
+  border-radius: 10px;
+  overflow: hidden;
+  color: #e8e2da;
+  font-family: system-ui, sans-serif;
+}
+
+.tt-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid #3a332c;
+}
+
+.tt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #c9c2b8;
+  cursor: pointer;
+}
+
+.tt-btn:hover:not(:disabled) {
+  background: #3a332c;
+}
+
+.tt-btn-active {
+  background: #4a4136;
+  color: #fff;
+}
+
+.tt-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.tt-select {
+  background: #2f2924;
+  color: #e8e2da;
+  border: 1px solid #4a4136;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.tt-divider {
+  width: 1px;
+  height: 20px;
+  background: #3a332c;
+  margin: 0 4px;
+}
+
+.tt-content {
+  padding: 16px;
+  min-height: 160px;
+}
+
+.tt-content .ProseMirror {
+  outline: none;
+  min-height: 160px;
+}
+
+.tt-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #6b6357;
+  pointer-events: none;
+  height: 0;
+}
+
+.tt-content blockquote {
+  border-left: 3px solid #4a4136;
+  margin-left: 0;
+  padding-left: 12px;
+  color: #b7afa2;
+}
+
+.tt-content code {
+  background: #3a332c;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.tt-content pre {
+  background: #1c1815;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+}

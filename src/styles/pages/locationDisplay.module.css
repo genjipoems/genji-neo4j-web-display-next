@@ -480,6 +480,7 @@
   font-weight: 400;
   width: 100%;
   height: fit-content;
+  justify-content: space-between;
   font-size: 16px;
   color: #ffffff;
   text-align: left;
@@ -662,7 +663,6 @@
   flex-direction: row;
   width: 100%;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
 }
 

@@ -1,3 +1,4 @@
+/*
 import { getSession } from '../../neo4j_driver/route.prod.js';
 import { toNativeTypes } from '../../neo4j_driver/utils.prod.js';
 
@@ -114,3 +115,4 @@ export async function GET() {
         await session.close();
     }
 }
+*/

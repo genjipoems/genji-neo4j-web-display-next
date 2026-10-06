@@ -1,3 +1,4 @@
+/*
 import { getSession } from '../neo4j_driver/route.prod.js';
 import { toNativeTypes } from '../neo4j_driver/utils.prod.js';
 
@@ -16,7 +17,6 @@ export async function GET(request) {
                 name: p.name,
                 lat: p.lat,
                 lng: p.lng,
-                type: p.type,
                 description: p.description,
                 evidence: p.evidence,
                 verified: p.verified
@@ -74,7 +74,6 @@ export async function GET(request) {
                 .filter(p => p.name !== null)
                 .map(p => ({
                     name: p.name,
-                    type: p.type,
                     description: p.description,
                     verified: p.verified,
                     evidence: p.evidence,
@@ -142,3 +141,4 @@ export async function GET(request) {
         await session.close();
     }
 }
+    */

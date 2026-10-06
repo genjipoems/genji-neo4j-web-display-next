@@ -86,7 +86,7 @@ export async function GET(request) {
             OPTIONAL MATCH (s:Character)-[:SPEAKER_OF]->(compPoem)
             OPTIONAL MATCH (compPoem)<-[:ADDRESSEE_OF]-(a:Character)
             OPTIONAL MATCH (tComp:Translation)-[:TRANSLATION_OF]->(compPoem)
-                WHERE toUpper(tComp.id) ENDS WITH 'W'
+            OPTIONAL MATCH (:Translator {name: 'Washburn'})-[:TRANSLATOR_OF]->(tComp)
 
             WITH p,
                 collect(DISTINCT {
@@ -103,8 +103,8 @@ export async function GET(request) {
             OPTIONAL MATCH (rs:Character)-[:SPEAKER_OF]->(recPoem)
             OPTIONAL MATCH (recPoem)<-[:ADDRESSEE_OF]-(ra:Character)
             OPTIONAL MATCH (tRec:Translation)-[:TRANSLATION_OF]->(recPoem)
-                WHERE toUpper(tRec.id) ENDS WITH 'W'
-
+            OPTIONAL MATCH (:Translator {name: 'Washburn'})-[:TRANSLATOR_OF]->(tRec)
+            
             WITH composedPoems,
                 collect(DISTINCT {
                     pnum:        recPoem.pnum,
