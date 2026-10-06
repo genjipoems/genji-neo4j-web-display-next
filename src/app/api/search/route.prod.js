@@ -28,16 +28,21 @@ async function getCharQuery (query){
 }
 
 async function getInteractionsQuery (query){
-
     const session = await getSession();
-
     const { get, details } = query; 
     const { speaker, addressee, chapter } = details;
 
     try {
         const res2 = await session.readTransaction(tx => tx.run(get, { speaker, addressee, chapter }));
         let poemRes = res2.records.map(row => { return toNativeTypes(row.get('exchange')) })
-        let transTemp = res2.records.map(row => { return toNativeTypes(row.get('trans')) }).map(row => [Object.keys(row.end.properties), Object.values(row.end.properties)])
+        let transTemp = res2.records.map(row => {
+            const transProps = toNativeTypes(row.get('trans')).end.properties;
+            const translatorName = row.get('translatorName');
+            return [
+                [...Object.keys(transProps), 'translatorName'],
+                [...Object.values(transProps), translatorName]
+            ];
+        })
 
         let [plist, info, propname] = getPoemTableContent(poemRes, transTemp);
         return { plist: plist, info: info, propname: propname }
@@ -70,11 +75,11 @@ function generateInteractionsQuery (spkrGen, addrGen, speaker, addressee, chapte
         // as of Apirl 2022, the chapter numbers are in string
         getChapter = ', (g)-[:INCLUDED_IN]-(:Chapter {chapter_number: "' + chapter + '"}), '
     }
-    let get = 'match exchange=' + getSpeaker + '-[:SPEAKER_OF]-(g:Genji_Poem)-'
-        + '[:ADDRESSEE_OF]-' + getAddressee
-        + getChapter
-        + 'trans=(g)-[:TRANSLATION_OF]-(t:Translation) '
-        + ' return exchange, trans';
+let get = 'match exchange=' + getSpeaker + '-[:SPEAKER_OF]-(g:Genji_Poem)-'
+    + '[:ADDRESSEE_OF]-' + getAddressee
+    + getChapter
+    + 'trans=(g)-[:TRANSLATION_OF]-(t:Translation)-[:TRANSLATOR_OF]-(tr:Translator) '
+    + ' return exchange, trans, tr.name as translatorName';
     return { get: get, details: { speaker, addressee, chapter } };
 }
 

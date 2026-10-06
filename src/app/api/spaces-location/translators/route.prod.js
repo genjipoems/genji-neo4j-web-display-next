@@ -32,22 +32,23 @@ export async function GET() {
             OPTIONAL MATCH (repliesToThis:Genji_Poem)-[:REPLY_TO]->(g)
 
             OPTIONAL MATCH (t:Translation)-[:TRANSLATION_OF]->(g)
+            OPTIONAL MATCH (tr:Translator)-[:TRANSLATOR_OF]->(t)
 
             WITH g, ch, cleanPlaces, s, a, pComp, pRec, rComp, rRec, mess,
                 collect(DISTINCT otherPoems.pnum) as groupMembers,
                 collect(DISTINCT reply.pnum) as replyPoemList,
                 collect(DISTINCT repliesToThis.pnum) as repliesToThisList,
-                collect(DISTINCT {id: t.id, translation: t.translation}) as translations
-
+                collect(DISTINCT {id: t.id, translation: t.translation, translatorName: tr.name}) as translations
+                
                 RETURN 
+                rComp.evidence as compevidence, rComp.verified as compevverified, rComp.verifiedByName as compVerifiedByName,
+                rRec.evidence as recevidence, rRec.verified as recevverified, rRec.verifiedByName as recVerifiedByName,
                 ch.chapter_number as chapterNum,
                 g.pnum as pnum,
                 cleanPlaces,
                 translations,
                 g.Japanese AS japanese,
                 g.Romaji AS romaji,
-                rComp.evidence as compevidence, rComp.verified as compevverified,
-                rRec.evidence as recevidence, rRec.verified as recevverified,
                 s.name as speaker, s.gender as speakerGender,
                 a.name as addressee, a.gender as addresseeGender,
                 pComp.name as compName, pComp.lat as compLat, pComp.lng as compLng,
@@ -85,10 +86,9 @@ export async function GET() {
             const rawTranslations = record.get('translations') || [];
             const translationsByKey = {};
             rawTranslations.forEach(t => {
-                if (!t.id || !t.translation) return;
-                const suffix = t.id.toUpperCase().slice(-1);
-                const key = TRANSLATOR_SUFFIX[suffix];
-                if (key) translationsByKey[key] = t.translation;
+                if (!t.translation || !t.translatorName) return;
+                const key = t.translatorName.toLowerCase();
+                translationsByKey[key] = t.translation;
             });
             translationsByKey['japanese'] = japanese;
             translationsByKey['romaji'] = romaji;
@@ -107,18 +107,19 @@ export async function GET() {
                 }
             });
 
-            let compEv = null, compEvVerified = null, compLat = null, compLng = null;
-            let recEv = null, recEvVerified = null, receiptLat = null, receiptLng = null;
-
+            let compEv = null, compEvVerified = null, compEvVerifiedName = null, compLat = null, compLng = null;
+            let recEv = null, recEvVerified = null, recEvVerifiedName = null, receiptLat = null, receiptLng = null;
             if (compName) {
                 compEv = record.get('compevidence') ?? null;
                 compEvVerified = record.get('compevverified') ?? null;
+                compEvVerifiedName = record.get('compVerifiedByName') ?? null;
                 compLat = record.get('compLat') != null ? toNativeTypes(record.get('compLat')) : null;
                 compLng = record.get('compLng') != null ? toNativeTypes(record.get('compLng')) : null;
             }
             if (recName) {
                 recEv = record.get('recevidence') ?? null;
                 recEvVerified = record.get('recevverified') ?? null;
+                recEvVerifiedName = record.get('recVerifiedByName') ?? null;
                 receiptLat = record.get('recLat') != null ? toNativeTypes(record.get('recLat')) : null;
                 receiptLng = record.get('recLng') != null ? toNativeTypes(record.get('recLng')) : null;
             }
@@ -126,8 +127,8 @@ export async function GET() {
             poemsData[pnum] = {
                 pnum,
                 chapterNum,
-                composition: { placeName: compName, ...translationsByKey, japanese, romaji, speaker, speakerGender, evidence: compEv, verified: compEvVerified, lat: compLat, lng: compLng },
-                receipt: { placeName: recName, ...translationsByKey, japanese, romaji, addressee, addresseeGender, evidence: recEv, verified: recEvVerified, lat: receiptLat, lng: receiptLng },
+                composition: { placeName: compName, ...translationsByKey, japanese, romaji, speaker, speakerGender, evidence: compEv, verified: compEvVerified, verifiedName: compEvVerifiedName, lat: compLat, lng: compLng },
+                receipt: { placeName: recName, ...translationsByKey, japanese, romaji, addressee, addresseeGender, evidence: recEv, verified: recEvVerified, verifiedName: recEvVerifiedName, lat: receiptLat, lng: receiptLng },
                 relationships: { groupPoems, replyPoems, repliesToThis, messenger },
             };
         });

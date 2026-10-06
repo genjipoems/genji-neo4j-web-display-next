@@ -117,6 +117,7 @@ const LocationChapterGraph = ({ poems }) => {
         </div>
     );
 };
+
 const LocationDisplay = ({ locationData }) => {
     const { isAdmin } = useAuth();
     const { name } = locationData;
@@ -128,6 +129,21 @@ const LocationDisplay = ({ locationData }) => {
         isLoading: true,
         error: null
     });
+    const syncCache = (name, patch) => {
+        const cacheKey = `location_${name}`;
+        const cacheTimeKey = `location_${name}_time`;
+        try {
+            const cached = localStorage.getItem(cacheKey);
+            if (!cached) return;
+            const parsed = JSON.parse(cached);
+            const updated = { ...parsed, ...patch };
+            localStorage.setItem(cacheKey, JSON.stringify(updated));
+            localStorage.setItem(cacheTimeKey, Date.now().toString());
+        } catch (e) {
+            console.error('Cache sync failed:', e);
+        }
+    };
+
     const handleClaimVerifyToggle = async (claimId, currentlyVerified) => {
         const nextVerified = !currentlyVerified;
 
@@ -143,6 +159,17 @@ const LocationDisplay = ({ locationData }) => {
                 body: JSON.stringify({ verified: nextVerified }),
             });
             if (!res.ok) throw new Error('Update failed');
+            const data = await res.json(); // backend should return { verifiedByName } like the map's endpoint does
+
+            setState(prev => {
+                const claims = prev.claims.map(c =>
+                    c.id === claimId
+                        ? { ...c, verified: nextVerified, verifiedName: nextVerified ? data.verifiedByName : null }
+                        : c
+                );
+                syncCache(name, { claims });
+                return { ...prev, claims };
+            });
         } catch (err) {
             setState(prev => ({
                 ...prev,
@@ -167,6 +194,17 @@ const LocationDisplay = ({ locationData }) => {
                 body: JSON.stringify({ verified: nextVerified }),
             });
             if (!res.ok) throw new Error('Update failed');
+            const data = await res.json();
+
+            setState(prev => {
+                const place = {
+                    ...prev.place,
+                    descriptionVerified: nextVerified,
+                    descriptionVerifiedName: nextVerified ? data.verifiedByName : null,
+                };
+                syncCache(name, { place });
+                return { ...prev, place };
+            });
         } catch (err) {
             setState(prev => ({
                 ...prev,
@@ -358,7 +396,7 @@ const LocationDisplay = ({ locationData }) => {
                             </div>
                             <div className={`${styles.panelContent} ${expandedPanels.description ? styles.expanded : styles.collapsed}`}>
                                 <div style={{display: 'flex', flexDirection: 'row', margin: '20px 0 0 0', justifyContent: 'flex-end', gap: '12px'}}>
-                                    <span>{place.descriptionVerified ? 'AI Generated, Human Verified' : 'AI Generated'}</span>
+                                    <span>{place.descriptionVerified ? `AI Generated, verified by ${place.descriptionVerifiedName}` : 'AI Generated'}</span>
                                     {isAdmin && (
                                         <button
                                             role="switch"
@@ -423,20 +461,22 @@ const LocationDisplay = ({ locationData }) => {
                                                 <span className={styles.claimChapPage}>
                                                     {`CHAPTER ${claim.chapter},  PAGE ${claim.page}`}
                                                 </span>
-                                                <span>{claim.verified ? 'AI Generated, Human Verified' : 'AI Generated'}</span>
-                                                {isAdmin && (
-                                                    <button
-                                                        role="switch"
-                                                        aria-checked={claim.verified === true}
-                                                        className={`toggle-switch ${claim.verified === true ? 'on' : ''}`}
-                                                        onClick={() => {
-                                                            console.log('clicked claim:', claim.id, claim);
-                                                            handleClaimVerifyToggle(claim.id, claim.verified);
-                                                        }}
-                                                        >
-                                                        <span className="toggle-thumb"></span>
-                                                    </button>
-                                                )}
+                                                <div style={{display: 'flex', flexDirection: 'row', width: "fit-content", textWrap: 'nowrap', gap: '10px'}}>
+                                                    <span>{claim.verified ? `AI Generated, verified by ${claim.verifiedName}` : 'AI Generated'}</span>
+                                                    {isAdmin && (
+                                                        <button
+                                                            role="switch"
+                                                            aria-checked={claim.verified === true}
+                                                            className={`toggle-switch ${claim.verified === true ? 'on' : ''}`}
+                                                            onClick={() => {
+                                                                console.log('clicked claim:', claim.id, claim);
+                                                                handleClaimVerifyToggle(claim.id, claim.verified);
+                                                            }}
+                                                            >
+                                                            <span className="toggle-thumb"></span>
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                             <span className={styles.claimQuote}>
                                                 {claim.quote ?? 'Untitled claim'}

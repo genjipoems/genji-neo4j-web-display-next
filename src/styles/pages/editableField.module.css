@@ -1,0 +1,100 @@
+.editPopupOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999; /* comfortably above anything in poemDisplay.module.css */
+}
+
+.editPopup {
+  position: relative;
+  z-index: 10000;
+  background: #241f1b;
+  color: #e8e2da;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #3a332c;
+  min-width: 500px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.editPopupTitle {
+  color: #e8e2da;
+  margin-top: 0;
+}
+
+/* Native <input>/<select> used for non-rich-text fields (dates, dropdowns,
+   datalist) inside the popup */
+.editPopup input,
+.editPopup select {
+  background: #2f2924;
+  color: #e8e2da;
+  border: 1px solid #4a4136;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.editPopup input::placeholder {
+  color: #6b6357;
+}
+
+.optionList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.optionItem {
+  padding: 6px 12px;
+  border: 1px solid #4a4136;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  color: #e8e2da;
+  background: #2f2924;
+}
+
+.optionItem:hover {
+  background: #3a332c;
+}
+
+.optionSelected {
+  background: #8CA887;
+  border-color: #8CA887;
+  color: #10140f;
+}
+
+.editPopupButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 1rem;
+}
+
+.editPopupButtons button {
+  background: #2f2924;
+  color: #e8e2da;
+  border: 1px solid #4a4136;
+  border-radius: 6px;
+  padding: 6px 16px;
+  cursor: pointer;
+}
+
+.editPopupButtons button:hover:not(:disabled) {
+  background: #3a332c;
+}
+
+.editPopupButtons button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.editError {
+  color: #e08a8a;
+  margin-top: 0.5rem;
+}

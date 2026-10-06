@@ -69,9 +69,10 @@ const CityGrid = React.memo(function CityGrid() {
     );
 });
 
-export default function CharacterMap({ initialData, selectedTranslator = 'washburn'}) {
+export default function CharacterMap({ initialData, selectedTranslator = 'washburn', focusPnum, focusPlace}) {
     const { isAdmin } = useAuth();
     const places = initialData?.places || [];
+    const [placePositions, setPlacePositions] = useState({});
     const dimPlaces = initialData?.dimPlaces || [];
     const rawPoems = initialData?.poems ? Object.values(initialData.poems) : [];
     const rawDimPoems = initialData?.dimPoems ? Object.values(initialData.dimPoems) : [];
@@ -82,7 +83,6 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
     const [lastDropInfo, setLastDropInfo] = useState(null); //devtool
     const [simulatedNodes, setSimulatedNodes] = useState([]);
     const [simulatedLinks, setSimulatedLinks] = useState([]);
-    const [placePositions, setPlacePositions] = useState({});
     const [transform, setTransform] = useState({ x: 475, y: 325, scale: 0.5 });
     const hoveredPnumRef = useRef(null);
     const hoveredPlaceRef = useRef(null);
@@ -97,8 +97,10 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
     const [selectedNodeId, setSelectedNodeId] = useState(null);
     const [selectedPlaceName, setSelectedPlaceName] = useState(null);
     const [selectedLinkIdx, setSelectedLinkIdx] = useState(null);
+    const [verificationOverrides, setVerificationOverrides] = useState({});
     const groupRef = useRef(null);
     const liveTransformRef = useRef(transform);
+    const hasFocusedRef = useRef(false);
     const sortedLinks = useMemo(
         () => [...simulatedLinks].sort((a, b) => (a.dim === b.dim ? 0 : a.dim ? -1 : 1)),
         [simulatedLinks]
@@ -111,6 +113,27 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
         () => [...allPlacesForRender].sort((a, b) => (a.dim === b.dim ? 0 : a.dim ? -1 : 1)),
         [places, dimPlaces]
     );
+
+    useEffect(() => {
+        if (!focusPlace || hasFocusedRef.current || !svgRef.current) return;
+
+        const pos = placePositions[focusPlace];
+        if (!pos) return;
+
+        hasFocusedRef.current = true;
+
+        const svg = svgRef.current.getBoundingClientRect();
+        const targetScale = 2;
+
+        setTransform({
+            scale: targetScale,
+            x: svg.width / 2 - pos.x * targetScale,
+            y: svg.height / 2 - pos.y * targetScale,
+        });
+
+        const placeObj = allPlacesForRender.find(p => p.name === focusPlace);
+    }, [focusPlace, placePositions]);
+
     useEffect(() => {
         const allPlaces = [...places, ...dimPlaces];
         if (allPlaces.length > 0) {
@@ -130,7 +153,7 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
             const node = simulatedNodes.find(n => n.id === selectedNodeId);
             if (node) return `/characters/${encodeURIComponent(node.label)}`;
         }
-        if (selectedLinkIdx) {
+        if (selectedLinkIdx !== null) {
             const link = sortedLinks[selectedLinkIdx]
             if (link) {
             return `/poems/${link.pnum.substring(0, 2).replace(/^0+/, '')}/${link.pnum.slice(-2).replace(/^0+/, '')}`;
@@ -308,14 +331,20 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
     }
     const handleRMouseOver = (link, src, tgt) => {
         hoveredRRef.current = link.idx;
+        const srcOverride = verificationOverrides[`${src.pnum}::src`];
+        const tgtOverride = verificationOverrides[`${tgt.pnum}::tgt`];
+        const srcVerified = srcOverride?.verified ?? src.verified;
+        const srcVerifiedName = srcOverride?.verifiedName ?? src.verifiedName;
+        const tgtVerified = tgtOverride?.verified ?? tgt.verified;
+        const tgtVerifiedName = tgtOverride?.verifiedName ?? tgt.verifiedName;
 
         const el = document.getElementById('translation-display');
 
         const srcToggleHtml = isAdmin ? `
             <button
                 role="switch"
-                aria-checked="${src.verified === true}"
-                class="toggle-switch ${src.verified === true ? 'on' : ''}"
+                aria-checked="${srcVerified === true}"
+                class="toggle-switch ${srcVerified === true ? 'on' : ''}"
                 data-pnum="${src.pnum}"
                 data-field="src"
             >
@@ -326,73 +355,78 @@ export default function CharacterMap({ initialData, selectedTranslator = 'washbu
         const tgtToggleHtml = isAdmin ? `
             <button
                 role="switch"
-                aria-checked="${tgt.verified === true}"
-                class="toggle-switch ${tgt.verified === true ? 'on' : ''}"
+                aria-checked="${tgtVerified === true}"
+                class="toggle-switch ${tgtVerified === true ? 'on' : ''}"
                 data-pnum="${tgt.pnum}"
                 data-field="tgt"
             >
                 <span class="toggle-thumb"></span>
             </button>
         ` : '';
+
         el.innerHTML = `<div>${ src.translation.replace(/\n/g, '<br   >') }</div>
         <div class="evidence-block">
             <div class="comp-block">
                 <p>Composition evidence: ${src.evidence}</p>
                 <label class="switch-row">
-                    <span class="verify-status">${src.verified === true ? `AI verified by ${src.verifiedName}` : 'AI Generated'}</span>
+                    <span class="verify-status">${srcVerified === true ? `AI verified by ${srcVerifiedName}` : 'AI Generated'}</span>
                     ${srcToggleHtml}
                 </label>
             </div>
             <div class="rec-block">
                 <p>Receipt evidence: ${tgt.evidence}</p>
                 <label class="switch-row">
-                    <span class="verify-status">${tgt.verified === true ? `AI verified by ${tgt.verifiedName}` : 'AI Generated'}</span>
+                    <span class="verify-status">${tgtVerified === true ? `AI verified by ${tgtVerifiedName}` : 'AI Generated'}</span>
                     ${tgtToggleHtml}
                 </label>
             </div>
         </div>
-        `;
-    
+        `;    
         el.querySelectorAll('.toggle-switch').forEach((btn) => {
-btn.addEventListener('click', async () => {
-    const pnum = btn.dataset.pnum;
-    const field = btn.dataset.field;
-    const relType = field === 'src' ? 'composition' : 'receipt';
-    const isOn = btn.classList.contains('on');
-    const nextVerified = !isOn;
+            btn.addEventListener('click', async () => {
+                const pnum = btn.dataset.pnum;
+                const field = btn.dataset.field;
+                const relType = field === 'src' ? 'composition' : 'receipt';
+                const isOn = btn.classList.contains('on');
+                const nextVerified = !isOn;
 
-    const label = btn.closest('.switch-row');
-    const statusSpan = label.querySelector('.verify-status');
+                const label = btn.closest('.switch-row');
+                const statusSpan = label.querySelector('.verify-status');
 
-    // optimistic UI update
-    btn.classList.toggle('on');
-    btn.setAttribute('aria-checked', String(nextVerified));
-    statusSpan.textContent = nextVerified ? `AI verified by ${src.verifiedName}` : 'AI Generated';
-    btn.disabled = true;
+                // optimistic UI update
+                btn.classList.toggle('on');
+                btn.setAttribute('aria-checked', String(nextVerified));
+                statusSpan.textContent = nextVerified ? `AI verified by ${src.verifiedName}` : 'AI Generated';
+                btn.disabled = true;
 
-        try {
-            const res = await fetch(`../api/neo4j_driver/${pnum}/status`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ relType, verified: nextVerified }),
+                    try {
+                        const res = await fetch(`../api/neo4j_driver/${pnum}/status`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ relType, verified: nextVerified }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error('Update failed');
+
+                        setVerificationOverrides(prev => ({
+                        ...prev,
+                        [`${pnum}::${field}`]: { verified: nextVerified, verifiedName: data.verifiedByName },
+                        }));
+                        statusSpan.textContent = nextVerified
+                            ? `AI verified by ${field === 'src' ? srcVerifiedName : tgtVerifiedName}`
+                            : 'AI Generated';
+                    } catch (err) {
+                    // revert both switch AND text on failu re
+                    btn.classList.toggle('on');
+                    btn.setAttribute('aria-checked', String(isOn));
+                    statusSpan.textContent = isOn ? `AI verified by ${tgt.verifiedName}` : 'AI Generated';
+                    console.error(err);
+                } finally {
+                    btn.disabled = false;
+                }
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error('Update failed');
-
-            // Correct the optimistic guess with the real name from the server,
-            // since src.verifiedName may be stale/undefined on first verify.
-            statusSpan.textContent = nextVerified ? `AI verified by ${data.verifiedByName}` : 'AI Generated';
-        } catch (err) {
-        // revert both switch AND text on failu re
-        btn.classList.toggle('on');
-        btn.setAttribute('aria-checked', String(isOn));
-        statusSpan.textContent = isOn ? `AI verified by ${tgt.verifiedName}` : 'AI Generated';
-        console.error(err);
-    } finally {
-        btn.disabled = false;
-    }
-});
         });
+
         const ch = document.getElementById('chapter-display')
         ch.innerHTML = (`CHAPTER: ${src.chapter}` || '')
 
@@ -1028,14 +1062,23 @@ btn.addEventListener('click', async () => {
 
     }, [initialData?.poems, initialData?.dimPoems, initialData?.places, initialData.dimPlaces, placePositions, selectedTranslator]);
 
-    const placeColor = (type) => {
-        if (type === "fictional with evidence") return "#BFAE93";
-        if (type === "historical") return "#767D43";
-        if (type === "fictional without evidence") return "#EDB940";
-        if (type === "projected") return "#CC683D";
-        return "#FFF";
-    };
+    useEffect(() => {
+        if (!focusPnum || sortedLinks.length === 0) return;
 
+        const link = sortedLinks.find(l => l.pnum === focusPnum);
+        if (!link) return;
+
+        clearAllSelections();
+        
+        // 1. Use the link's unique ID property (or fallback to its sorted index)
+        const targetIdx = link.pnum !== undefined ? link.idx : sortedLinks.indexOf(link);
+        setSelectedLinkIdx(targetIdx);
+
+        // 2. Trigger sidebar panel updates and hover highlights
+        handleRMouseOver(link, link.srcPoem, link.tgtPoem);
+
+    }, [focusPnum, sortedLinks]);
+    
     return (
         <div className="map-container">
             <div className="zoombuttons">
@@ -1079,7 +1122,7 @@ btn.addEventListener('click', async () => {
                         const srcAnchor = getAnchor(src, tgt.x, tgt.y, srcRadius, link.sourceAngleOffset || 0);
                         const tgtAnchor = getAnchor(tgt, src.x, src.y, tgtRadius, link.targetAngleOffset || 0);
                         const isHovered = hoveredLinkId === idx;
-
+                        const isSelected = selectedLinkIdx == idx;
                         // NEW: detect same-place link and force outward arc
                         const samePlace = src.placeName && src.placeName === tgt.placeName;
                         const placeCenter = samePlace ? { x: src.homeX, y: src.homeY - 6 } : null;
@@ -1122,9 +1165,9 @@ btn.addEventListener('click', async () => {
                                 d={getBowPath(srcAnchor.x, srcAnchor.y, tgtAnchor.x, tgtAnchor.y, bow, placeCenter)}
                                 fill="none"
                                 pointerEvents={link.dim ? 'none' : 'stroke'}
-                                stroke="#ffffff"
+                                stroke={isSelected? "#0062ff" : "#ffffff" }
                                 strokeWidth={isHovered ? 4 : 2}
-                                opacity={link.dim ? 0.05 : 0.3}
+                                opacity={(link.dim ? 0.05 : 0.3)}
                                 markerEnd="url(#arrow)"
                                 className="connection-line"
                             />
@@ -1132,21 +1175,21 @@ btn.addEventListener('click', async () => {
                     );
                 })}
                     {/* Text labels */}
-{sortedNodes.map((node, idx) => (
-    <text
-        key={`label-${idx}`}
-        x={node.x}
-        y={node.y - 10}
-        textAnchor="middle"
-        fontSize="7.5"
-        fill="#fff"
-        fontFamily="'Sofia Sans Extra Condensed'"
-        opacity={node.dim ? 0.2 : 1}
-        pointerEvents="none"
-        style={{ visibility: node.dim ? 'hidden' : 'visible' }}
-    >
-        {node.label}
-    </text>
+                    {sortedNodes.map((node, idx) => (
+                        <text
+                            key={`label-${idx}`}
+                            x={node.x}
+                            y={node.y - 10}
+                            textAnchor="middle"
+                            fontSize="7.5"
+                            fill="#fff"
+                            fontFamily="'Sofia Sans Extra Condensed'"
+                            opacity={node.dim ? 0.2 : 1}
+                            pointerEvents="none"
+                            style={{ visibility: node.dim ? 'hidden' : 'visible' }}
+                        >
+                            {node.label}
+                        </text>
                     ))}
 
                     {/* Circles */}
@@ -1190,6 +1233,7 @@ btn.addEventListener('click', async () => {
                                 transform={`translate(${pos.x}, ${pos.y})`}
                                 className={'place-rect'}
                                 opacity={place.dim ? 0.3 : 1}
+                                fill="#DFD6C8"
                                 pointerEvents={place.dim ? 'none': 'auto'}
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -1218,7 +1262,6 @@ btn.addEventListener('click', async () => {
                                         className="location-box"
                                         x={-65} y={-20}
                                         width={130} height={40}
-                                        fill={placeColor(place.type)}
                                         stroke="#DFD6C8"
                                         strokeWidth={2}
                                         rx={8}

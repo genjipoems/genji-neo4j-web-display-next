@@ -12,7 +12,7 @@ async function getData (chapter, number){
 		res: 'MATCH poem=(g:Genji_Poem)-[:INCLUDED_IN]->(:Chapter {chapter_number: "' + chapter + '"}) WHERE g.pnum ENDS WITH "' + number + '" \
 				OPTIONAL MATCH speaker_rel=(s:Character)-[:SPEAKER_OF]->(g) \
 				OPTIONAL MATCH addressee_rel=(g)<-[:ADDRESSEE_OF]-(a:Character) \
-				OPTIONAL MATCH trans=(g)-[:TRANSLATION_OF]-(:Translation)-[:TRANSLATOR_OF]-(:People) \
+				OPTIONAL MATCH trans=(g)-[:TRANSLATION_OF]-(:Translation)-[:TRANSLATOR_OF]-(:Translator) \
 				CALL {WITH g OPTIONAL MATCH (otherChar:Character)-[otherRel:OTHER_RECIPIENT_OF]->(g) \
 					WITH otherChar, otherRel ORDER BY otherRel.slot \
 					RETURN collect(DISTINCT { name: otherChar.name, evidence: CASE WHEN otherRel.evidence IS NULL OR trim(toString(otherRel.evidence)) = "" THEN null ELSE otherRel.evidence END, slot: otherRel.slot }) AS other_recipients} \

@@ -131,24 +131,19 @@ export function getPoemTableContent(poemRes, transTemp) {
     Japanese = Array.from(uniqueSet).map(JSON.parse);
     // prepares translations, notes, Waley#, etc., in info
     transTemp.forEach(element => {
-        // element: [keys, properties]
         if (element[0].length !== 0 && element[0].includes('id')) {
             let auth, pnum
             pnum = element[1][element[0].indexOf('id')].substring(0, 6)
-            auth = element[1][element[0].indexOf('id')].substring(6, 7)
+
+            // Use the translator name directly instead of decoding it from id
+            if (element[0].includes('translatorName')) {
+                auth = element[1][element[0].indexOf('translatorName')];
+            } else {
+                auth = 'Unknown';
+            }
+
             if (info[pnum] === undefined) {
                 info[pnum] = {}
-            }
-            if (auth === 'A') {
-                auth = 'Waley'
-            } else if (auth === 'C') {
-                auth = 'Cranston'
-            } else if (auth === 'S') {
-                auth = 'Seidensticker'
-            } else if (auth === 'T') {
-                auth = 'Tyler'
-            } else {
-                auth = 'Washburn'
             }
             if (element[0].includes('translation')) {
                 info[pnum][auth] = element[1][element[0].indexOf('translation')]

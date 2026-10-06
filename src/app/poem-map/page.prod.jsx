@@ -10,22 +10,22 @@ import TranslatorDropdown from '../../components/TranslatorDropdown.prod.jsx';
 import styles from '../../styles/pages/chapterProfile.module.css';
 
 function useStoredArray(key) {
-    const [value, setValue] = useState([]);
-    const isFirstRun = useRef(true);
-
-    useEffect(() => {
+    const [value, setValue] = useState(() => {
+        if (typeof window === 'undefined') return [];
         try {
             const saved = sessionStorage.getItem(key);
-            if (saved) setValue(JSON.parse(saved));
+            return saved ? JSON.parse(saved) : [];
         } catch {
-            // ignore
+            return [];
         }
-    }, [key]);
+    });
+
+    const isFirstRun = useRef(true);
 
     useEffect(() => {
         if (isFirstRun.current) {
             isFirstRun.current = false;
-            return; // skip writing on mount — value here is still the pre-hydration []
+            return; // Skip writing initial load back to sessionStorage
         }
         sessionStorage.setItem(key, JSON.stringify(value));
     }, [key, value]);
@@ -56,6 +56,8 @@ export default function MapPage() {
     const [selectedTranslator, setSelectedTranslator] = useState('washburn');
     const [keyword, setKeyword] = useState('');
     const debouncedKeyword = useDebouncedValue(keyword, 300);
+    const [focusPnum, setFocusPnum] = useState(null);
+    const [focusPlace, setFocusPlace] = useState(null);
 
     const anyFilterActive =
     selectedChapters.length > 0 ||
@@ -64,26 +66,9 @@ export default function MapPage() {
     selectedAddressees.length > 0 ||
     debouncedKeyword.trim().length > 0;
 
-    const ALL_CHAPTER_NUMS = Array.from({ length: 54 }, (_, i) =>
-        (i + 1).toString().padStart(2, '0')
-    );
-    // Fetch every chapter once via the existing per-chapter route, merge into
-    // one in-memory dataset. 54 parallel requests on mount, then everything
-    // downstream is pure client-side filtering — no more fetches on filter change.
-    useEffect(() => {
-        if (!allPoems || !keyword.trim()) return;
-        const matches = allPoems.filter(matchesKeyword);
-        console.log(`"${keyword}" matched ${matches.length} poems:`, matches.map(p => ({
-            pnum: p.pnum,
-            washburn: p.composition?.washburn || p.receipt?.washburn,
-            compPlace: p.composition?.placeName,
-            recPlace: p.receipt?.placeName,
-        })));
-    }, [keyword, allPoems]);
-    
     useEffect(() => {
         setIsLoading(true);
-        fetch('/api/spaces-location/translators')
+        fetch('/api/spaces-location/translators', { cache: 'no-store' })
             .then(r => r.json())
             .then(data => {
                 const placesByName = new Map();
@@ -108,6 +93,33 @@ export default function MapPage() {
             })
             .catch(err => console.error('Failed to load poems:', err))
             .finally(() => setIsLoading(false));
+    }, []);
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem('highlightPoem');
+            if (raw) {
+                const { place, pnum } = JSON.parse(raw);
+                if (place) {
+                    // Clear existing session storage caches to give focusPlace priority
+                    sessionStorage.removeItem('locations_selected');
+                    sessionStorage.removeItem('chapters_selected');
+                    sessionStorage.removeItem('speakers_selected');
+                    sessionStorage.removeItem('addressees_selected');
+
+                    setSelectedLocations([place]);
+                    setSelectedChapters([]);
+                    setSelectedSpeakers([]);
+                    setSelectedAddressees([]);
+                    setKeyword('');
+                    setFocusPlace(place);
+                }
+                if (pnum) setFocusPnum(pnum);
+                localStorage.removeItem('highlightPoem');
+            }
+        } catch (e) {
+            console.error('Could not read highlight data:', e);
+        }
     }, []);
 
     const matchesChapter = (poem) =>
@@ -229,77 +241,62 @@ export default function MapPage() {
         return merged;
     }, [allPoems, allPlaces, selectedChapters, selectedLocations, selectedSpeakers, selectedAddressees, debouncedKeyword, selectedTranslator]);
 
-    const legendItems = [
-        {color: '#CC683D', label: 'PROJECTED'},
-        {color: '#BFAE93', label: 'FICTIONAL WITH CITATION'},
-        {color: '#767D43', label: 'HISTORICAL'},
-        {color: '#EDB940', label: 'FICTIONAL WITHOUT CITATION'}
-    ];
-
     return (
         <div style={{ display: 'flex', gap: '10px', padding: '20px', height: '81vh' }}>
             <div className={styles.lgScrollableList} >
                 <aside style={{ width: '350px', flexShrink: 0 }}>
-                        <div style={{display: 'flex', justifyContent: 'flex-start'}}>
-                            <div className={styles.characterButton} style={{pointerEvents: 'none'}}>
-                                Poems Found: {mapData ? Object.keys(mapData.poems).length : 0}
-                            </div>
-                            <div className={styles.characterButton} style={{pointerEvents: 'none'}}>
-                                Places Found: {mapData ? mapData.places.length : 0}
-                            </div>
+                    <div style={{display: 'flex', justifyContent: 'flex-start'}}>
+                        <div className={styles.characterButton} style={{pointerEvents: 'none'}}>
+                            Poems Found: {mapData ? Object.keys(mapData.poems).length : 0}
                         </div>
-                        <button 
-                            className={styles.characterButton}
-                            style={{
-                                width: '100%'
-                            }}
-                            onClick={handleClearAllFilters}
-                        >
-                            Clear all filters
-                        </button>
-                        <ChapterDropdown
-                            value={selectedChapters}
-                            onChange={setSelectedChapters}
-                            allowedKeys={allowedChapters}
-                        />
-                        <LocationDropdown
-                            value={selectedLocations}
-                            onChange={setSelectedLocations}
-                            allowedKeys={allowedLocations}
-                        />
-                        <SpeakerDropdown
-                            value={selectedSpeakers}
-                            onChange={setSelectedSpeakers}
-                            allowedKeys={allowedSpeakers}
-                            allPoems={allPoems || []}
-                        />
-                        <AddresseeDropdown
-                            value={selectedAddressees}
-                            onChange={setSelectedAddressees}
-                            allowedKeys={allowedAddressees}
-                            allPoems={allPoems || []}
-                        />
-                        <TranslatorDropdown
-                            value={selectedTranslator}
-                            onChange={setSelectedTranslator}
-                        />
-                        <div className={styles.panelHeader}>
-                            <input
-                                type="text"
-                                className={styles.panelHeaderSearch}
-                                placeholder="Search poem text"
-                                value={keyword}
-                                onChange={(e) => setKeyword(e.target.value)}
-                            />
+                        <div className={styles.characterButton} style={{pointerEvents: 'none'}}>
+                            Places Found: {mapData ? mapData.places.length : 0}
                         </div>
-                        <div>
-                            {legendItems.map((item, idx) => (
-                                <div key={idx} className="legend-item">
-                                    <div className="legend-color" style={{ background: item.color }}></div>
-                                    <p className="legend-text">{item.label}</p>
-                                </div>
-                            ))}
-                        </div>
+                    </div>
+                    <button 
+                        className={styles.characterButton}
+                        style={{
+                            width: '100%'
+                        }}
+                        onClick={handleClearAllFilters}
+                    >
+                        Clear all filters
+                    </button>
+                    <ChapterDropdown
+                        value={selectedChapters}
+                        onChange={setSelectedChapters}
+                        allowedKeys={allowedChapters}
+                    />
+                    <LocationDropdown
+                        value={selectedLocations}
+                        onChange={setSelectedLocations}
+                        allowedKeys={allowedLocations}
+                    />
+                    <SpeakerDropdown
+                        value={selectedSpeakers}
+                        onChange={setSelectedSpeakers}
+                        allowedKeys={allowedSpeakers}
+                        allPoems={allPoems || []}
+                    />
+                    <AddresseeDropdown
+                        value={selectedAddressees}
+                        onChange={setSelectedAddressees}
+                        allowedKeys={allowedAddressees}
+                        allPoems={allPoems || []}
+                    />
+                    <TranslatorDropdown
+                        value={selectedTranslator}
+                        onChange={setSelectedTranslator}
+                    />
+                    <div className={styles.panelHeader}>
+                        <input
+                            type="text"
+                            className={styles.panelHeaderSearch}
+                            placeholder="Search poem text"
+                            value={keyword}
+                            onChange={(e) => setKeyword(e.target.value)}
+                        />
+                    </div>
                 </aside>
             </div>
 
@@ -309,6 +306,8 @@ export default function MapPage() {
                 <LocationMap
                     initialData={mapData}
                     selectedTranslator={selectedTranslator}
+                    focusPnum={focusPnum}
+                    focusPlace={focusPlace}
                     />
             ) : (
                 <p>No poems match the current filters</p>

@@ -220,7 +220,7 @@ const PoemSearch = () => {
           'Reply Poems' : {checked: false},
           'Group Poems' : {checked: false},
           'Soliloquies' : {checked: false},
-          'Run Poems' : {checked: false},
+//        'Run Poems' : {checked: false},
           'Replies to Soliloquy' : {checked: false},
           'Unmatched' : {checked: false},
         },
@@ -1768,7 +1768,7 @@ const PoemSearch = () => {
               {/* Poem Type */}
               {otherMatches('Poem Types') && (
                 <>
-                  <div className={styles.otherFilterTitles}>Poem Types</div>
+                  <div className={styles.otherFilterTitles}></div>
                   <div className={styles.filterOptions}>
                     {Object.keys(filters.poem_type.options).map((k) => (
                       <Checkbox
@@ -1784,14 +1784,10 @@ const PoemSearch = () => {
                 </>
               )}
 
-              {(otherMatches('Poem Types') && otherMatches('Other Tags')) && (
-                <hr className={styles.divider} />
-              )}
-
               {/* Poem Type */}
               {otherMatches('Other Tags') && (
                 <>
-                  <div className={styles.otherFilterTitles}>Other Tags</div>
+                  <div className={styles.otherFilterTitles}></div>
                   <div className={styles.filterOptions}>
                     {Object.keys(filters.other_tags.options).map((k) => (
                       <Checkbox
