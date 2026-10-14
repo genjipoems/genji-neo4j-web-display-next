@@ -1431,19 +1431,43 @@
   font-weight: 500;
   font-size: 16px;
   line-height: 1.4;
-  cursor: pointer;
 }
 
 .evidenceToggle {
   color: #888;
-  font-size: 0.8rem;
+  font-size: 1.0rem;
   transition: transform 0.2s ease-out;
   margin-left: 0px;
   margin-bottom: 5px;
+  cursor: pointer;
 }
 
 .evidenceToggle.expanded {
   transform: rotate(180deg);
+}
+.allusionItem {
+  text-align: left;
+}
+
+.allusionRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  margin: 0 0 0.5em;
+  text-align: left;
+}
+
+.allusionValue {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.allusionSourceEntry {
+  display: flex;
+  gap: 0.5em;
+  align-items: baseline;
+  text-align: left;
 }
 
 .evidencePanel {

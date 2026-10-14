@@ -10,6 +10,7 @@ const SCALAR_FIELD_MAP = {
   deliveryStyle: 'delivery_style',
   handwritingDescription: 'handwriting_description',
   narrativeContext: 'narrative_context',
+  spokenwrittenevidence: 'evidence_for_spoken_or_written',
   paraphrase: 'paraphrase',
   notes: 'notes',
 };
@@ -27,6 +28,12 @@ const VALID_POETIC_TECHNIQUES = [
   'utamakura',
   'makurakotoba',
 ];
+
+const VALID_SPOKEN_WRITTEN = [
+  'Spoken',
+  'Written'
+];
+
 const VALID_POEM_TYPES = [
     'Proffered Poem',
     'Reply Poem',
@@ -75,6 +82,75 @@ async function updateScalarProperty(pnum, field, value ) {
       { pnum: pnum.toString(), value: value || null }
     );
 
+    if (result.records.length === 0) {
+      throw new Error(`No poem found with pnum ${pnum}`);
+    }
+    return result.records[0].get('g').properties;
+  } finally {
+    await session.close();
+  }
+}
+async function updatecompevidence(pnum, value ) {
+
+  const session = await getSession();
+  try {
+    // propName comes only from our fixed map above, never from raw
+    // user input, so it's safe to interpolate into the SET clause.
+    const result = await session.run(
+      `MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_COMPOSITION]->(p:Place)
+       SET r.evidence = $value, g.last_updated = datetime()
+       RETURN g`,
+      { pnum: pnum.toString(), value: value || null }
+    );
+
+    if (result.records.length === 0) {
+      throw new Error(`No poem found with pnum ${pnum}`);
+    }
+    return result.records[0].get('g').properties;
+  } finally {
+    await session.close();
+  }
+}
+
+async function updaterecevidence(pnum, value ) {
+
+  const session = await getSession();
+  try {
+    // propName comes only from our fixed map above, never from raw
+    // user input, so it's safe to interpolate into the SET clause.
+    const result = await session.run(
+      `MATCH (g:Genji_Poem {pnum: $pnum})-[r:PLACE_OF_RECEIPT]->(p:Place)
+       SET r.evidence = $value, g.last_updated = datetime()
+       RETURN g`,
+      { pnum: pnum.toString(), value: value || null }
+    );
+
+    if (result.records.length === 0) {
+      throw new Error(`No poem found with pnum ${pnum}`);
+    }
+    return result.records[0].get('g').properties;
+  } finally {
+    await session.close();
+  }
+}
+async function updateSpokenWritten(pnum, { spoken, written }) {
+  if (typeof spoken !== 'boolean' || typeof written !== 'boolean') {
+    throw new Error('spoken and written must be booleans');
+  }
+  const session = await getSession();
+  try {
+    const result = await session.run(
+      `MATCH (g:Genji_Poem {pnum: $pnum})
+       SET g.spoken = $spoken,
+           g.written = $written,
+           g.last_updated = datetime()
+       RETURN g`,
+      {
+        pnum: pnum.toString(),
+        spoken: String(spoken),    // 'true' / 'false'
+        written: String(written),
+      }
+    );
     if (result.records.length === 0) {
       throw new Error(`No poem found with pnum ${pnum}`);
     }
@@ -435,7 +511,108 @@ async function updatePoeticTechnique(pnum, value) {
     await session.close();
   }
 }
+const normalizeWs = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 
+// Tiptap sends HTML; plain fields (poet, honka text, order) should be stored as text.
+const htmlToPlain = (s) => String(s ?? '')
+  .replace(/<\/p>\s*<p>/gi, '\n')
+  .replace(/<br\s*\/?>/gi, '\n')
+  .replace(/<[^>]+>/g, '')
+  .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+  .trim();
+
+// Frontend sends honka whitespace-normalized, so match in JS rather than in Cypher.
+async function findHonkaId(tx, pnum, honka) {
+  const res = await tx.run(
+    `MATCH (:Genji_Poem {pnum: $pnum})-[:ALLUDES_TO]->(h:Honka)
+     RETURN elementId(h) AS id, h.Honka AS text`,
+    { pnum: pnum.toString() }
+  );
+  const target = normalizeWs(honka);
+  const hit = res.records.find(r => normalizeWs(r.get('text')) === target);
+  if (!hit) throw new Error('Allusion not found for this poem');
+  return hit.get('id');
+}
+
+// Shared wrapper: find the honka, run the edit, bump last_updated, commit/rollback.
+async function runAllusionEdit(pnum, honka, work) {
+  if (!honka) throw new Error('honka is required');
+  const session = await getSession();
+  try {
+    const tx = session.beginTransaction();
+    try {
+      const id = await findHonkaId(tx, pnum, honka);
+      const result = await work(tx, id);
+      await tx.run(
+        `MATCH (g:Genji_Poem {pnum: $pnum}) SET g.last_updated = datetime()`,
+        { pnum: pnum.toString() }
+      );
+      await tx.commit();
+      return result;
+    } catch (e) {
+      await tx.rollback();
+      throw e;
+    }
+  } finally {
+    await session.close();
+  }
+}
+
+const updateAllusionHonka = (pnum, honka, value) =>
+  runAllusionEdit(pnum, honka, async (tx, id) => {
+    const text = htmlToPlain(value);
+    if (!text) throw new Error('Original text cannot be empty');
+    await tx.run(`MATCH (h:Honka) WHERE elementId(h) = $id SET h.Honka = $text`, { id, text });
+    return { pnum, field: 'allusionHonka', value: text };
+  });
+
+const updateAllusionPoet = (pnum, honka, value) =>
+  runAllusionEdit(pnum, honka, async (tx, id) => {
+    const name = htmlToPlain(value);
+    if (!name) throw new Error('Poet name cannot be empty');
+    await tx.run(
+      `MATCH (h:Honka) WHERE elementId(h) = $id
+       OPTIONAL MATCH (:People)-[old:AUTHOR_OF]->(h)
+       MERGE (p:People {name: $name})
+       CREATE (p)-[r:AUTHOR_OF]->(h)
+       SET r += CASE WHEN old IS NULL THEN {} ELSE properties(old) END
+       DELETE old`,
+      { id, name }
+    );
+    return { pnum, field: 'allusionPoet', value: name };
+  });
+
+const updateAllusionTranslation = (pnum, honka, translator, value) =>
+  runAllusionEdit(pnum, honka, async (tx, id) => {
+    if (!translator) throw new Error('translator is required');
+    const res = await tx.run(
+      `MATCH (h:Honka)<-[:TRANSLATION_OF]-(t:Translation)<-[:TRANSLATOR_OF]-(:People {name: $translator})
+       WHERE elementId(h) = $id
+       SET t.translation = $value
+       RETURN count(t) AS n`,
+      { id, translator, value: value || null }
+    );
+    if (res.records[0].get('n').toNumber() === 0) {
+      throw new Error(`No translation by ${translator} found`);
+    }
+    return { pnum, field: 'allusionTranslation', value };
+  });
+
+const updateAllusionOrder = (pnum, honka, sourceTitle, oldOrder, value) =>
+  runAllusionEdit(pnum, honka, async (tx, id) => {
+    if (!sourceTitle) throw new Error('sourceTitle is required');
+    const res = await tx.run(
+      `MATCH (h:Honka)-[r:ANTHOLOGIZED_IN]->(s:Source {title: $title})
+       WHERE elementId(h) = $id AND toString(coalesce(r.order, '')) = $oldOrder
+       SET r.order = $value
+       RETURN count(r) AS n`,
+      { id, title: sourceTitle, oldOrder: String(oldOrder ?? ''), value: htmlToPlain(value) || null }
+    );
+    if (res.records[0].get('n').toNumber() === 0) {
+      throw new Error('Source entry not found');
+    }
+    return { pnum, field: 'allusionOrder', value: htmlToPlain(value) };
+  });
 
 export async function PUT(request) {
   const { isAdmin } = await checkServerSideAdmin();
@@ -446,8 +623,7 @@ export async function PUT(request) {
     );
   }
 
-  const { pnum, field, value, pwId } = await request.json();
-  if (!pnum || !field) {
+  const { pnum, field, value, pwId, honka, translator, sourceTitle, oldOrder } = await request.json();  if (!pnum || !field) {
     return new Response(
       JSON.stringify({ error: 'pnum and field are required' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -460,14 +636,30 @@ export async function PUT(request) {
       updated = await updateAge(pnum, value);
     } else if (field === 'poeticTechnique') {
       updated = await updatePoeticTechnique(pnum, value);
+    } else if (field === 'spokenwritten') {
+      const spoken = VALID_SPOKEN_WRITTEN.includes('Spoken');
+      const written = VALID_SPOKEN_WRITTEN.includes('Written');
+      updated = await updateSpokenWritten(pnum, { spoken, written });
     } else if (field === 'poemType') {
       updated = await updatePoemType(pnum, value);
     } else if (field === 'poemTypeAll') {
       updated = await updateAllPoemType(pnum, value);
+    } else if (field === 'compevidence') {
+      updated = await updatecompevidence(pnum, value);
+    } else if (field === 'recevidence') {
+      updated = await updaterecevidence(pnum, value);
     } else if (SCALAR_FIELD_MAP[field]) {
       updated = await updateScalarProperty(pnum, field, value);
     } else if (EDITABLE_PW_FIELDS.includes(field)) {
       updated = await updatePoeticWordField(pnum, pwId, field, value);
+    } else if (field === 'allusionHonka') {
+      updated = await updateAllusionHonka(pnum, honka, value);
+    } else if (field === 'allusionPoet') {
+      updated = await updateAllusionPoet(pnum, honka, value);
+    } else if (field === 'allusionTranslation') {
+      updated = await updateAllusionTranslation(pnum, honka, translator, value);
+    } else if (field === 'allusionOrder') {
+      updated = await updateAllusionOrder(pnum, honka, sourceTitle, oldOrder, value);
     } else if (field === 'season') {
       updated = await updateSeason(pnum, value);
     }else if (CHARACTER_RELATION_MAP[field]) {

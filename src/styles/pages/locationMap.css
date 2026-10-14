@@ -44,6 +44,7 @@
     cursor: grab;
     height: fit-content;
 }
+
 .place-rect.hovered .place-content {
     transform: scale(3);
 }
