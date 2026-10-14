@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { updateScalarField } from './PoemEditApi.prod';
 import styles from '../styles/pages/editableField.module.css';
-import '../styles/pages/tiptapEditor.module.css';
+import '../styles/pages/tiptapEditor.css';
 
 function getSelectedValues(value) {
   if (!Array.isArray(value)) {
@@ -196,7 +196,7 @@ export default function EditableField({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-
+  const [showconfirm, setshowconfirm] = useState(false);
   // True whenever the field is going to render as free-form text (Tiptap),
   // i.e. none of the other special input modes apply and it's a text type.
   const isRichText = !datalistOptions && !options && !multisel && inputType === 'text';
@@ -226,22 +226,21 @@ export default function EditableField({
       setError(e.message);
     } finally {
       setSaving(false);
+      setshowconfirm(false);
     }
   };
 
   const handleCancel = () => {
-    setDraft(
-      multisel ? getSelectedValues(value) : (value ?? '')
-    );
-
+    setDraft(multisel ? getSelectedValues(value) : (value ?? ''));
     setError(null);
+    setshowconfirm(false);
     setIsOpen(false);
   };
-
+  
   return (
     <>
       <div
-        style={{ cursor: 'pointer' }}
+        style={{ cursor: 'pointer', width: '100%' }}
         onClick={handleOpen}
       >
         {children}
@@ -343,12 +342,31 @@ export default function EditableField({
                 Cancel
               </button>
 
-              <button
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving ? 'Saving…' : 'Save'}
+              <button onClick={() => setshowconfirm(true)} disabled={saving}>
+                Save
               </button>
+              {showconfirm && (
+                <div
+                  className={styles.editPopupOverlay}
+                  style={{ zIndex: 1100 }}   /* above the edit popup; adjust to your CSS */
+                  onClick={() => setshowconfirm(false)}
+                >
+                  <div
+                    className={styles.editPopup}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h4 className={styles.editPopupTitle}>Please confirm this change</h4>
+                    <div className={styles.editPopupButtons}>
+                      <button onClick={() => setshowconfirm(false)} disabled={saving}>
+                        Back
+                      </button>
+                      <button onClick={handleSave} disabled={saving}>
+                        {saving ? 'Saving…' : 'Confirm'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

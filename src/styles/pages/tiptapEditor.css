@@ -5,6 +5,8 @@
   overflow: hidden;
   color: #e8e2da;
   font-family: system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
 }
 
 .tt-toolbar {
@@ -60,39 +62,15 @@
 }
 
 .tt-content {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.tt-content .ProseMirror,
+.tt-content .tiptap {
+  max-height: 300px;
+  overflow-y: auto;
   padding: 16px;
   min-height: 160px;
-}
-
-.tt-content .ProseMirror {
   outline: none;
-  min-height: 160px;
-}
-
-.tt-content p.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
-  float: left;
-  color: #6b6357;
-  pointer-events: none;
-  height: 0;
-}
-
-.tt-content blockquote {
-  border-left: 3px solid #4a4136;
-  margin-left: 0;
-  padding-left: 12px;
-  color: #b7afa2;
-}
-
-.tt-content code {
-  background: #3a332c;
-  padding: 2px 4px;
-  border-radius: 4px;
-}
-
-.tt-content pre {
-  background: #1c1815;
-  padding: 12px;
-  border-radius: 6px;
-  overflow-x: auto;
 }

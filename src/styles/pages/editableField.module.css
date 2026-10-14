@@ -59,10 +59,6 @@
   background: #2f2924;
 }
 
-.optionItem:hover {
-  background: #3a332c;
-}
-
 .optionSelected {
   background: #8CA887;
   border-color: #8CA887;
