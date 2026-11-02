@@ -4,23 +4,39 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
+  background-color: rbga(10, 10, 10, 0.2);
   justify-content: center;
   z-index: 9999; /* comfortably above anything in poemDisplay.module.css */
 }
 
+
 .editPopup {
-  position: relative;
-  z-index: 10000;
-  background: #241f1b;
-  color: #e8e2da;
+  display: flex;
+  flex-direction: column;
   padding: 1.5rem;
   border-radius: 8px;
   border: 1px solid #3a332c;
-  min-width: 500px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  background: #241f1b;
+  color: #e8e2da;
+  height: 20%;
+  box-sizing: border-box;
+  overflow: hidden;        /* the editor scrolls, not the popup */
+}
+
+.editPopup :global(.tt-wrapper) {
+  flex: 1;
+  min-height: 0;           /* lets it shrink below its content height */
+  display: flex;
+  flex-direction: column;
+}
+
+.editPopup :global(.tt-content) {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .editPopupTitle {

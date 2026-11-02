@@ -1,47 +1,79 @@
 .userTranslationSection {
-  margin-top: 0;
-  padding-top: 10px;
-  background-color: transparent;
-  border-radius: 0;
-  box-shadow: none;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  height: 60px;
+  gap: 6px;
+  height: 100%;
+  box-sizing: border-box;
+  min-height: 0;
 }
 
-.userTranslationSection h3 {
-  display: none;
+.translatorPicker {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin: 4px 0 0 0;
+}
+.translatorPicker label {
+  display: flex;
+  align-items: center;
+  color: #4B4B4B;
+  text-wrap: nowrap;
+  gap: 6px;
+  font-size: 13px;
+}
+.translatorPicker select,
+.translatorPicker input {
+  width: auto;
+  flex: 1 1 0;
+  min-width: 0;
+  border: 1px solid #a89a82;
+  border-radius: 4px;
+  box-shadow: none;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #4B4B4B;
+  font-size: 13px;
+  padding: 2px 6px;
+  box-sizing: border-box;
 }
 
 .userTranslationInput {
-  width: 400px;
-  height: 35px;
-  padding: 0px 0px;
-  border: 1px solid #BFAE93;
-  border-radius: 10px;
-  font-family: 'Lexend', sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  color: #4B4B4B;
-  background-color: #BFAE93;
-  resize: none;
-  transition: all 0.2s;
-  line-height: 1.2;
-  white-space: pre-wrap;
-  overflow: hidden;
+  flex: 1;              /* takes all remaining height */
+  min-height: 0;        /* lets it shrink inside the card */
+  width: 100%;
+  border: 1px solid #a89a82;
+  border-radius: 4px; 
+  box-shadow: none;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #787878;
+  box-sizing: border-box;
+  resize: none;         /* a drag handle would push it out of the card */
 }
 
+.translationControls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.translatorPicker select:focus,
+.translatorPicker input:focus,
 .userTranslationInput:focus {
   outline: none;
+  box-shadow: none;
+  border-color: #7a6c55;
 }
 
 .submitButton {
   padding: 0px 0px;
   color: #787878;
+  background-color: #BFAE93;
   border: none;
   font-family: 'Lexend', sans-serif;
-  font-size: 16px;
+  font-size: 16px;  
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -281,7 +313,7 @@
   margin-left: 12px;
 }
 
-.toggleHideButton, .deleteButton {
+.toggleHideButton {
   background: transparent;
   border: none;
   padding: 4px;
@@ -300,14 +332,6 @@
   background-color: rgba(74, 144, 226, 0.1);
 }
 
-.deleteButton {
-  color: #f44336;
-}
-
-.deleteButton:hover {
-  background-color: rgba(244, 67, 54, 0.1);
-}
-
 .loadingMessage, .emptyMessage {
   padding: 20px;
   text-align: center;
@@ -315,9 +339,10 @@
   font-size: 14px;
 }
 
-.translationControls {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
+.deleteTranslationButton {
+  color: #e07a5f;
+}
+
+.deleteTranslationButton:hover:not(:disabled) {
+  color: #b5533a;
 }

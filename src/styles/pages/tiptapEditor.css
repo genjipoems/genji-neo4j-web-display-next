@@ -7,9 +7,12 @@
   font-family: system-ui, sans-serif;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  height: 100%;
 }
 
 .tt-toolbar {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -62,15 +65,15 @@
 }
 
 .tt-content {
-  max-height: 300px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
-.tt-content .ProseMirror,
-.tt-content .tiptap {
-  max-height: 300px;
-  overflow-y: auto;
+.tt-content .tiptap,
+.tt-content .ProseMirror {
   padding: 16px;
   min-height: 160px;
+  box-sizing: border-box;
   outline: none;
 }

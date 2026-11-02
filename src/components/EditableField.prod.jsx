@@ -8,6 +8,7 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
+import { Rnd } from 'react-rnd';
 import {
   Undo2, Redo2, List, ListOrdered, Quote, Code2,
   Bold, Italic, Strikethrough, Underline as UnderlineIcon,
@@ -184,6 +185,7 @@ export default function EditableField({
   datalistOptions = false,
   multisel = false,
   options = false,
+  required = false,
   inputType = 'text',
   extraPayload = {},
   children
@@ -213,9 +215,14 @@ export default function EditableField({
   };
 
   const handleSave = async () => {
+    if (required && isEmptyDraft()) {
+      window.alert(`Please enter a ${label.toLowerCase()}.`);
+      return;
+    }
+
     setSaving(true);
     setError(null);
-  console.log('DEBUG handleSave — field:', field, 'extraPayload:', extraPayload);
+    console.log('DEBUG handleSave — field:', field, 'extraPayload:', extraPayload);
 
     try {
       await updateScalarField(pnum, field, draft, extraPayload);
@@ -228,6 +235,12 @@ export default function EditableField({
       setSaving(false);
       setshowconfirm(false);
     }
+  };
+
+  const isEmptyDraft = () => {
+    if (Array.isArray(draft)) return draft.length === 0;
+    const plain = String(draft ?? '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+    return plain === '';
   };
 
   const handleCancel = () => {
@@ -249,128 +262,141 @@ export default function EditableField({
       {isOpen && (
         <div
           className={styles.editPopupOverlay}
-          onClick={handleCancel}
+          onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
         >
-          <div
-            className={styles.editPopup}
-            style={isRichText ? { width: 560, maxWidth: '90vw' } : undefined}
-            onClick={(e) => e.stopPropagation()}
+          <Rnd
+            default={{
+              x: Math.max(0, window.innerWidth / 2 - (isRichText ? 280 : 200)),
+              y: Math.max(0, window.innerHeight / 2 - 220),
+              width: isRichText ? 560 : 400,
+              height: isRichText ? 420 : 'auto'
+            }}
+            minWidth={320}
+            minHeight={200}
+            bounds="window"
+            dragHandleClassName="popup-drag-handle"
+            enableUserSelectHack={false}
           >
-            <h4 className={styles.editPopupTitle}>
-              Edit {label}
-            </h4>
+            <div className={styles.editPopup} style={{ width: '100%', height: '100%' }}>
+              <h4
+                className={`${styles.editPopupTitle} popup-drag-handle`}
+                style={{ cursor: 'move' }}
+              >
+                Edit {label}
+              </h4>
 
-            {datalistOptions ? (
-              <>
+              {datalistOptions ? (
+                <>
+                  <input
+                    list={`${field}-datalist`}
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    autoFocus
+                  />
+
+                  <datalist id={`${field}-datalist`}>
+                    {datalistOptions.map(name => (
+                      <option
+                        key={name}
+                        value={name}
+                      />
+                    ))}
+                  </datalist>
+                </>
+              ) : options ? (
+                <select
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  autoFocus
+                >
+                  <option value="">— none —</option>
+
+                  {options.map(opt => (
+                    <option
+                      key={opt}
+                      value={opt}
+                    >
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              ) : multisel ? (
+                <div className={styles.optionList}>
+                  {multiselOptions.map(opt => (
+                    <div
+                      key={opt}
+                      className={`${styles.optionItem} ${draft.includes(opt) ? styles.optionSelected : ''}`}
+                      onClick={() => {
+                        setDraft(prev =>
+                          prev.includes(opt)
+                            ? prev.filter(o => o !== opt)
+                            : [...prev, opt]
+                        );
+                      }}
+                    >
+                      {opt.toUpperCase()}
+                    </div>
+                  ))}
+                </div>
+              ) : isRichText ? (
+                <TiptapEditor
+                  content={draft}
+                  placeholder={placeholder}
+                  onChange={(html) => setDraft(html)}
+                />
+              ) : (
                 <input
-                  list={`${field}-datalist`}
+                  type={inputType}
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   autoFocus
                 />
+              )}
 
-                <datalist id={`${field}-datalist`}>
-                  {datalistOptions.map(name => (
-                    <option
-                      key={name}
-                      value={name}
-                    />
-                  ))}
-                </datalist>
-              </>
-            ) : options ? (
-              <select
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                autoFocus
-              >
-                <option value="">— none —</option>
+              {error && (
+                <p className={styles.editError}>
+                  {error}
+                </p>
+              )}
 
-                {options.map(opt => (
-                  <option
-                    key={opt}
-                    value={opt}
-                  >
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            ) : multisel ? (
-              <div className={styles.optionList}>
-                {multiselOptions.map(opt => (
-                  <div
-                    key={opt}
-                    className={`${styles.optionItem} ${draft.includes(opt) ? styles.optionSelected : ''}`}
-                    onClick={() => {
-                      setDraft(prev =>
-                        prev.includes(opt)
-                          ? prev.filter(o => o !== opt)
-                          : [...prev, opt]
-                      );
-                    }}
-                  >
-                    {opt.toUpperCase()}
-                  </div>
-                ))}
-              </div>
-            ) : isRichText ? (
-              <TiptapEditor
-                content={draft}
-                placeholder={placeholder}
-                onChange={(html) => setDraft(html)}
-              />
-            ) : (
-              <input
-                type={inputType}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                autoFocus
-              />
-            )}
-
-            {error && (
-              <p className={styles.editError}>
-                {error}
-              </p>
-            )}
-
-            <div className={styles.editPopupButtons}>
-              <button
-                onClick={handleCancel}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-
-              <button onClick={() => setshowconfirm(true)} disabled={saving}>
-                Save
-              </button>
-              {showconfirm && (
-                <div
-                  className={styles.editPopupOverlay}
-                  style={{ zIndex: 1100 }}   /* above the edit popup; adjust to your CSS */
-                  onClick={() => setshowconfirm(false)}
+              <div className={styles.editPopupButtons}>
+                <button
+                  onClick={handleCancel}
+                  disabled={saving}
                 >
+                  Cancel
+                </button>
+
+                <button onClick={() => setshowconfirm(true)} disabled={saving}>
+                  Save
+                </button>
+                {showconfirm && (
                   <div
-                    className={styles.editPopup}
-                    onClick={(e) => e.stopPropagation()}
+                    className={styles.editPopupOverlay}
+                    style={{ zIndex: 1100 }}   /* above the edit popup; adjust to your CSS */
+                    onClick={() => setshowconfirm(false)}
                   >
-                    <h4 className={styles.editPopupTitle}>Please confirm this change</h4>
-                    <div className={styles.editPopupButtons}>
-                      <button onClick={() => setshowconfirm(false)} disabled={saving}>
-                        Back
-                      </button>
-                      <button onClick={handleSave} disabled={saving}>
-                        {saving ? 'Saving…' : 'Confirm'}
-                      </button>
+                    <div
+                      className={styles.editPopup}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <h4 className={styles.editPopupTitle}>Please confirm this change</h4>
+                      <div className={styles.editPopupButtons}>
+                        <button onClick={() => setshowconfirm(false)} disabled={saving}>
+                          Back
+                        </button>
+                        <button onClick={handleSave} disabled={saving}>
+                          {saving ? 'Saving…' : 'Confirm'}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          </Rnd>
         </div>
       )}
     </>
-  );
+  ); 
 }

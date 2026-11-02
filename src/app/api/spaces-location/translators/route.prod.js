@@ -1,14 +1,6 @@
 import { getSession } from '../../neo4j_driver/route.prod.js';
 import { toNativeTypes } from '../../neo4j_driver/utils.prod.js';
 
-const TRANSLATOR_SUFFIX = {
-    W: 'washburn',
-    S: 'seidensticker',
-    A: 'waley',
-    C: 'cranston',
-    T: 'tyler',
-};
-
 export async function GET() {
     const session = await getSession();
 
@@ -38,7 +30,7 @@ export async function GET() {
                 collect(DISTINCT otherPoems.pnum) as groupMembers,
                 collect(DISTINCT reply.pnum) as replyPoemList,
                 collect(DISTINCT repliesToThis.pnum) as repliesToThisList,
-                collect(DISTINCT {id: t.id, translation: t.translation, translatorName: tr.name}) as translations
+                collect(DISTINCT {translation: t.translation, translatorName: tr.name}) as translations
                 
                 RETURN 
                 rComp.evidence as compevidence, rComp.verified as compevverified, rComp.verifiedByName as compVerifiedByName,

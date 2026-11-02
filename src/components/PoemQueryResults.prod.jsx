@@ -13,6 +13,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheckCircle, faCircle, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import EditableField from './EditableField.prod';
 import { useIsAdmin } from '../hooks/useAuth';
+import { updateScalarField } from './PoemEditApi.prod';
 
 function FormatTime(dtObj) {
     if (!dtObj) {
@@ -132,6 +133,14 @@ function dataBySlot(slotNames, backendData) {
     });
 }
 
+const toEditorHtml = (t) => {
+    const s = String(t ?? '');
+    if (!s) return '';
+    if (/<\/?[a-z][\s\S]*>/i.test(s)) return s; // already HTML
+    const esc = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `<p>${esc.replace(/\n/g, '<br>')}</p>`;
+};
+
 const PoemDisplay = ({ poemData }) => {
     const { isAdmin, isLoading } = useIsAdmin();
     const [availableCharacters, setAvailableCharacters] = useState([]);
@@ -140,13 +149,7 @@ const PoemDisplay = ({ poemData }) => {
         speaker: [],
         addressee: [],
         JPRM: [],
-        trans: {
-            Waley: 'N/A',
-            Seidensticker: 'N/A',
-            Tyler: 'N/A',
-            Washburn: 'N/A',
-            Cranston: 'N/A'
-        },
+        trans: {},
         source: [],
         relWithEvidence: [],
         tag: [],
@@ -210,6 +213,12 @@ const PoemDisplay = ({ poemData }) => {
     };
     
     const chapter_name = chapterNames[chapter];
+
+    const removeTranslation = async (name) => {
+        const result = await updateScalarField(poemState.poemId, 'deleteTranslation', null, { translator: name });
+        saveTranslation(name, '');                  // removes the card
+        if (result?.translatorDeleted) loadTranslators();   // removes them from the dropdown
+    };
 
     const RecipientSlots = ({ title, names, data }) => {
         const slots = names.map((_, i) => i);
@@ -367,19 +376,11 @@ const PoemDisplay = ({ poemData }) => {
                 // form addressee set
                 let addressee = [...new Set(exchange.map(e => e.end.properties.name))];
 
-                // translation data
-                let translations = {
-                    Waley: 'N/A',
-                    Seidensticker: 'N/A',
-                    Tyler: 'N/A',
-                    Washburn: 'N/A',
-                    Cranston: 'N/A'
-                };
-                
+                let translations = {};
                 transTemp.forEach(e => {
-                    translations[e[0]] = e[0] !== 'Waley' ? e[1] : [e[1], e[2]]; // Waley has extra data of page num
+                    translations[e[0]] = e[1];
                 });
-                
+
                 // allusion data
                 let src_obj = [];
                 let index = 0;
@@ -423,18 +424,18 @@ const PoemDisplay = ({ poemData }) => {
                     return; // avoid creating another duplicate
                 } else {
                     const obj = {
-                    id: index,
-                    honka: honkaKey,
-                    source: formattedSource,   
-                    romaji: e[2],
-                    poet: e[3],
-                    order: '',                 
-                    translation: [[e[5], e[6]]],
-                    notes: e[7],
-                    sourceList: []//just a helper array
+                        id: index,
+                        honka: honkaKey,
+                        source: formattedSource,
+                        romaji: e[2],
+                        poet: e[3],
+                        order: '',
+                        translation: [[e[5], e[6]]],
+                        notes: e[7],
+                        sourceList: [],
+                        entries: rawTitle ? [{ title: rawTitle, order: rawOrder }] : [],
                     };
                     if (formattedSource) obj.sourceList.push(formattedSource);
-                    entries: rawTitle ? [{ title: rawTitle, order: rawOrder }] : [],
                     src_obj.push(obj);
                     entered_honka.push(honkaKey);
                     index++;
@@ -544,6 +545,32 @@ const PoemDisplay = ({ poemData }) => {
     const clearPoemCache = () => {
         localStorage.removeItem(`poem_${chapter}_${number}`);
         localStorage.removeItem(`poem_${chapter}_${number}_time`);
+    };
+
+    const [translators, setTranslators] = useState([]);
+
+    const loadTranslators = () =>
+        fetch('/api/poems/edit_poem/edit_translators')
+            .then(res => res.json())
+            .then(setTranslators)
+            .catch(err => {
+                console.error('Error loading translators:', err);
+                setTranslators([]);
+            });
+
+    useEffect(() => { loadTranslators(); }, []);
+
+    // tolerant of stale cached shapes ('N/A' strings, Waley's [text, page] array)
+    const getTransText = (name) => {
+        const v = poemState.trans?.[name];
+        const s = Array.isArray(v) ? v[0] : v;
+        return typeof s === 'string' && s !== 'N/A' ? s : '';
+    };
+
+    const saveTranslation = (name, newValue) => {
+        const clean = stripP(newValue) ? newValue : '';
+        setPoemState(prev => ({ ...prev, trans: { ...prev.trans, [name]: clean } }));
+        clearPoemCache();
     };
 
     // EditableField's onSaved receives Tiptap HTML; plain fields should be stored in state as text
@@ -1985,101 +2012,41 @@ const PoemDisplay = ({ poemData }) => {
                     <div className={styles.translationsRight}>
                     <h2 className={styles.translationsHeader}>TRANSLATIONS</h2>
                     
-                    {/* Waley Translation */}
-                    <div className={styles.translationCard}>
-                        <div className={styles.translationContent}>
-                            {Array.isArray(poemState.trans.Waley) ? (
-                                <>
-                                {typeof poemState.trans.Waley[0] === 'string' && 
-                                poemState.trans.Waley[0] !== 'N/A' && (
-                                    <FormatContent content={poemState.trans.Waley[0]} />
-                                )}
-                                </>
-                            ) : (
-                                <FormatContent content={poemState.trans.Waley} />
-                            )}
-                        </div>
-                        <div className={styles.translationMeta}>
-                            <SpeakerAddresseeInfo 
-                                speaker={poemState.speaker}
-                                addressee={poemState.addressee}
-                                poemId={poemState.poemId}
-                            />
-                            <a href="/translators/Arthur Waley" className={styles.translatorName}>WALEY</a>
-                        </div>
-                    </div>
-                    
-                    {/* Seidensticker Translation */}
-                    <div className={styles.translationCard}>
-                        <div className={styles.translationContent}>
-                            {typeof poemState.trans.Seidensticker === 'string' && 
-                            poemState.trans.Seidensticker !== 'N/A' && (
-                                <FormatContent content={poemState.trans.Seidensticker} />
-                            )}
-                        </div>
-                        <div className={styles.translationMeta}>
-                            <SpeakerAddresseeInfo 
-                                speaker={poemState.speaker}
-                                addressee={poemState.addressee}
-                                poemId={poemState.poemId}
-                            />
-                            <a href="/translators/Edward Seidensticker" className={styles.translatorName}>SEIDENSTICKER</a>
-                        </div>
-                    </div>
-                    
-                    {/* Tyler Translation */}
-                    <div className={styles.translationCard}>
-                        <div className={styles.translationContent}>
-                            {typeof poemState.trans.Tyler === 'string' && 
-                            poemState.trans.Tyler !== 'N/A' && (
-                                <FormatContent content={poemState.trans.Tyler} />
-                            )}
-                        </div>
-                        <div className={styles.translationMeta}>
-                            <SpeakerAddresseeInfo 
-                                speaker={poemState.speaker}
-                                addressee={poemState.addressee}
-                                poemId={poemState.poemId}
-                            />
-                            <a href="/translators/Royall Tyler" className={styles.translatorName}>TYLER</a>
-                        </div>
-                    </div>
-                    
-                    {/* Washburn Translation */}
-                    <div className={styles.translationCard}>
-                        <div className={styles.translationContent}>
-                            {typeof poemState.trans.Washburn === 'string' && 
-                            poemState.trans.Washburn !== 'N/A' && (
-                                <FormatContent content={poemState.trans.Washburn} />
-                            )}
-                        </div>
-                        <div className={styles.translationMeta}>
-                            <SpeakerAddresseeInfo 
-                                speaker={poemState.speaker}
-                                addressee={poemState.addressee}
-                                poemId={poemState.poemId}
-                            />
-                            <a href="/translators/Dennis Washburn" className={styles.translatorName}>WASHBURN</a>
-                        </div>
-                    </div>
-                    
-                    {/* Cranston Translation */}
-                    <div className={styles.translationCard}>
-                        <div className={styles.translationContent}>
-                            {typeof poemState.trans.Cranston === 'string' && 
-                            poemState.trans.Cranston !== 'N/A' && (
-                                <FormatContent content={poemState.trans.Cranston} />
-                            )}
-                        </div>
-                        <div className={styles.translationMeta}>
-                            <SpeakerAddresseeInfo 
-                                speaker={poemState.speaker}
-                                addressee={poemState.addressee}
-                                poemId={poemState.poemId}
-                            />
-                            <a href="/translators/Edwin Cranston" className={styles.translatorName}>CRANSTON</a>
-                        </div>
-                    </div>
+                    {translators.map(({ name, fullName }) => {
+                        const text = getTransText(name);
+                        if (!text) return null;
+                        return (
+                            <div key={name} className={styles.translationCard}>
+                                <div className={styles.translationContent}>
+                                    {isAdmin ? (
+                                        <EditableField
+                                            pnum={poemState.poemId}
+                                            field="poemTranslation"
+                                            required
+                                            extraPayload={{ translator: name }}
+                                            value={toEditorHtml(text)}
+                                            label={`${name} Translation`}
+                                            onSaved={(f, newValue) => saveTranslation(name, newValue)}
+                                        >
+                                            {text ? <FormatContent content={text} /> : <em>+ Add {name} translation</em>}
+                                        </EditableField>
+                                    ) : (
+                                        text && <FormatContent content={text} />
+                                    )}
+                                </div>
+                                <div className={styles.translationMeta}>
+                                    <SpeakerAddresseeInfo
+                                        speaker={poemState.speaker}
+                                        addressee={poemState.addressee}
+                                        poemId={poemState.poemId}
+                                    />
+                                    <a href={`/translators/${encodeURIComponent(fullName)}`} className={styles.translatorName}>
+                                        {name.toUpperCase()}
+                                    </a>
+                                </div>
+                            </div>
+                        );
+                    })}
                     
                     {/* Original Text */}
                     <div className={styles.translationCard}>
@@ -2128,7 +2095,16 @@ const PoemDisplay = ({ poemData }) => {
                     {/* User Translation Input */}
                     <div className={styles.translationCard}>
                         <div className={styles.translationContent}>
-                            <TransSubmit pageType="poem" identifier={`${chapter}-${number}`} />
+                            <TransSubmit
+                                pageType="poem"
+                                identifier={`${chapter}-${number}`}
+                                poemId={poemState.poemId}
+                                translators={translators}
+                                currentTrans={poemState.trans}
+                                onTranslatorSaved={saveTranslation}
+                                onTranslatorDeleted={removeTranslation}
+                                onTranslatorsChanged={loadTranslators}
+                            />
                             <TransDisplay pageType="poem" identifier={`${chapter}-${number}`} />
                         </div>
                         <div className={styles.translationMeta}>

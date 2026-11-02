@@ -610,6 +610,20 @@ async function updatePoemProperties(pnum, data) {
     Cranston: "C"
   };
 
+  const found = await tx.run(
+    `MATCH (tr:Translator) WHERE tr.name IN $names RETURN tr.name AS name`,
+    { names: Object.keys(data) }
+  );
+  for (const rec of found.records) {
+    const name = rec.get('name');
+    await tx.run(
+      `MATCH (:Translator {name: $name})-[:TRANSLATOR_OF]->(t:Translation)
+            -[:TRANSLATION_OF]->(:Genji_Poem {pnum: $pnum})
+      SET t.translation = $text`,
+      { name, pnum: pnum.toString(), text: data[name] || null }
+    );
+  }
+
   const validSeasons = ["Spring", "Summer", "Autumn", "Winter"];
 
   // Normalize input into [{ name, evidence, slot }] format

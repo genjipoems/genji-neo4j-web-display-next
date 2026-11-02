@@ -213,6 +213,106 @@ async function updateCharacterRelation(pnum, relType, value) {
   }
 }
 
+async function upsertPoemTranslation(pnum, translator, value) {
+  if (!htmlToPlain(value)) throw new Error('Please enter a translation');
+  const text = String(value).trim();
+
+  const session = await getSession();
+  try {
+    const tx = session.beginTransaction();
+    try {
+      const existing = await tx.run(
+        `MATCH (:Translator {name: $translator})-[:TRANSLATOR_OF]->(t:Translation)
+               -[:TRANSLATION_OF]->(:Genji_Poem {pnum: $pnum})
+         SET t.translation = $text
+         RETURN count(t) AS n`,
+        { pnum: pnum.toString(), translator, text }
+      );
+
+      if (existing.records[0].get('n').toNumber() === 0) {
+        const created = await tx.run(
+          `MATCH (g:Genji_Poem {pnum: $pnum})
+           MATCH (tr:Translator {name: $translator})
+           CREATE (t:Translation {translation: $text})
+           CREATE (t)-[:TRANSLATION_OF {translator: $translator}]->(g)
+           CREATE (tr)-[:TRANSLATOR_OF]->(t)
+           RETURN count(t) AS n`,
+          { pnum: pnum.toString(), translator, text }
+        );
+        if (created.records.length === 0) {
+          throw new Error(`Poem ${pnum} or translator "${translator}" not found`);
+        }
+      }
+
+      await tx.run(
+        `MATCH (g:Genji_Poem {pnum: $pnum}) SET g.last_updated = datetime()`,
+        { pnum: pnum.toString() }
+      );
+      await tx.commit();
+      return { pnum, translator, value: text };
+    } catch (e) {
+      await tx.rollback();
+      throw e;
+    }
+  } finally {
+    await session.close();
+  }
+}
+
+async function deletePoemTranslation(pnum, translator) {
+  if (!translator) throw new Error('translator is required');
+
+  const session = await getSession();
+  try {
+    const tx = session.beginTransaction();
+    try {
+      // 1. Delete the translation. DETACH is required: it removes the node's edges too.
+      const res = await tx.run(
+        `MATCH (:Translator {name: $translator})-[:TRANSLATOR_OF]->(t:Translation)
+               -[:TRANSLATION_OF]->(:Genji_Poem {pnum: $pnum})
+         WITH collect(t) AS ts
+         FOREACH (x IN ts | DETACH DELETE x)
+         RETURN size(ts) AS n`,
+        { pnum: pnum.toString(), translator }
+      );
+      if (res.records[0].get('n').toNumber() === 0) {
+        throw new Error(`No translation by ${translator} found for this poem`);
+      }
+
+      // 2. Does the translator have anything else attached?
+      const links = await tx.run(
+        `MATCH (tr:Translator {name: $translator})
+         OPTIONAL MATCH (tr)-[r]-()
+         RETURN count(r) AS n`,
+        { translator }
+      );
+      const hasMore = links.records[0].get('n').toNumber() > 0;
+
+      // 3. Only if nothing is left, delete the translator. Plain DELETE is the safety check.
+      let translatorDeleted = false;
+      if (!hasMore) {
+        await tx.run(
+          `MATCH (tr:Translator {name: $translator}) DELETE tr`,
+          { translator }
+        );
+        translatorDeleted = true;
+      }
+
+      await tx.run(
+        `MATCH (g:Genji_Poem {pnum: $pnum}) SET g.last_updated = datetime()`,
+        { pnum: pnum.toString() }
+      );
+      await tx.commit();
+      return { pnum, translator, deleted: true, translatorDeleted };
+    } catch (e) {
+      await tx.rollback();
+      throw e;
+    }
+  } finally {
+    await session.close();
+  }
+}
+
 async function updateAge(pnum, value) {
   const session = await getSession();
   try {
@@ -534,6 +634,29 @@ async function findHonkaId(tx, pnum, honka) {
   return hit.get('id');
 }
 
+async function createTranslator(name, fullName) {
+  const clean = htmlToPlain(name);
+  if (!clean) throw new Error('Translator name is required');
+
+  const session = await getSession();
+  try {
+    const exists = await session.run(
+      `MATCH (t:Translator) WHERE toLower(t.name) = toLower($name) RETURN t.name AS name`,
+      { name: clean }
+    );
+    if (exists.records.length > 0) {
+      throw new Error(`Translator "${exists.records[0].get('name')}" already exists`);
+    }
+    await session.run(
+      `CREATE (:Translator {name: $name, FullName: $fullName})`,
+      { name: clean, fullName: htmlToPlain(fullName) || clean }
+    );
+    return { name: clean, fullName: htmlToPlain(fullName) || clean };
+  } finally {
+    await session.close();
+  }
+}
+
 // Shared wrapper: find the honka, run the edit, bump last_updated, commit/rollback.
 async function runAllusionEdit(pnum, honka, work) {
   if (!honka) throw new Error('honka is required');
@@ -623,7 +746,8 @@ export async function PUT(request) {
     );
   }
 
-  const { pnum, field, value, pwId, honka, translator, sourceTitle, oldOrder } = await request.json();  if (!pnum || !field) {
+  const { pnum, field, value, pwId, honka, translator, fullName, sourceTitle, oldOrder } = await request.json();
+    if (!pnum || !field) {
     return new Response(
       JSON.stringify({ error: 'pnum and field are required' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -637,8 +761,9 @@ export async function PUT(request) {
     } else if (field === 'poeticTechnique') {
       updated = await updatePoeticTechnique(pnum, value);
     } else if (field === 'spokenwritten') {
-      const spoken = VALID_SPOKEN_WRITTEN.includes('Spoken');
-      const written = VALID_SPOKEN_WRITTEN.includes('Written');
+      const selected = Array.isArray(value) ? value : [];
+      const spoken = selected.includes('Spoken');
+      const written = selected.includes('Written');
       updated = await updateSpokenWritten(pnum, { spoken, written });
     } else if (field === 'poemType') {
       updated = await updatePoemType(pnum, value);
@@ -650,12 +775,18 @@ export async function PUT(request) {
       updated = await updaterecevidence(pnum, value);
     } else if (SCALAR_FIELD_MAP[field]) {
       updated = await updateScalarProperty(pnum, field, value);
+    } else if (field === 'newTranslator') {
+      updated = await createTranslator(value, fullName);
     } else if (EDITABLE_PW_FIELDS.includes(field)) {
       updated = await updatePoeticWordField(pnum, pwId, field, value);
     } else if (field === 'allusionHonka') {
       updated = await updateAllusionHonka(pnum, honka, value);
     } else if (field === 'allusionPoet') {
       updated = await updateAllusionPoet(pnum, honka, value);
+    } else if (field === 'deleteTranslation') {
+      updated = await deletePoemTranslation(pnum, translator);
+    } else if (field === 'poemTranslation') {
+      updated = await upsertPoemTranslation(pnum, translator, value);
     } else if (field === 'allusionTranslation') {
       updated = await updateAllusionTranslation(pnum, honka, translator, value);
     } else if (field === 'allusionOrder') {

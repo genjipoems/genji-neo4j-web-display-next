@@ -3,23 +3,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from '../styles/pages/chapterProfile.module.css';
 
-const TRANSLATORS = [
-    "washburn",
-    "cranston",
-    "tyler",
-    "seidensticker",
-    "waley",
-    "japanese",
-    "romaji",
+const EXTRA_TEXTS = [
+    { key: 'japanese', label: 'japanese' },
+    { key: 'romaji', label: 'romaji' },
 ];
-
-const translatorItems = TRANSLATORS.map((name) => ({ key: name, label: name }));
 
 export default function TranslatorDropdown({ value, onChange, placeholder = 'Select translator' }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const containerRef = useRef(null);
+    const [translatorItems, setTranslatorItems] = useState(EXTRA_TEXTS);
 
+    useEffect(() => {
+        fetch('/api/poems/edit_poem/edit_translators')
+            .then(res => res.json())
+            .then(list => {
+                const fromDb = list.map(t => ({
+                    key: t.name.toLowerCase(),   // matches the map route's keys
+                    label: t.name.toLowerCase(),
+                }));
+                setTranslatorItems([...fromDb, ...EXTRA_TEXTS]);
+            })
+            .catch(err => {
+                console.error('Error loading translators:', err);
+                setTranslatorItems(EXTRA_TEXTS);
+            });
+    }, []);
     const currentDisplay = value
         ? translatorItems.find(i => i.key === value)?.label ?? value
         : placeholder;
