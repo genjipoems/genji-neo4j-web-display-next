@@ -23,7 +23,7 @@ const BlogPage = () => {
             <div className={styles.heroSection}>
                 <img
                     className={styles.fullBackgroundImage}
-                    src={`/images/blog_banner.jpg`}
+                    src={`/images/privacy_terms.jpg`}
                     alt="privacy banner"
                 />
                 <div className={styles.titleOverlay}>
