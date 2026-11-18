@@ -626,11 +626,33 @@
   overflow: hidden;
 }
 
+.communityTranslationCard {
+  height: auto;
+  min-height: 120px;
+}
+
+.communityTranslationHidden {
+  opacity: 0.65;
+}
+
 .translationContent {
   flex: 1;
   padding: 0px 15px;
   width: 160px;
   height: 120px;
+}
+
+.communityTranslationContent {
+  height: auto;
+  min-height: 120px;
+  padding: 8px 15px;
+  display: flex;
+  align-items: center;
+}
+
+.communityTranslationContent p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .translationContent p {
@@ -650,6 +672,62 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.communityTranslationMeta {
+  min-width: 160px;
+}
+
+.communityTranslationName {
+  width: 160px;
+  min-height: 30px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background-color: rgba(156, 144, 125, 0.66);
+  color: #fff;
+  font-family: 'Lexend', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: right;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.communityTranslationActions {
+  min-height: 30px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 2px 6px;
+}
+
+.communityTranslationAction {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #4b4b4b;
+  cursor: pointer;
+}
+
+.communityTranslationAction:hover:not(:disabled) {
+  background: rgba(75, 75, 75, 0.12);
+}
+
+.communityTranslationAction:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
+.communityTranslationDelete {
+  color: #8f3027;
 }
 
 .translatorInfo {

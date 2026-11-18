@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import styles from '../styles/pages/transSubmit.module.css';
 import { updateScalarField } from './PoemEditApi.prod';
@@ -13,14 +13,13 @@ const TransSubmit = ({
   onTranslatorSaved,      // (name, text) => void
   onTranslatorDeleted,
   onTranslatorsChanged,   // () => void, refetch the translator list
+  onUserTranslationSubmitted,
 }) => {
   const { data: session } = useSession();
   const [translation, setTranslation] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState('');
-
   const [mode, setMode] = useState('self');            // 'self' | 'existing' | 'new'
   const [translatorName, setTranslatorName] = useState('');
   const [newName, setNewName] = useState('');
@@ -35,20 +34,6 @@ const TransSubmit = ({
     return typeof s === 'string' && s !== 'N/A' ? s : '';
   };
   const hasExisting = mode === 'existing' && !!textOf(translatorName);
-
-  const fetchUser = async () => {
-    try {
-      if (session) {
-        const response = await fetch(`/api/user/me`);
-        const data = await response.json();
-        setUser(data._id);
-      }
-    } catch (error) {
-      console.error('Error fetching user:', error);
-    }
-  };
-
-  useEffect(() => { fetchUser(); }, [session]);
 
   const changeMode = (m) => {
     setMode(m);
@@ -90,16 +75,16 @@ const handleSubmit = async () => {
       setError(null);
 
       if (mode === 'self') {
-        await fetchUser();
         const response = await fetch('/api/translation/addTrans', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pageType, identifier, userId: user, content: translation }),
+          body: JSON.stringify({ pageType, identifier, content: translation }),
         });
         if (!response.ok) {
           const data = await response.json();
           throw new Error(data.message || 'Failed to submit translation');
         }
+        onUserTranslationSubmitted?.();
         setTranslation('');
       } else {
         await submitAsTranslator();

@@ -11,7 +11,7 @@ import TransDisplay from '../components/TranslationDisplay.prod'
 import PoemNavigation from './PoemNavigation.prod';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheckCircle, faCircle, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
-import EditableField from './EditableField.prod';
+import EditableField, {DeleteButton} from './EditableField.prod';
 import { useIsAdmin } from '../hooks/useAuth';
 import { updateScalarField } from './PoemEditApi.prod';
 
@@ -66,11 +66,11 @@ const EvidenceDropdown = ({ content, evidence }) => {
                 ) : (
                     content
                 )}
-                <span className={`${styles.evidenceToggle} ${isExpanded ? styles.expanded : ''}`} onClick={() => setIsExpanded(!isExpanded)}>
+                <span className={`${styles.evidenceToggle} ${isExpanded ? styles.evidenceToggleExpanded : ''}`} onClick={() => setIsExpanded(!isExpanded)}>
                     ▼
                 </span>
             </div>
-            <div className={`${styles.evidencePanel} ${isExpanded ? styles.expanded : ''}`}>
+            <div className={`${styles.evidencePanel} ${isExpanded ? styles.evidencePanelExpanded : ''}`}>
                 {typeof evidence === 'string' ? (
                     <FormatContent content={evidence} />
                 ) : (
@@ -548,6 +548,7 @@ const PoemDisplay = ({ poemData }) => {
     };
 
     const [translators, setTranslators] = useState([]);
+    const [userTranslationRefresh, setUserTranslationRefresh] = useState(0);
 
     const loadTranslators = () =>
         fetch('/api/poems/edit_poem/edit_translators')
@@ -607,6 +608,46 @@ const PoemDisplay = ({ poemData }) => {
         );
     };
 
+    // Editable (admin) or read-only (everyone else) view of a plain scalar field
+    // stored directly on poemState[stateKey]. For admins, an empty value shows a
+    // "+ Add ..." prompt so the field can be filled in. Non-admins get nothing
+    // when the field is empty.
+    const renderScalarField = ({ field, label, stateKey }) => {
+        const raw = poemState[stateKey];
+        if (!isAdmin) return raw ? <FormatContent content={raw} /> : null;
+
+        return (
+            <EditableField
+                pnum={poemState.poemId}
+                field={field}
+                value={toEditorHtml(raw)}
+                label={label}
+                onSaved={(f, newValue) => {
+                    // Tiptap returns "<p></p>" when cleared; store '' so the add prompt returns
+                    setPoemState(prev => ({ ...prev, [stateKey]: stripP(newValue) ? newValue : '' }));
+                    clearPoemCache();
+                }}
+            >
+                {raw
+                    ? <FormatContent content={raw} />
+                    : <em className={styles.addPrompt} style={{ opacity: 0.6 }}>+ Add {label.toLowerCase()}</em>}
+            </EditableField>
+        );
+    };
+
+    // Same as renderScalarField, wrapped in a titled "detailItem" block for the
+    // More Details panel. Hidden entirely for non-admins when there's no data.
+    const renderScalarDetail = ({ title, ...fieldProps }) => {
+        if (!poemState[fieldProps.stateKey] && !isAdmin) return null;
+
+        return (
+            <div className={styles.detailItem}>
+                <h3>{title}</h3>
+                {renderScalarField(fieldProps)}
+            </div>
+        );
+    };
+
     const SpeakerAddresseeInfo = ({ speaker, addressee, poemId }) => {
 
         const chapterName = chapterNames[chapter];
@@ -653,6 +694,19 @@ const PoemDisplay = ({ poemData }) => {
         );
     };
 
+    const [allPoems, setAllPoems] = useState([]);
+
+    useEffect(() => {
+        if (!isAdmin) return;
+        fetch('/api/poems/edit_poem/edit_poems')
+            .then(res => res.json())
+            .then(list => setAllPoems(Array.isArray(list) ? list : []))
+            .catch(err => {
+                console.error('Error loading poems:', err);
+                setAllPoems([]);
+            });
+    }, [isAdmin]);
+
     if (poemState.isLoading) {
         return <div className={styles.loadingContainer}>Loading poem...</div>;
     }
@@ -686,6 +740,12 @@ const PoemDisplay = ({ poemData }) => {
     (Array.isArray(poemState.furtherReadings) && poemState.furtherReadings.length > 0) ||
     poemState.handwritingDescription
     );
+
+    // For admins, every panel contains editable add-prompts, so none should look "empty"
+    const showEmptyContext = !hasContext && !isAdmin;
+    const showEmptySummary = !hasSummary && !isAdmin;
+    const showEmptyCommentary = !hasCommentary && !isAdmin;
+    const showEmptyDetails = !hasDetails && !isAdmin;
 
     return (
         <div className={styles.poemPageContainer}>
@@ -1142,94 +1202,46 @@ const PoemDisplay = ({ poemData }) => {
                             
                             {/* Narrative Context Panel */}
                             <div className={styles.analysisPanel}>
-                                <div className={`${styles.panelHeader} ${!hasContext ? styles.panelHeaderEmpty : ''}`} onClick={() => togglePanel('context')}>
+                                <div className={`${styles.panelHeader} ${showEmptyContext ? styles.panelHeaderEmpty : ''}`} onClick={() => togglePanel('context')}>
                                     <h2>WHERE WE ARE IN THE TALE</h2>
                                     <div className={`${styles.toggleArrow} ${expandedPanels.context ? styles.arrowExpanded : styles.arrowCollapsed}`}>
                                         ▼
                                     </div>
                                 </div>
                                 <div className={`${styles.panelContent} ${expandedPanels.context ? styles.expanded : styles.collapsed}`}>
-                                    { isAdmin ? (
-                                            <EditableField
-                                                pnum={poemState.poemId}
-                                                field="narrativeContext"
-                                                value={poemState.narrativeContext}
-                                                label="Narrative Context"
-                                                onSaved={(field, newValue) => {
-                                                    setPoemState(prev => ({ ...prev, [field]: newValue }));
-                                                    localStorage.removeItem(`poem_${chapter}_${number}`);
-                                                    localStorage.removeItem(`poem_${chapter}_${number}_time`);
-                                                }}
-                                            >
-                                                <FormatContent content={poemState.narrativeContext} />
-                                            </EditableField>
-                                        ) : (
-                                            <FormatContent content={poemState.narrativeContext} />
-                                        )}
+                                    {renderScalarField({ field: 'narrativeContext', label: 'Narrative Context', stateKey: 'narrativeContext' })}
                                 </div>
                             </div>
 
                             {/* Poem Summary Panel */}
                             <div className={styles.analysisPanel}>
-                                <div className={`${styles.panelHeader} ${!hasSummary ? styles.panelHeaderEmpty : ''}`} onClick={() => togglePanel('summary')}>
+                                <div className={`${styles.panelHeader} ${showEmptySummary ? styles.panelHeaderEmpty : ''}`} onClick={() => togglePanel('summary')}>
                                     <h2>WHAT THE POEM IS SAYING</h2>
                                     <div className={`${styles.toggleArrow} ${expandedPanels.summary ? styles.arrowExpanded : styles.arrowCollapsed}`}>
                                         ▼
                                     </div>
                                 </div>
                                 <div className={`${styles.panelContent} ${expandedPanels.summary ? styles.expanded : styles.collapsed}`}>
-                                    { isAdmin ? (
-                                        <EditableField
-                                            pnum={poemState.poemId}
-                                            field="paraphrase"
-                                            value={poemState.paraphrase}
-                                            label="Paraphrase"
-                                            onSaved={(field, newValue) => {
-                                                setPoemState(prev => ({ ...prev, [field]: newValue }));
-                                                localStorage.removeItem(`poem_${chapter}_${number}`);
-                                                localStorage.removeItem(`poem_${chapter}_${number}_time`);
-                                            }}
-                                        >
-                                            <FormatContent content={poemState.paraphrase} />
-                                        </EditableField>
-                                    ) : (
-                                        <FormatContent content={poemState.paraphrase} />
-                                    )}
+                                    {renderScalarField({ field: 'paraphrase', label: 'Paraphrase', stateKey: 'paraphrase' })}
                                 </div>
                             </div>
 
                             {/* Commentary Panel */}
                             <div className={styles.analysisPanel}>
-                                <div className={`${styles.panelHeader} ${!hasCommentary ? styles.panelHeaderEmpty : ''}`} onClick={() => togglePanel('commentary')}>
+                                <div className={`${styles.panelHeader} ${showEmptyCommentary ? styles.panelHeaderEmpty : ''}`} onClick={() => togglePanel('commentary')}>
                                     <h2>COMMENTARY</h2>
                                     <div className={`${styles.toggleArrow} ${expandedPanels.commentary ? styles.arrowExpanded : styles.arrowCollapsed}`}>
                                         ▼
                                     </div>
                                 </div>
                                 <div className={`${styles.panelContent} ${expandedPanels.commentary ? styles.expanded : styles.collapsed}`}>
-                                    { isAdmin ? (
-                                        <EditableField 
-                                            pnum={poemState.poemId}
-                                            field="notes"
-                                            value={poemState.notes}
-                                            label="Notes"
-                                            onSaved={(field, newValue) => {
-                                                setPoemState(prev => ({ ...prev, [field]: newValue }));
-                                                localStorage.removeItem(`poem_${chapter}_${number}`);
-                                                localStorage.removeItem(`poem_${chapter}_${number}_time`);
-                                            }}
-                                        >
-                                            <FormatContent content={poemState.notes} />
-                                        </EditableField>
-                                    ) : (
-                                        <FormatContent content={poemState.notes} />
-                                    )}
+                                    {renderScalarField({ field: 'notes', label: 'Notes', stateKey: 'notes' })}
                                 </div>
                             </div> 
 
                             {/* More Details Panel */}
                             <div className={styles.analysisPanel}>
-                                <div className={`${styles.panelHeader} ${!hasDetails ? styles.panelHeaderEmpty : ''}`} onClick={() => togglePanel('details')}>
+                                <div className={`${styles.panelHeader} ${showEmptyDetails ? styles.panelHeaderEmpty : ''}`} onClick={() => togglePanel('details')}>
                                     <h2>MORE DETAILS</h2>
                                     <div className={`${styles.toggleArrow} ${expandedPanels.details ? styles.arrowExpanded : styles.arrowCollapsed}`}>
                                         ▼
@@ -1261,74 +1273,11 @@ const PoemDisplay = ({ poemData }) => {
                                     data={poemState.groupParticipantData}
                                     />
                                     
-                                {poemState.paperMediumType && (
-                                    <div className={styles.detailItem}>
-                                        <h3>PAPER/MEDIUM</h3>
-                                        {isAdmin ? (
-                                            <EditableField
-                                                pnum={poemState.poemId}
-                                                field="paperMediumType"
-                                                value={poemState.paperMediumType}
-                                                label="Paper/Medium"
-                                                onSaved={(field, newValue) => {
-                                                    setPoemState(prev => ({ ...prev, [field]: newValue }));
-                                                    localStorage.removeItem(`poem_${chapter}_${number}`);
-                                                    localStorage.removeItem(`poem_${chapter}_${number}_time`);
-                                                }}
-                                            >
-                                                <FormatContent content={poemState.paperMediumType} />
-                                            </EditableField>
-                                        ) : (
-                                            <FormatContent content={poemState.paperMediumType} />
-                                        )}
-                                    </div>
-                                )}
+                                {renderScalarDetail({ title: 'PAPER/MEDIUM', field: 'paperMediumType', label: 'Paper/Medium', stateKey: 'paperMediumType' })}
 
-                                {poemState.handwritingDescription && (
-                                    <div className={styles.detailItem}>
-                                        <h3>HANDWRITING DESCRIPTION</h3>
-                                        {isAdmin ? (
-                                            <EditableField
-                                                pnum={poemState.poemId}
-                                                field="handwritingDescription"
-                                                value={poemState.handwritingDescription}
-                                                label="Handwriting Description"
-                                                onSaved={(field, newValue) => {
-                                                    setPoemState(prev => ({ ...prev, [field]: newValue }));
-                                                    localStorage.removeItem(`poem_${chapter}_${number}`);
-                                                    localStorage.removeItem(`poem_${chapter}_${number}_time`);
-                                                }}
-                                            >
-                                                <FormatContent content={poemState.handwritingDescription} />
-                                            </EditableField>
-                                        ) : (
-                                            <FormatContent content={poemState.handwritingDescription} />
-                                        )}
-                                    </div>
-                                )}
-                                
-                                {poemState.deliveryStyle && (
-                                    <div className={styles.detailItem}>
-                                        <h3>DELIVERY STYLE</h3>
-                                        {isAdmin ? (
-                                            <EditableField
-                                                pnum={poemState.poemId}
-                                                field="deliveryStyle"
-                                                value={poemState.deliveryStyle}
-                                                label="Delivery Style"
-                                                onSaved={(field, newValue) => {
-                                                    setPoemState(prev => ({ ...prev, [field]: newValue }));
-                                                    localStorage.removeItem(`poem_${chapter}_${number}`);
-                                                    localStorage.removeItem(`poem_${chapter}_${number}_time`);
-                                                }}
-                                            >
-                                                <FormatContent content={poemState.deliveryStyle} />
-                                            </EditableField>
-                                        ) : (
-                                            <FormatContent content={poemState.deliveryStyle} />
-                                        )}
-                                    </div>
-                                )}
+                                {renderScalarDetail({ title: 'HANDWRITING DESCRIPTION', field: 'handwritingDescription', label: 'Handwriting Description', stateKey: 'handwritingDescription' })}
+
+                                {renderScalarDetail({ title: 'DELIVERY STYLE', field: 'deliveryStyle', label: 'Delivery Style', stateKey: 'deliveryStyle' })}
                                 
                                 {poemState.season && (
                                     <div className={styles.detailItem}>
@@ -1364,26 +1313,86 @@ const PoemDisplay = ({ poemData }) => {
                                     </div>
                                 )}
                                 
-                                {poemState.kigo && poemState.kigo.length > 0 && (
+                                {poemState.kigo.length > 0 && (
                                     <div className={styles.detailItem}>
-                                        <h3>SEASONAL WORD</h3>
+                                        <h3>SEASONAL WORDS</h3>
                                         {poemState.kigo.map((kigoItem, index) => {
+                                            const label = kigoItem.japanese && kigoItem.english
+                                                ? `${kigoItem.japanese} — ${kigoItem.english}`
+                                                : (kigoItem.japanese || kigoItem.english || '');
+
+                                            const wordLabel = isAdmin ? (
+                                                <span>
+                                                    <EditableField
+                                                        pnum={poemState.poemId}
+                                                        field="kigoJapanese"
+                                                        extraPayload={{ english: kigoItem.english, japanese: kigoItem.japanese }}
+                                                        value={toEditorHtml(kigoItem.japanese)}
+                                                        label="Seasonal Word (Japanese)"
+                                                        onSaved={(field, newValue) => {
+                                                            const japanese = stripP(newValue);
+                                                            setPoemState(prev => ({
+                                                                ...prev,
+                                                                kigo: prev.kigo.map((k, i) =>
+                                                                    i === index ? { ...k, japanese: japanese || null } : k
+                                                                ),
+                                                            }));
+                                                            clearPoemCache();
+                                                        }}
+                                                    >
+                                                        {kigoItem.japanese || <em>(add Japanese)</em>}
+                                                    </EditableField>
+                                                    {' — '}
+                                                    <EditableField
+                                                        pnum={poemState.poemId}
+                                                        field="kigoEnglish"
+                                                        extraPayload={{ english: kigoItem.english, japanese: kigoItem.japanese }}
+                                                        value={toEditorHtml(kigoItem.english)}
+                                                        label="Seasonal Word (English)"
+                                                        required
+                                                        onSaved={(field, newValue) => {
+                                                            const english = stripP(newValue);
+                                                            setPoemState(prev => ({
+                                                                ...prev,
+                                                                kigo: prev.kigo.map((k, i) =>
+                                                                    i === index ? { ...k, english } : k
+                                                                ),
+                                                            }));
+                                                            clearPoemCache();
+                                                        }}
+                                                    >
+                                                        {kigoItem.english || <em>(add English)</em>}
+                                                    </EditableField>
+                                                </span>
+                                            ) : label;
+
+                                            const evidenceNode = isAdmin ? (
+                                                <EditableField
+                                                    pnum={poemState.poemId}
+                                                    field="kigoEvidence"
+                                                    extraPayload={{ english: kigoItem.english, japanese: kigoItem.japanese }}
+                                                    value={toEditorHtml(kigoItem.evidence)}
+                                                    label="Seasonal Word Evidence"
+                                                    onSaved={(f, newValue) => {
+                                                        setPoemState(prev => ({
+                                                            ...prev,
+                                                            kigo: prev.kigo.map((k, i) =>
+                                                                i === index ? { ...k, evidence: stripP(newValue) ? newValue : null } : k
+                                                            ),
+                                                        }));
+                                                        clearPoemCache();
+                                                    }}
+                                                >
+                                                    {kigoItem.evidence
+                                                        ? <FormatContent content={kigoItem.evidence} />
+                                                        : <em>(add evidence)</em>}
+                                                </EditableField>
+                                            ) : kigoItem.evidence;
+
                                             return (
                                                 <div key={index} className={styles.seasonalWordItem}>
                                                     <div className={styles.withEvidence}>
-                                                        <EvidenceDropdown 
-                                                            content={(() => {
-                                                                if (kigoItem.japanese && kigoItem.english) {
-                                                                    return `${kigoItem.japanese} — ${kigoItem.english}`;
-                                                                } else if (kigoItem.japanese && !kigoItem.english) {
-                                                                    return kigoItem.japanese;
-                                                                } else if (!kigoItem.japanese && kigoItem.english) {
-                                                                    return kigoItem.english;
-                                                                }
-                                                                return '';
-                                                            })()}
-                                                            evidence={kigoItem.evidence}
-                                                        />
+                                                        <EvidenceDropdown content={wordLabel} evidence={evidenceNode} />
                                                     </div>
                                                 </div>
                                             );
@@ -1841,25 +1850,84 @@ const PoemDisplay = ({ poemData }) => {
                                     </div>
                                 )}
                                 
-                                {poemState.relWithEvidence && poemState.relWithEvidence.length > 0 && (
+                                {(isAdmin || (poemState.relWithEvidence && poemState.relWithEvidence.length > 0)) && (
                                     <div className={styles.detailItem}>
                                         <h3>INTERNAL ALLUSION</h3>
                                         <div className={styles.allusionContainer}>
-                                            {poemState.relWithEvidence.map((rel, idx) => (
-                                                <div key={idx} className={styles.allusionItem}>
-                                                    <EvidenceDropdown 
-                                                        content={
-                                                            <a 
-                                                                href={`/poems/${parseInt(rel[0].substring(0, 2), 10)}/${parseInt(rel[0].substring(4, 6), 10)}`}
-                                                                className={styles.relatedPoemLink}
-                                                            >
-                                                                {rel[0]}
-                                                            </a>
-                                                        }
-                                                        evidence={rel[1]}
-                                                    />
+                                            {(poemState.relWithEvidence || []).map((rel, idx) => (
+                                                <div key={rel[0]} className={styles.allusionItem} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                                    <div style={{ flex: 1 }}>
+                                                        <EvidenceDropdown
+                                                            content={
+                                                                <a
+                                                                    href={`/poems/${parseInt(rel[0].substring(0, 2), 10)}/${parseInt(rel[0].substring(4, 6), 10)}`}
+                                                                    className={styles.relatedPoemLink}
+                                                                >
+                                                                    {rel[0]}
+                                                                </a>
+                                                            }
+                                                            evidence={isAdmin ? (
+                                                                <EditableField
+                                                                    pnum={poemState.poemId}
+                                                                    field="internalAllusionEvidence"
+                                                                    extraPayload={{ targetPnum: rel[0] }}
+                                                                    value={toEditorHtml(rel[1])}
+                                                                    label="Internal Allusion Evidence"
+                                                                    onSaved={(f, newValue) => {
+                                                                        setPoemState(prev => ({
+                                                                            ...prev,
+                                                                            relWithEvidence: prev.relWithEvidence.map(r =>
+                                                                                r[0] === rel[0] ? [r[0], stripP(newValue) ? newValue : null] : r
+                                                                            ),
+                                                                        }));
+                                                                        clearPoemCache();
+                                                                    }}
+                                                                >
+                                                                    {rel[1] ? <FormatContent content={rel[1]} /> : <em>(add evidence)</em>}
+                                                                </EditableField>
+                                                            ) : rel[1]}
+                                                        />
+                                                    </div>
+                                                    {isAdmin && (
+                                                        <DeleteButton
+                                                            pnum={poemState.poemId}
+                                                            field="internalAllusionDelete"
+                                                            extraPayload={{ targetPnum: rel[0] }}
+                                                            title="Remove internal allusion"
+                                                            onDeleted={() => {
+                                                                setPoemState(prev => ({
+                                                                    ...prev,
+                                                                    relWithEvidence: prev.relWithEvidence.filter(r => r[0] !== rel[0]),
+                                                                }));
+                                                                clearPoemCache();
+                                                            }}
+                                                        />
+                                                    )}
                                                 </div>
                                             ))}
+
+                                            {isAdmin && (
+                                                <EditableField
+                                                    pnum={poemState.poemId}
+                                                    field="internalAllusionAdd"
+                                                    value=""
+                                                    label="Internal Allusion"
+                                                    datalistOptions={allPoems.filter(p =>
+                                                        p !== poemState.poemId &&
+                                                        !(poemState.relWithEvidence || []).some(r => r[0] === p)
+                                                    )}
+                                                    onSaved={(f, newValue) => {
+                                                        const target = String(newValue).trim();
+                                                        setPoemState(prev => ({
+                                                            ...prev,
+                                                            relWithEvidence: [...(prev.relWithEvidence || []), [target, null]],
+                                                        }));
+                                                        clearPoemCache();
+                                                    }}
+                                                >
+                                                    <em>+ add internal allusion</em>
+                                                </EditableField>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -2091,6 +2159,12 @@ const PoemDisplay = ({ poemData }) => {
                             </div>
                         </div>
                     ))}
+
+                    <TransDisplay
+                        pageType="poem"
+                        identifier={`${chapter}-${number}`}
+                        refreshSignal={userTranslationRefresh}
+                    />
                     
                     {/* User Translation Input */}
                     <div className={styles.translationCard}>
@@ -2104,8 +2178,8 @@ const PoemDisplay = ({ poemData }) => {
                                 onTranslatorSaved={saveTranslation}
                                 onTranslatorDeleted={removeTranslation}
                                 onTranslatorsChanged={loadTranslators}
+                                onUserTranslationSubmitted={() => setUserTranslationRefresh(value => value + 1)}
                             />
-                            <TransDisplay pageType="poem" identifier={`${chapter}-${number}`} />
                         </div>
                         <div className={styles.translationMeta}>
                             <SpeakerAddresseeInfo 

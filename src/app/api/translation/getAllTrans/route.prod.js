@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+import { auth } from "../../../../auth.prod";
 import client from "../../../../lib/db.prod";
 import { NextResponse } from "next/server";
 import { ObjectId } from 'mongodb';
@@ -6,6 +7,7 @@ import { ObjectId } from 'mongodb';
 // get all comments for a page including the user info for each comment
 export async function GET(req) {
     try {
+        const session = await auth();
         const { searchParams } = new URL(req.url);
         const pageType = searchParams.get('pageType');
         const identifier = searchParams.get('identifier');
@@ -23,7 +25,11 @@ export async function GET(req) {
         }
 
         // Collect user IDs from translations that have a user field
-        const userIds = [...new Set(translations.map(trans => trans.user))].map(id => new ObjectId(id))
+        const userIds = [...new Set(
+            translations
+                .map(trans => trans.user)
+                .filter(id => typeof id === 'string' && ObjectId.isValid(id))
+        )].map(id => new ObjectId(id));
 
 
         // Get user info if there are any user IDs
@@ -37,14 +43,24 @@ export async function GET(req) {
             userMap = new Map(users.map(user => [user._id.toString(), user]));
         }
 
+        const currentUser = session?.user?.email
+            ? await db.collection('info').findOne(
+                { email: session.user.email },
+                { projection: { _id: 1 } }
+            )
+            : null;
+
         // Add user info to translations
         const transWithUserInfo = translations.map(trans => {
     
-            const user = userMap.get(trans.user.toString());
+            const user = trans.user ? userMap.get(trans.user.toString()) : null;
             if (user) {
-                trans.userName = user.name || user.googleName;
+                trans.userName = user.name || user.googleName || 'Unknown user';
                 trans.userImage = user.image;
+            } else {
+                trans.userName = 'Unknown user';
             }
+            trans.isOwner = !!currentUser && trans.user?.toString() === currentUser._id.toString();
 
             return trans;
         });

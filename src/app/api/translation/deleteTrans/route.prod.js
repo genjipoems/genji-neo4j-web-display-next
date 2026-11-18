@@ -4,18 +4,27 @@ import { NextResponse } from "next/server";
 import { ObjectId } from 'mongodb';
 
 // handle trans deletion
-// only admin can delete
+// Users can delete their own translations; admins can delete any translation.
 export async function DELETE(req) {
     const session = await auth();
 
-    if (!session) {
+    if (!session?.user?.email) {
         return NextResponse.json({ message: 'Unauthorized'}, { status: 401 });
     }
 
     try {
-        const { _id, userId, version } = await req.json();
+        const { _id, version } = await req.json();
+
+        if (!ObjectId.isValid(_id)) {
+            return NextResponse.json({ message: 'Invalid translation ID' }, { status: 400 });
+        }
         
         const db = await client.db('user');
+        const isAdmin = session.user.role === 'admin';
+        const submitter = isAdmin ? null : await db.collection('info').findOne(
+            { email: session.user.email },
+            { projection: { _id: 1 } }
+        );
 
         const trans = await db.collection('translation').findOne({  _id: new ObjectId(_id) });
 
@@ -27,8 +36,8 @@ export async function DELETE(req) {
             );
         }
 
-        if (trans.user !== userId && session.user.role !== 'admin') {
-            return NextResponse.json({ message: 'Unauthorized'}, { status: 401 });
+        if (!isAdmin && (!submitter || trans.user?.toString() !== submitter._id.toString())) {
+            return NextResponse.json({ message: 'You can only delete your own translations' }, { status: 403 });
         }
 
 
@@ -46,7 +55,7 @@ export async function DELETE(req) {
             const transRes = await db.collection('translation').findOneAndDelete({ 
                 _id: new ObjectId(_id),
                 version: version || 0 
-            }, { transSession });
+            }, { session: transSession });
 
             // if trans has been modified by another admin rollback transaction
             if (!transRes) {

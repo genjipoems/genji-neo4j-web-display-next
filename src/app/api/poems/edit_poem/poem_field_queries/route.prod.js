@@ -313,6 +313,53 @@ async function deletePoemTranslation(pnum, translator) {
   }
 }
 
+async function addInternalAllusion(pnum, target) {
+  const t = htmlToPlain(target);
+  if (!t) throw new Error('Choose a poem');
+  if (t === pnum.toString()) throw new Error('A poem cannot allude to itself');
+
+  const session = await getSession();
+  try {
+    const check = await session.run(
+      `OPTIONAL MATCH (s:Genji_Poem {pnum: $target})
+       OPTIONAL MATCH (:Genji_Poem {pnum: $pnum})-[r:INTERNAL_ALLUSION_TO]->(s)
+       RETURN count(DISTINCT s) AS found, count(r) AS existing`,
+      { pnum: pnum.toString(), target: t }
+    );
+    if (check.records[0].get('found').toNumber() === 0) throw new Error(`Poem "${t}" not found`);
+    if (check.records[0].get('existing').toNumber() > 0) throw new Error('That internal allusion already exists');
+
+    await session.run(
+      `MATCH (g:Genji_Poem {pnum: $pnum}), (s:Genji_Poem {pnum: $target})
+       CREATE (g)-[:INTERNAL_ALLUSION_TO]->(s)
+       SET g.last_updated = datetime()`,
+      { pnum: pnum.toString(), target: t }
+    );
+    return { pnum, target: t };
+  } finally {
+    await session.close();
+  }
+}
+
+async function deleteInternalAllusion(pnum, target) {
+  if (!target) throw new Error('targetPnum is required');
+  const session = await getSession();
+  try {
+    const res = await session.run(
+      `MATCH (g:Genji_Poem {pnum: $pnum})-[r:INTERNAL_ALLUSION_TO]->(:Genji_Poem {pnum: $target})
+       WITH g, collect(r) AS rs
+       FOREACH (x IN rs | DELETE x)
+       SET g.last_updated = datetime()
+       RETURN size(rs) AS n`,
+      { pnum: pnum.toString(), target }
+    );
+    if (res.records[0].get('n').toNumber() === 0) throw new Error('Internal allusion not found');
+    return { pnum, target, deleted: true };
+  } finally {
+    await session.close();
+  }
+}
+
 async function updateAge(pnum, value) {
   const session = await getSession();
   try {
@@ -634,6 +681,64 @@ async function findHonkaId(tx, pnum, honka) {
   return hit.get('id');
 }
 
+async function updateKigoEvidence(pnum, english, japanese, value) {
+  if (!english && !japanese) throw new Error('english or japanese is required');
+  const session = await getSession();
+  try {
+    const res = await session.run(
+      `MATCH (g:Genji_Poem {pnum: $pnum})-[r:HAS_SEASONAL_WORD_OF]->(sw:Seasonal_Word)
+       WHERE ($english <> '' AND sw.english = $english)
+          OR ($english = '' AND sw.japanese = $japanese)
+       SET r.evidence = $value, g.last_updated = datetime()
+       RETURN count(r) AS n`,
+      { pnum: pnum.toString(), english: english || '', japanese: japanese || '', value: cleanEvidence(value) }
+    );
+    if (res.records[0].get('n').toNumber() === 0) throw new Error('Seasonal word not found');
+    return { pnum, field: 'kigoEvidence', value };
+  } finally {
+    await session.close();
+  }
+}
+
+async function updateKigoWord(pnum, english, japanese, field, value) {
+  if (!english && !japanese) throw new Error('english or japanese is required');
+
+  const property = field === 'kigoEnglish'
+    ? 'english'
+    : field === 'kigoJapanese'
+      ? 'japanese'
+      : null;
+  if (!property) throw new Error('Invalid seasonal word field');
+
+  const text = htmlToPlain(value);
+  if (property === 'english' && !text) {
+    throw new Error('English seasonal word is required');
+  }
+
+  const session = await getSession();
+  try {
+    const res = await session.run(
+      `MATCH (g:Genji_Poem {pnum: $pnum})-[:HAS_SEASONAL_WORD_OF]->(sw:Seasonal_Word)
+       WHERE ($english <> '' AND sw.english = $english)
+          OR ($english = '' AND sw.japanese = $japanese)
+       SET sw.${property} = $value, g.last_updated = datetime()
+       RETURN count(sw) AS n`,
+      {
+        pnum: pnum.toString(),
+        english: english || '',
+        japanese: japanese || '',
+        value: text || null,
+      }
+    );
+    if (res.records[0].get('n').toNumber() === 0) {
+      throw new Error('Seasonal word not found');
+    }
+    return { pnum, field, value: text };
+  } finally {
+    await session.close();
+  }
+}
+
 async function createTranslator(name, fullName) {
   const clean = htmlToPlain(name);
   if (!clean) throw new Error('Translator name is required');
@@ -746,7 +851,7 @@ export async function PUT(request) {
     );
   }
 
-  const { pnum, field, value, pwId, honka, translator, fullName, sourceTitle, oldOrder } = await request.json();
+  const { pnum, field, value, pwId, honka, targetPnum, translator, fullName, sourceTitle, oldOrder, english, japanese } = await request.json();
     if (!pnum || !field) {
     return new Response(
       JSON.stringify({ error: 'pnum and field are required' }),
@@ -779,10 +884,20 @@ export async function PUT(request) {
       updated = await createTranslator(value, fullName);
     } else if (EDITABLE_PW_FIELDS.includes(field)) {
       updated = await updatePoeticWordField(pnum, pwId, field, value);
+    } else if (field === 'internalAllusionAdd') {
+      updated = await addInternalAllusion(pnum, value);
+    } else if (field === 'internalAllusionDelete') {
+      updated = await deleteInternalAllusion(pnum, targetPnum);
     } else if (field === 'allusionHonka') {
       updated = await updateAllusionHonka(pnum, honka, value);
     } else if (field === 'allusionPoet') {
       updated = await updateAllusionPoet(pnum, honka, value);
+    } else if (field === 'kigoEvidence') {
+      updated = await updateKigoEvidence(pnum, english, japanese, value);
+    } else if (field === 'kigoEnglish' || field === 'kigoJapanese') {
+      updated = await updateKigoWord(pnum, english, japanese, field, value);
+    } else if (field === 'internalAllusionEvidence') {
+      updated = await updateInternalAllusionEvidence(pnum, targetPnum, value);
     } else if (field === 'deleteTranslation') {
       updated = await deletePoemTranslation(pnum, translator);
     } else if (field === 'poemTranslation') {
